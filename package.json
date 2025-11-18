@@ -1,0 +1,17 @@
+{
+  "name": "zentara-core",
+  "version": "1.0.0",
+  "description": "Zentara Core Framework – Intelligence in Harmony",
+  "main": "dist/main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "ts-node src/main.ts",
+    "build": "tsc",
+    "start": "node dist/main.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.0"
+  }
+}
