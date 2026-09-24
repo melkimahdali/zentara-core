@@ -35,6 +35,7 @@ export interface AiConfig {
 
 /**
  * Rantai default dari env (tanpa perlu mengedit zentara.config.mjs):
+ * - OmniRoute (gratis) dicoba paling awal;
  * - Claude selalu ada (dilewati otomatis bila ANTHROPIC_API_KEY kosong);
  * - provider cloud lain (OpenAI, Gemini, Groq, DeepSeek, OpenRouter) ikut bila API key-nya terisi;
  * - OmniRoute & Ollama lokal selalu dicoba dan dilewati bila tidak berjalan.

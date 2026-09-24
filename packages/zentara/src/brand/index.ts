@@ -122,7 +122,7 @@ export function banner(options: BannerOptions): string[] {
   const logoWidth = Math.max(...logo.map(visibleWidth));
   if (columns < logoWidth + 4) return ["", ...text.map((l) => `  ${l}`)];
   // Terminal sedang: logo di atas, teks di bawahnya.
-  if (columns < logoWidth + 4 + 48) return [...logo.map((l) => `  ${l}`), "", ...text.map((l) => `  ${l}`)];
+  if (columns < logoWidth + 5 + 56) return [...logo.map((l) => `  ${l}`), "", ...text.map((l) => `  ${l}`)];
 
   const top = Math.max(0, Math.floor((logo.length - text.length) / 2));
   const rows = Math.max(logo.length, top + text.length);

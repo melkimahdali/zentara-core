@@ -12,7 +12,8 @@ import { accent, c, gold, printApprovalHeader, TerminalUI, type Output } from ".
 import { ToolError, type AgentTool } from "../ai/tools.js";
 import { ProviderUnavailableError, type ToolCall, type ToolResult } from "../ai/types.js";
 import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
-import { DevServer, isServerUp, openBrowser } from "../dev/server.js";
+import { BackgroundProcess, commandExists, DevServer, isServerUp, openBrowser, waitForUrl } from "../dev/server.js";
+import { findPreset } from "../ai/presets.js";
 import { banner, colorDepth } from "../brand/index.js";
 import { Keys, select, Spinner, type Choice } from "./widgets.js";
 
@@ -265,6 +266,39 @@ export async function startRepl(options: ReplOptions): Promise<number> {
   io.out(c.dim("  Tulis permintaan dalam bahasa biasa · /help perintah · Esc hentikan AI · Ctrl+C 2x keluar"));
   if (options.dryRun) io.out(c.yellow("  Mode dry-run: tidak ada file yang diubah."));
 
+  // ── OmniRoute (AI gratis) di latar belakang ────────────────────────────
+  let omniroute: BackgroundProcess | undefined;
+  const first = config.providers[0];
+  if (first?.type === "openai-compatible" && first.name === "omniroute" && /^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(first.baseUrl)) {
+    const preset = findPreset("omniroute")!;
+    const modelsUrl = `${first.baseUrl.replace(/\/+$/, "")}/models`;
+    if (!(await isServerUp(modelsUrl))) {
+      io.out("");
+      if (!commandExists(preset.command!)) {
+        io.out(`  ${gold("●")} OmniRoute (AI gratis) belum terpasang; Zentara memakai provider lain yang tersedia ${c.dim("(cek: /status)")}.`);
+        io.out(c.dim(`    Pasang sekali: ${preset.install}`));
+      } else {
+        const start = await select(keys, "OmniRoute (AI gratis) belum berjalan. Jalankan di latar belakang?", [
+          { label: "Ya", value: true, hint: "dimatikan lagi saat Anda keluar" },
+          { label: "Tidak", value: false, hint: "pakai provider lain yang tersedia" },
+        ], false);
+        if (start) {
+          omniroute = new BackgroundProcess(preset.command!, [], { cwd, env: options.serverEnv });
+          omniroute.start();
+          spinnerLabel = "Menyalakan OmniRoute";
+          spinner.start(spinnerLabel);
+          const ok = await waitForUrl(modelsUrl, 60_000, () => omniroute!.running);
+          spinner.stop();
+          if (ok) io.out(`  ${c.green("●")} OmniRoute berjalan di ${c.bold(first.baseUrl.replace(/\/v1\/?$/, ""))} ${c.dim("(dashboard & pengaturan provider)")}`);
+          else {
+            io.out(c.yellow("  ⚠ OmniRoute belum siap; sementara memakai provider lain yang tersedia. Log terakhir:"));
+            for (const line of omniroute.logs(8)) io.out(c.dim(`    │ ${line}`));
+          }
+        }
+      }
+    }
+  }
+
   // ── Tawarkan server dev ────────────────────────────────────────────────
   const isProject = fs.existsSync(path.join(cwd, "src", "app"));
   if (isProject && options.offerDevServer) {
@@ -509,6 +543,10 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     if (devServer.running) {
       io.out(c.dim("  Menghentikan server dev..."));
       await devServer.stop();
+    }
+    if (omniroute?.running) {
+      io.out(c.dim("  Menghentikan OmniRoute..."));
+      await omniroute.stop();
     }
     await devtools?.close();
     io.out(c.dim("  Sampai jumpa!"));

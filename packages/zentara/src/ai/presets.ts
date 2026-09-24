@@ -20,10 +20,29 @@ export interface ProviderPreset {
   local?: boolean;
   tokenParam?: TokenParam;
   signupUrl?: string;
+  /** Cara memasang & menjalankan server lokal. */
+  install?: string;
+  /** Perintah untuk menjalankan server lokal di latar belakang (CLI interaktif). */
+  command?: string;
 }
 
-/** Urutan default rantai fallback. */
+/** Urutan default rantai fallback: OmniRoute (gratis) lebih dulu. */
 export const PRESETS: readonly ProviderPreset[] = [
+  {
+    // Default: gratis tanpa API key (model "auto" memilih provider gratis yang sehat).
+    name: "omniroute",
+    label: "OmniRoute (gratis, gateway ke ratusan provider AI)",
+    type: "openai-compatible",
+    baseUrl: "http://localhost:20128/v1",
+    urlEnv: "OMNIROUTE_URL",
+    keyEnv: "OMNIROUTE_API_KEY",
+    modelEnv: "OMNIROUTE_MODEL",
+    defaultModel: "auto",
+    local: true,
+    signupUrl: "https://github.com/diegosouzapw/OmniRoute",
+    install: "npm install -g omniroute   lalu jalankan:   omniroute",
+    command: "omniroute",
+  },
   {
     name: "claude",
     label: "Claude (Anthropic)",
@@ -88,17 +107,6 @@ export const PRESETS: readonly ProviderPreset[] = [
     modelEnv: "OPENROUTER_MODEL",
     defaultModel: "openai/gpt-4.1",
     signupUrl: "https://openrouter.ai/keys",
-  },
-  {
-    name: "omniroute",
-    label: "OmniRoute (gateway lokal, termasuk model gratis)",
-    type: "openai-compatible",
-    baseUrl: "http://localhost:20128/v1",
-    urlEnv: "OMNIROUTE_URL",
-    keyEnv: "OMNIROUTE_API_KEY",
-    modelEnv: "OMNIROUTE_MODEL",
-    local: true,
-    signupUrl: "https://github.com/diegosouzapw/OmniRoute",
   },
   {
     name: "ollama",

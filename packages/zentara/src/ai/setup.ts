@@ -109,7 +109,7 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
       const configured = p.keyEnv && !p.local ? (env[p.keyEnv] ? c.green(" ✓ sudah diatur") : "") : c.dim(" (lokal)");
       io.out(`  ${String(i + 1).padStart(2)}. ${p.label}${configured}`);
     });
-    const answer = (await rl.question("Nomor: ")).trim();
+    const answer = (await rl.question(`Nomor ${c.dim("(Enter = 1, OmniRoute gratis)")}: `)).trim() || "1";
     preset = PRESETS[Number(answer) - 1] ?? findPreset(answer.toLowerCase());
     if (!preset) {
       io.err("Pilihan tidak valid.");
@@ -130,6 +130,14 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
       return 1;
     }
     if (url !== preset.baseUrl || env[preset.urlEnv!]) updates[preset.urlEnv!] = url;
+    if (preset.keyEnv) {
+      const hint = apiKey ? "Enter = pakai yang sudah ada" : "opsional, Enter = lewati";
+      const typed = await askSecret(rl, `API key ${c.dim(`(${hint})`)}: `);
+      if (typed) {
+        apiKey = typed;
+        updates[preset.keyEnv] = typed;
+      }
+    }
   } else if (preset.keyEnv) {
     const hint = apiKey ? c.dim(" (Enter = pakai yang sudah ada)") : "";
     const typed = await askSecret(rl, `API key${hint}: `);
@@ -151,7 +159,11 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
     } catch (err) {
       const reason = err instanceof ProviderUnavailableError ? err.reason : (err as Error).message;
       io.err(c.red(`✗ Gagal terhubung ke ${preset.label}: ${reason}`));
-      if (preset.local) io.err(`Pastikan ${preset.label} sudah berjalan (${preset.signupUrl}).`);
+      if (preset.local) {
+        io.err(`Pastikan ${preset.label} sudah berjalan.`);
+        if (preset.install) io.err(`Belum terpasang? ${c.cyan(preset.install)}  ${c.dim(`(${preset.signupUrl})`)}`);
+        else io.err(c.dim(preset.signupUrl ?? ""));
+      }
       return 1;
     }
   }
