@@ -177,3 +177,32 @@ export function box(title: string, lines: string[], footer: string, columns = pr
   const bottom = `${c.gray("╰─")} ${c.dim(footer)} ${c.gray("─".repeat(Math.max(0, width - vis(footer) - 5)) + "╯")}`;
   return [top, ...lines.map((l) => `${c.gray("│")} ${fit(l)} ${c.gray("│")}`), bottom];
 }
+
+/**
+ * Baris kursor saat ini (1 = paling atas) lewat permintaan posisi kursor ANSI (DSR).
+ * Dipakai untuk menaruh kolom input di bagian bawah jendela seperti Claude Code.
+ */
+export function cursorRow(input: NodeJS.ReadStream = process.stdin, output: NodeJS.WriteStream = process.stdout, timeoutMs = 300): Promise<number | undefined> {
+  if (!input.isTTY || !output.isTTY) return Promise.resolve(undefined);
+  return new Promise((resolve) => {
+    const wasRaw = input.isRaw;
+    let buffer = "";
+    const done = (row: number | undefined) => {
+      clearTimeout(timer);
+      input.off("data", onData);
+      input.setRawMode(wasRaw);
+      input.pause();
+      resolve(row);
+    };
+    const onData = (chunk: Buffer) => {
+      buffer += chunk.toString();
+      const m = /\x1b\[(\d+);(\d+)R/.exec(buffer);
+      if (m) done(Number(m[1]));
+    };
+    const timer = setTimeout(() => done(undefined), timeoutMs);
+    input.setRawMode(true);
+    input.on("data", onData);
+    input.resume();
+    output.write("\x1b[6n");
+  });
+}

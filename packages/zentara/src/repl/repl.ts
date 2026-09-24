@@ -17,7 +17,9 @@ import { installOmniRoute, nodeSupportsOmniRoute, OMNIROUTE, OMNIROUTE_TIPS, omn
 import { colorDepth, terminalLogo, visibleWidth } from "../brand/index.js";
 import { spawn } from "node:child_process";
 import { platformCommand } from "../process.js";
-import { box, Keys, select, Spinner, type Choice } from "./widgets.js";
+import { cursorRow, Keys, select, Spinner, type Choice } from "./widgets.js";
+import { menuPrompts } from "./prompts.js";
+import type { SetupPrompts } from "../ai/setup.js";
 
 export interface ReplOptions {
   cwd: string;
@@ -35,7 +37,7 @@ export interface ReplOptions {
   /** false = jangan tawarkan menjalankan server dev (flag --no-dev). */
   offerDevServer: boolean;
   /** Wizard `ai:setup` (dipanggil dari /setup). */
-  runSetup: (rl: readlinePromises.Interface, preset?: string) => Promise<number>;
+  runSetup: (prompts: SetupPrompts, preset?: string) => Promise<number>;
   dryRun?: boolean;
 }
 
@@ -250,12 +252,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
 
   /** Wizard ai:setup di dalam CLI, lalu muat ulang config & mulai percakapan baru. */
   async function runSetupWizard(preset?: string): Promise<void> {
-    const rl = readlinePromises.createInterface({ input: process.stdin, output: out, terminal: true });
-    try {
-      await options.runSetup(rl, preset);
-    } finally {
-      rl.close();
-    }
+    await options.runSetup(menuPrompts(keys), preset);
     try {
       config = await options.loadConfig();
       session = newSession(config);
@@ -323,9 +320,11 @@ export async function startRepl(options: ReplOptions): Promise<number> {
   // Logo Zentara Core lengkap (motif asli); di terminal sempit logo di atas info.
   const mark = columns >= 56 ? terminalLogo(depth) : [];
   const markWidth = mark.length ? Math.max(...mark.map(visibleWidth)) : 0;
+  // Mulai dari layar bersih seperti Claude Code (riwayat terminal tetap bisa di-scroll).
+  if (process.stdout.isTTY) out.write("\x1b[2J\x1b[H");
   io.out("");
   if (mark.length && columns >= markWidth + 4 + 44) {
-    const top = Math.floor((mark.length - info.length) / 2);
+    const top = 1;
     mark.forEach((line, i) => io.out(` ${line}${" ".repeat(markWidth - visibleWidth(line))}   ${info[i - top] ?? ""}`.replace(/ +$/, "")));
   } else {
     for (const line of mark) io.out(` ${line}`);
@@ -467,8 +466,12 @@ export async function startRepl(options: ReplOptions): Promise<number> {
    * readline menghapus layar di bawah kursor setiap kali menggambar ulang, jadi garis bawah dan
    * baris mode digambar ulang setelah setiap tombol.
    */
-  function readInput(): Promise<string | null> {
+  async function readInput(): Promise<string | null> {
     const cols = Math.max(20, (process.stdout.columns ?? 80) - 1);
+    // Kolom input menempel di bagian bawah jendela (6 baris: jarak, status, garis, input, garis, mode).
+    const row = await cursorRow();
+    const rows = process.stdout.rows ?? 0;
+    if (row !== undefined && rows && row + 6 < rows) out.write("\n".repeat(rows - row - 6));
     const rule = c.gray("─".repeat(cols));
     const right = status || statusLine();
     const pad = Math.max(2, cols - visibleWidth(right));
