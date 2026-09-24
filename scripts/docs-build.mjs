@@ -196,7 +196,7 @@ function shell({ title, description, body, active }) {
 <div class="search"><input type="search" placeholder="Cari dokumentasi…  ( / )" aria-label="Cari dokumentasi"><div class="results"></div></div>
 <a class="gh" href="${REPO}" target="_blank" rel="noopener">GitHub</a><a class="gh" href="https://www.npmjs.com/package/zentara" target="_blank" rel="noopener">npm</a></header>
 ${body}
-<footer class="foot">Zentara Core · ${escapeHtml(TAGLINE)} · Lisensi MIT · <a href="${REPO}">GitHub</a></footer>
+<footer class="foot">Zentara Core · ${escapeHtml(TAGLINE)} · Lisensi BSL 1.1 · <a href="${REPO}">GitHub</a></footer>
 <script src="app.js"></script></body></html>`;
 }
 

@@ -47,4 +47,4 @@ npm run e2e          # simulasi publish: npm pack, buat proyek dari tarball, ins
 - Cara merilis ke npm: [`PUBLISHING.md`](PUBLISHING.md).
 - Riwayat perubahan: [`CHANGELOG.md`](CHANGELOG.md).
 
-Lisensi [MIT](LICENSE).
+Lisensi [Business Source License 1.1](LICENSE) (BSL). Boleh dipakai gratis untuk membangun dan menjalankan aplikasi Anda sendiri, termasuk untuk produksi dan komersial; yang dilarang adalah menawarkan Zentara Core (atau turunannya) sebagai framework, generator proyek, atau layanan pesaing. Setiap versi otomatis menjadi Apache 2.0 empat tahun setelah terbit. Versi 0.8.6 ke bawah tetap MIT.
