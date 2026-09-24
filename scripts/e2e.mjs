@@ -88,6 +88,8 @@ try {
     const app = path.join(WORK, `app-${template}`);
     sh(npm, ["exec", "--yes", `--package=${create.tarball}`, "--", "create-zentara", app, "--template", template, "--no-install", "--yes", "--zentara-spec", `file:${zentara.tarball}`], WORK);
     check(fs.existsSync(path.join(app, ".gitignore")) && fs.existsSync(path.join(app, ".env")), "proyek dibuat dengan .gitignore dan .env");
+    const favicon = path.join(app, "public", "favicon.ico");
+    check(fs.existsSync(favicon) && fs.statSync(favicon).size > 1000 && fs.existsSync(path.join(app, "public", "apple-touch-icon.png")), "favicon & apple-touch-icon brand Zentara");
 
     sh(npm, ["install", "--no-audit", "--no-fund"], app);
     sh(npm, ["run", "typecheck"], app);

@@ -1,13 +1,16 @@
 import { escapeHtml } from "../view.js";
 import { CHAT_CSS, CHAT_JS } from "./chat.js";
 import { appInfo, devtoolsClient } from "./info.js";
-import { LOGO_SVG, renderPage, ZENTARA_VERSION } from "./theme.js";
+import { DESCRIPTION, TAGLINE } from "../../brand/index.js";
+import { LOGO_SVG, renderPage, WORDMARK, ZENTARA_VERSION } from "./theme.js";
 
 const WELCOME_CSS = `
 .zw-hero{display:grid;grid-template-columns:1.05fr 1fr;gap:28px;align-items:stretch;margin-bottom:22px}
 .zw-kicker{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:4px 12px;font-weight:600}
 .zw-title{font-size:clamp(34px,5vw,54px);line-height:1.05;letter-spacing:-.035em;margin:18px 0 14px;font-weight:800}
-.zw-title span{background:linear-gradient(120deg,var(--accent),#38bdf8 45%,var(--accent-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.zw-title span{background:linear-gradient(120deg,var(--brand-teal) 10%,var(--accent) 55%,var(--brand-gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+.zw-mark{width:76px!important;height:76px!important;margin-bottom:18px}
+.zw-tagline{color:var(--accent-2);font-weight:600;letter-spacing:.01em;margin:0 0 20px}
 .zw-lead{font-size:17px;color:var(--muted);max-width:520px;margin:0 0 22px}
 .zw-stats{display:flex;gap:10px;flex-wrap:wrap}
 .zw-chat{display:flex;flex-direction:column;padding:18px;min-height:420px;max-height:560px}
@@ -77,9 +80,10 @@ export function welcomePage(): string {
     : "";
 
   const body = `<div class="zx-wrap">
-<header class="zx-top">${LOGO_SVG}<div class="zx-brand">Zentara <small>${escapeHtml(info.appName)}</small></div><div class="zx-spacer"></div>${debug ? `<span class="zx-badge"><span class="dot"></span>${escapeHtml(info.env)}</span>` : ""}<span class="zx-badge off"><span class="dot"></span>v${escapeHtml(ZENTARA_VERSION)}</span></header>
-<div class="zw-hero"><section style="padding:18px 4px"><span class="zw-kicker">✦ Framework AI-driven asal Nusantara</span>
+<header class="zx-top">${LOGO_SVG}<div class="zx-brand">${WORDMARK}<small>${escapeHtml(info.appName)}</small></div><div class="zx-spacer"></div>${debug ? `<span class="zx-badge"><span class="dot"></span>${escapeHtml(info.env)}</span>` : ""}<span class="zx-badge off"><span class="dot"></span>v${escapeHtml(ZENTARA_VERSION)}</span></header>
+<div class="zw-hero"><section style="padding:18px 4px">${LOGO_SVG.replace('class="zx-logo"', 'class="zx-logo zw-mark"')}<br><span class="zw-kicker">✦ ${escapeHtml(DESCRIPTION)}</span>
 <h1 class="zw-title">Aplikasi Anda <span>sudah berjalan.</span></h1>
+<p class="zw-tagline">${escapeHtml(TAGLINE)}</p>
 <p class="zw-lead">Cukup ceritakan apa yang ingin Anda bangun. Zentara AI menyusun rencana, meminta persetujuan, menulis kodenya, lalu mengeceknya untuk Anda.</p>
 <div class="zw-stats"><span class="zx-badge"><span class="dot"></span>Server aktif</span><span class="zx-badge off"><span class="dot"></span>Node ${escapeHtml(process.version)}</span>${debug ? `<span class="zx-badge off"><span class="dot"></span>${info.routes.length} route</span>` : ""}</div></section>
 ${chat}</div>
@@ -90,7 +94,7 @@ ${chat}</div>
 <a href="https://github.com/melkimahdali/zentara-core/blob/main/packages/zentara/README.md" target="_blank" rel="noopener">Panduan framework <span>routing, auth, DB →</span></a>
 <a href="https://www.npmjs.com/package/zentara" target="_blank" rel="noopener">Paket npm <span>zentara →</span></a>
 <a href="https://github.com/melkimahdali/zentara-core/issues" target="_blank" rel="noopener">Laporkan masalah <span>GitHub →</span></a></div></section></div>
-<p class="zx-foot">Ganti halaman ini di <code>src/app/routes/index.ts</code> · Dibuat dengan ♥ di Nusantara</p></div>`;
+<p class="zx-foot">Ganti halaman ini di <code>src/app/routes/index.ts</code> · Zentara Core — Rooted here. Built for what&#39;s next.</p></div>`;
 
   return renderPage({
     title: info.appName === "Zentara App" ? "Zentara" : info.appName,

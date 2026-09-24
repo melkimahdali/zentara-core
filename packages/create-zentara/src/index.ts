@@ -20,7 +20,17 @@ const PACKAGE_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
 
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
 const paint = (code: string) => (s: string) => (useColor ? `\x1b[${code}m${s}\x1b[0m` : s);
-const c = { bold: paint("1"), dim: paint("2"), green: paint("32"), cyan: paint("36"), red: paint("31") };
+// Warna brand Zentara Core: Teal #2ED3B7 dan Heritage Gold #C89B52 (fallback 16 warna bila tidak truecolor).
+const truecolor = useColor && (process.stdout.getColorDepth?.() ?? 4) >= 24;
+const c = {
+  bold: paint("1"),
+  dim: paint("2"),
+  green: paint("32"),
+  cyan: paint("36"),
+  red: paint("31"),
+  teal: paint(truecolor ? "38;2;46;211;183" : "36"),
+  gold: paint(truecolor ? "38;2;200;155;82" : "33"),
+};
 
 export function ownVersion(): string {
   const pkg = JSON.parse(fs.readFileSync(path.join(here, "..", "package.json"), "utf8")) as { version: string };
@@ -161,7 +171,9 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     console.log(HELP);
     return 0;
   }
-  console.log(`\n${c.bold(c.cyan("Zentara"))} ${c.dim(`v${ownVersion()}`)} — framework AI-driven asal Nusantara\n`);
+  console.log(`\n${c.teal("Z>")} ${c.bold("Zentara")} ${c.bold(c.teal("Core"))} ${c.dim(`v${ownVersion()}`)}`);
+  console.log(`   ${c.dim("AI-driven TypeScript web framework from Indonesia")}`);
+  console.log(`   ${c.gold("Rooted here. Built for what's next.")}\n`);
 
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY) && !args.yes;
   const rl = interactive ? readline.createInterface({ input: process.stdin, output: process.stdout }) : undefined;

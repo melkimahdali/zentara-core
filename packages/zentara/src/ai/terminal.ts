@@ -1,4 +1,5 @@
 import readline from "node:readline/promises";
+import { BRAND, brandPaint, colorDepth } from "../brand/index.js";
 import type { AgentUI } from "./agent.js";
 import type { ApprovalAnswer, PendingAction, Prompter } from "./approval.js";
 import type { ToolCall, ToolResult } from "./types.js";
@@ -17,8 +18,10 @@ export const c = {
   cyan: paint("36"),
   gray: paint("90"),
 };
-/** Warna aksen Zentara (teal). */
-export const accent = (s: string) => (useColor ? `\x1b[38;5;43m${s}\x1b[0m` : s);
+const depth = useColor ? colorDepth(process.stdout) : "none";
+/** Warna aksen Zentara Teal (#2ED3B7) dan Heritage Gold (#C89B52), sesuai kemampuan terminal. */
+export const accent = brandPaint(BRAND.teal, depth, "36");
+export const gold = brandPaint(BRAND.gold, depth, "33");
 
 export interface Output {
   out: (line: string) => void;

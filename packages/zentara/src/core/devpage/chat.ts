@@ -8,10 +8,10 @@ export const CHAT_CSS = `
 .zc-log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:4px 2px 12px;scroll-behavior:smooth}
 .zc-empty{color:var(--muted);font-size:14px;text-align:center;padding:18px 8px}
 .zc-msg{max-width:100%;font-size:14.5px;line-height:1.6;word-wrap:break-word}
-.zc-user{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent-2));color:#fff;padding:9px 14px;border-radius:14px 14px 4px 14px;max-width:85%;white-space:pre-wrap}
+.zc-user{align-self:flex-end;background:var(--brand-teal);color:var(--on-accent);padding:9px 14px;border-radius:14px 14px 4px 14px;max-width:85%;white-space:pre-wrap}
 .zc-user .zc-att{display:block;font-size:12px;opacity:.85;margin-top:4px}
 .zc-ai{display:flex;gap:10px;align-items:flex-start}
-.zc-ai .zx-logo{width:22px;height:22px;margin-top:2px}
+.zc-ai .zx-logo{width:24px;height:24px;margin-top:1px}
 .zc-ai .zc-body{flex:1;min-width:0}
 .zc-body p{margin:0 0 8px}.zc-body p:last-child{margin:0}
 .zc-body ul{margin:4px 0 8px;padding-left:20px}
