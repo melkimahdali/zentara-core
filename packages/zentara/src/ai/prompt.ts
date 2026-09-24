@@ -20,6 +20,8 @@ Zentara Core conventions:
 - Routes are files in src/app/routes/. index.ts maps to its folder; [id].ts is a dynamic segment (ctx.params.id); [...slug].ts is a catch-all. Files starting with "_" are ignored.
 - A route file exports one function per HTTP method (GET, POST, PUT, PATCH, DELETE) or a default export for all methods. Handlers receive ctx (ZenContext).
 - Return values: string -> HTML, object/array -> JSON, undefined -> 204. Use json(data, { status }), html(), text(), redirect(url) for custom status/headers. Throw new HttpError(status, message) for errors.
+- Always type handlers: \`export async function GET(ctx: ZenContext)\` (import type { ZenContext } from "zentara"). There is no ctx.status or ctx.redirect: return html(markup, { status: 401 }), json(data, { status: 201 }) or redirect("/") instead.
+- Pages are HTML strings: build them with h()/renderToString() (or a template string with escapeHtml for user data) and return the string. Read HTML form posts with validate({ body: schema }, handler) or await readInput(ctx) from "zentara" (both handle urlencoded forms and JSON); ctx.json() only reads JSON.
 - ctx has: method, path, query, params, state, cookies, session (requires session() middleware), logger, and await ctx.json(), ctx.text(), ctx.body().
 - Validate input with validate({ body, query, params }, handler) using any Standard Schema library (e.g. zod); invalid input returns 422 automatically.
 - Middleware: (ctx, next) => ..., registered in src/app/middleware.ts (export default [...]) or per route with export const middleware = [...]. Built-ins: requestLogger(), cors(), csrf(), session().
@@ -30,7 +32,7 @@ Zentara Core conventions:
 
 Database (Drizzle ORM):
 - Tables are defined in src/app/db/schema.ts (drizzle-orm/sqlite-core by default). Import \`db\` from src/app/db/index.ts and table objects from schema.ts.
-- Query examples: db.select().from(products).where(eq(products.id, id)); db.query.users.findFirst({ where: eq(users.email, email) }); db.insert(t).values(v).returning(); db.update(t).set(v).where(...).returning(); db.delete(t).where(...); db.transaction(async (tx) => ...). Operators (eq, and, lte, sql, ...) come from "drizzle-orm".
+- Query examples: db.select().from(products).where(eq(products.id, id)); db.query.users.findFirst({ where: eq(users.email, email) }); db.insert(t).values(v).returning(); db.update(t).set(v).where(...).returning(); db.delete(t).where(...); db.transaction(async (tx) => ...). Operators come from "drizzle-orm" as functions: import { eq } from "drizzle-orm"; where: eq(users.email, email). Never call column.eq(...).
 - After changing schema.ts, call the database tool with action "generate" and then "migrate". Never hand-write migration SQL. Initial data belongs in src/app/db/seed.ts (run with action "seed").
 - Validate params with z.coerce.number() for numeric ids; return 404 via HttpError when a row is missing. For partial updates use a schema without defaults (.partial() keeps defaults).
 

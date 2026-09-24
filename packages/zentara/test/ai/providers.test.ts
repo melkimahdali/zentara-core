@@ -225,3 +225,37 @@ describe("OpenAICompatibleProvider", () => {
     );
   });
 });
+
+describe("OpenAI-compatible: model baru & rate limit", () => {
+  const ok = { status: 200, body: { choices: [{ message: { content: "siap" }, finish_reason: "stop" }] } };
+
+  it("400 'reasoning_effort' (gpt-5.x dengan tools) -> ulang dengan reasoning_effort none dan diingat", async () => {
+    const server = await fakeServer(({ body }) =>
+      body.reasoning_effort === "none"
+        ? ok
+        : { status: 400, body: { error: { message: "Function tools with reasoning_effort are not supported for gpt-5.6-sol in /v1/chat/completions. To use function tools, use /v1/responses or set reasoning_effort to 'none'.", param: "reasoning_effort" } } },
+    );
+    const p = new OpenAICompatibleProvider({ name: "openai", baseUrl: `${server.base}/v1`, model: "gpt-5.6-sol", apiKey: "k" });
+    assert.equal((await p.complete({ system: "s", messages: history, tools })).text, "siap");
+    assert.equal((await p.complete({ system: "s", messages: history, tools })).text, "siap");
+    assert.deepEqual(server.requests.map((r) => r.body.reasoning_effort), [undefined, "none", "none"]);
+    await server.close();
+  });
+
+  it("429 sesaat (TPM) ditunggu lalu dicoba ulang; kuota habis langsung pindah provider", async () => {
+    let calls = 0;
+    const server = await fakeServer(() =>
+      ++calls === 1 ? { status: 429, body: { error: { message: "Rate limit reached for gpt-4.1 on tokens per min (TPM). Please try again in 0.05s.", type: "tokens" } } } : ok,
+    );
+    const p = new OpenAICompatibleProvider({ name: "openai", baseUrl: `${server.base}/v1`, model: "m", apiKey: "k" });
+    assert.equal((await p.complete({ system: "s", messages: history, tools })).text, "siap");
+    assert.equal(calls, 2);
+    await server.close();
+
+    const quota = await fakeServer(() => ({ status: 429, body: { error: { message: "You exceeded your current quota", type: "insufficient_quota" } } }));
+    const q = new OpenAICompatibleProvider({ name: "openai", baseUrl: `${quota.base}/v1`, model: "m", apiKey: "k" });
+    await assert.rejects(q.complete({ system: "s", messages: history, tools }), ProviderUnavailableError);
+    assert.equal(quota.requests.length, 1);
+    await quota.close();
+  });
+});

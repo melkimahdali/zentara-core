@@ -44,6 +44,35 @@ export interface ModelInfo {
   created?: number;
 }
 
+/**
+ * Lama tunggu (ms) untuk 429 sesaat, dari header retry-after / retry-after-ms atau teks "try again in 1.3s".
+ * undefined = jangan coba ulang (kuota/kredit habis, atau server minta menunggu terlalu lama).
+ */
+export function rateLimitDelay(res: Response, body: string): number | undefined {
+  if (/insufficient_quota|billing|credit|quota exceeded|exceeded your current quota/i.test(body)) return undefined;
+  const ms = Number(res.headers.get("retry-after-ms"));
+  const sec = Number(res.headers.get("retry-after"));
+  const text = /try again in (\d+(?:\.\d+)?)\s*(ms|s)\b/i.exec(body);
+  const wait = Number.isFinite(ms) && ms > 0 ? ms : Number.isFinite(sec) && sec > 0 ? sec * 1000 : text ? Number(text[1]) * (text[2] === "ms" ? 1 : 1000) : 2000;
+  return wait > 30_000 ? undefined : Math.max(250, wait + 250);
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new AbortedError());
+    const timer = setTimeout(done, ms);
+    function done() {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }
+    function onAbort() {
+      clearTimeout(timer);
+      reject(new AbortedError());
+    }
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 const UNAVAILABLE_STATUS = new Set([401, 402, 403, 404, 408, 429]);
 
 /** Request ditolak server karena isinya (mis. 400), bukan karena provider tidak tersedia. */
@@ -78,19 +107,27 @@ export class OpenAICompatibleProvider implements ModelProvider {
 
   private async request(path: string, init: RequestInit, signal?: AbortSignal): Promise<unknown> {
     let res: Response;
-    const timeout = AbortSignal.timeout(this.options.timeoutMs ?? 5 * 60 * 1000);
-    try {
-      res = await this.fetchImpl(`${this.baseUrl}${path}`, {
-        ...init,
-        headers: this.headers(),
-        signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
-      });
-    } catch (cause) {
-      if (signal?.aborted) throw new AbortedError();
-      const timeout = cause instanceof Error && cause.name === "TimeoutError";
-      throw new ProviderUnavailableError(this.name, timeout ? "timeout" : `tidak bisa terhubung ke ${this.baseUrl}`, { cause });
+    let body = "";
+    for (let attempt = 0; ; attempt++) {
+      const timeout = AbortSignal.timeout(this.options.timeoutMs ?? 5 * 60 * 1000);
+      try {
+        res = await this.fetchImpl(`${this.baseUrl}${path}`, {
+          ...init,
+          headers: this.headers(),
+          signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
+        });
+      } catch (cause) {
+        if (signal?.aborted) throw new AbortedError();
+        const timedOut = cause instanceof Error && cause.name === "TimeoutError";
+        throw new ProviderUnavailableError(this.name, timedOut ? "timeout" : `tidak bisa terhubung ke ${this.baseUrl}`, { cause });
+      }
+      body = await res.text();
+      // 429 sesaat (batas token/permintaan per menit): tunggu sesuai saran server lalu coba lagi.
+      // Kuota/kredit yang benar-benar habis tetap dianggap provider tidak tersedia (pindah ke provider lain).
+      const wait = res.status === 429 && attempt < this.maxRateLimitRetries ? rateLimitDelay(res, body) : undefined;
+      if (wait === undefined) break;
+      await sleep(wait, signal);
     }
-    const body = await res.text();
     if (!res.ok) {
       const detail = body.slice(0, 300).replace(/\s+/g, " ");
       if (UNAVAILABLE_STATUS.has(res.status) || res.status >= 500) {
@@ -168,6 +205,9 @@ export class OpenAICompatibleProvider implements ModelProvider {
   }
 
   private tokenParam: TokenParam | undefined;
+  private reasoningNone = false;
+  /** Berapa kali 429 sesaat dicoba ulang sebelum pindah provider. */
+  protected maxRateLimitRetries = 4;
 
   async complete(request: CompletionRequest): Promise<ModelTurn> {
     const model = await this.model();
@@ -177,6 +217,8 @@ export class OpenAICompatibleProvider implements ModelProvider {
         body: JSON.stringify({
           model,
           [param]: this.options.maxTokens ?? 16000,
+          // Model reasoning OpenAI terbaru hanya menerima function tools di chat/completions tanpa reasoning.
+          ...(this.reasoningNone ? { reasoning_effort: "none" } : {}),
           messages: this.toMessages(request.system, request.messages),
           tools: request.tools.map((t) => ({
             type: "function",
@@ -185,17 +227,21 @@ export class OpenAICompatibleProvider implements ModelProvider {
         }),
       }, request.signal) as Promise<OpenAIResponse>;
 
-    const param = (this.tokenParam ??= this.options.tokenParam ?? "max_tokens");
-    let data: OpenAIResponse;
-    try {
-      data = await send(param);
-    } catch (err) {
-      // Sebagian model (mis. model reasoning OpenAI) menolak max_tokens dan meminta max_completion_tokens,
-      // sebagian server lain sebaliknya: coba sekali dengan parameter yang satunya lalu ingat pilihannya.
-      const other: TokenParam = param === "max_tokens" ? "max_completion_tokens" : "max_tokens";
-      if (!(err instanceof RequestRejectedError) || err.status !== 400 || !/max_(completion_)?tokens/i.test(err.detail)) throw err;
-      data = await send(other);
-      this.tokenParam = other;
+    let data: OpenAIResponse | undefined;
+    // Beberapa server menolak parameter tertentu dengan 400 dan menyebut solusinya; sesuaikan sekali per
+    // masalah lalu ingat pilihannya untuk permintaan berikutnya.
+    for (let attempt = 0; !data; attempt++) {
+      const param = (this.tokenParam ??= this.options.tokenParam ?? "max_tokens");
+      try {
+        data = await send(param);
+      } catch (err) {
+        if (!(err instanceof RequestRejectedError) || err.status !== 400 || attempt >= 2) throw err;
+        if (/max_(completion_)?tokens/i.test(err.detail) && !/reasoning_effort/i.test(err.detail)) {
+          this.tokenParam = param === "max_tokens" ? "max_completion_tokens" : "max_tokens";
+        } else if (/reasoning_effort/i.test(err.detail) && !this.reasoningNone) {
+          this.reasoningNone = true;
+        } else throw err;
+      }
     }
 
     const choice = data.choices?.[0];

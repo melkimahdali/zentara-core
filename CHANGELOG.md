@@ -6,7 +6,12 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi
 
 ### Diubah
 - **CLI makin mirip Claude Code:** layar dibersihkan saat dibuka, info (versi, AI & mode, folder) sejajar atas di samping logo, dan **kolom input menempel di bagian bawah jendela** dengan baris mode di bawahnya.
+- Instruksi Zentara AI dipertegas agar kode yang dibuat lolos typecheck: handler selalu bertipe `ZenContext`, status lewat `html()/json()/redirect()` (tidak ada `ctx.status`), operator Drizzle sebagai fungsi (`eq(kolom, nilai)`), dan form HTML dibaca lewat `validate`/`readInput`.
 - **Wizard `ai:setup` memakai menu panah** (↑/↓ + Enter), di CLI interaktif maupun `zentara ai:setup`: pilih provider, **pilih model dari daftar** (terbaru di atas, plus *Model lain…* untuk mengetik sendiri), dan pertanyaan Ya/Tidak. Hanya API key, alamat server, dan nama model lain yang diketik. Terminal non-interaktif tetap memakai ketikan.
+
+### Diperbaiki
+- **Model OpenAI terbaru (`gpt-5.6-*`) dengan tools** ditolak di `/v1/chat/completions` karena reasoning ("Function tools with reasoning_effort are not supported"): Zentara otomatis mengulang dengan `reasoning_effort: "none"` sesuai saran API, lalu mengingatnya.
+- **Rate limit sesaat (429 batas token/permintaan per menit)** tidak lagi langsung dianggap provider habis: Zentara menunggu sesuai `retry-after`/"try again in …" lalu mencoba lagi (maks. 4 kali). Kuota/kredit yang benar-benar habis tetap memicu fallback ke provider berikutnya.
 
 ## [0.8.4]
 
