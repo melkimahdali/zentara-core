@@ -119,7 +119,16 @@ Pilihan lain:
 
 ### Provider AI & fallback
 
-Cara termudah untuk memilih provider:
+**Default: [OmniRoute](https://github.com/diegosouzapw/OmniRoute), gratis tanpa API key.** OmniRoute adalah gateway lokal ke ratusan provider AI, termasuk banyak yang gratis. Model `auto` memilih provider gratis yang sedang sehat.
+
+```bash
+npm install -g omniroute        # sekali saja
+npx zentara                     # CLI menawarkan menjalankan OmniRoute di latar belakang (dengan konfirmasi)
+```
+
+Dashboard OmniRoute ada di http://localhost:20128. Bila OmniRoute belum terpasang atau tidak berjalan, Zentara otomatis memakai provider berikutnya di rantai.
+
+Untuk memilih provider lain:
 
 ```bash
 npx zentara ai:setup            # menu: pilih provider, ketik API key (tersembunyi), pilih model, tes koneksi
@@ -133,17 +142,17 @@ Zentara mencoba provider **berurutan**. Kalau satu provider kehabisan kredit (40
 
 | Provider | API key | Model (default) | Keterangan |
 |---|---|---|---|
+| [OmniRoute](https://github.com/diegosouzapw/OmniRoute) (default) | `OMNIROUTE_API_KEY` (opsional) | `OMNIROUTE_MODEL` (`auto`) | gratis, lokal di `localhost:20128`, dicoba paling awal; dilewati bila tidak berjalan |
 | Claude | `ANTHROPIC_API_KEY` | `ZENTARA_CLAUDE_MODEL` (`claude-opus-5`) | selalu ada di rantai; dilewati bila key kosong |
 | OpenAI | `OPENAI_API_KEY` | `OPENAI_MODEL` (`gpt-4.1`) | otomatis memakai `max_completion_tokens` |
 | Google Gemini | `GEMINI_API_KEY` | `GEMINI_MODEL` (`gemini-2.5-flash`) | |
 | Groq | `GROQ_API_KEY` | `GROQ_MODEL` (`llama-3.3-70b-versatile`) | |
 | DeepSeek | `DEEPSEEK_API_KEY` | `DEEPSEEK_MODEL` (`deepseek-chat`) | |
 | OpenRouter | `OPENROUTER_API_KEY` | `OPENROUTER_MODEL` (`openai/gpt-4.1`) | banyak model dengan satu key |
-| [OmniRoute](https://github.com/diegosouzapw/OmniRoute) | – | `OMNIROUTE_MODEL` | lokal di `localhost:20128`, dilewati bila tidak berjalan |
 | Ollama | – | `OLLAMA_MODEL` | lokal & offline di `localhost:11434` |
 
 Pengaturan lain:
-- **Urutan:** `ZENTARA_AI_ORDER=openai,claude,ollama`. Provider lain yang aktif menyusul di belakang.
+- **Urutan:** default OmniRoute → Claude → provider cloud yang key-nya terisi → Ollama. Ubah dengan `ZENTARA_AI_ORDER=openai,omniroute,claude` (provider lain yang aktif menyusul di belakang), atau jawab "Ya" pada "Jadikan provider utama?" di `ai:setup`.
 - **Alamat API** (proxy atau gateway): `OPENAI_BASE_URL`, `GEMINI_BASE_URL`, `GROQ_BASE_URL`, `DEEPSEEK_BASE_URL`, `OPENROUTER_BASE_URL`, `OMNIROUTE_URL`, `OLLAMA_URL`.
 - **Model default bisa usang.** Ganti lewat variabel `*_MODEL`, atau pilih dari daftar model akun Anda di `ai:setup`.
 

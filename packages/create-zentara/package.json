@@ -1,6 +1,6 @@
 {
   "name": "create-zentara",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "Buat proyek Zentara baru: npm create zentara@latest",
   "keywords": [
     "zentara",

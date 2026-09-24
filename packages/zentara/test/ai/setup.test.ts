@@ -7,13 +7,13 @@ import { defaultProviders, resolveAiConfig } from "../../src/ai/config.js";
 import { isEnvIgnored, suggestModels, upsertEnvFile } from "../../src/ai/setup.js";
 
 describe("provider dari .env", () => {
-  it("tanpa API key: claude + provider lokal saja", () => {
-    assert.deepEqual(defaultProviders({}).map((p) => p.name), ["claude", "omniroute", "ollama"]);
+  it("tanpa API key: OmniRoute (gratis) lebih dulu, lalu claude & ollama", () => {
+    assert.deepEqual(defaultProviders({}).map((p) => p.name), ["omniroute", "claude", "ollama"]);
   });
 
   it("API key terisi -> provider ikut, sesuai urutan default", () => {
     const providers = defaultProviders({ OPENAI_API_KEY: "sk-x", GROQ_API_KEY: "gsk-x" });
-    assert.deepEqual(providers.map((p) => p.name), ["claude", "openai", "groq", "omniroute", "ollama"]);
+    assert.deepEqual(providers.map((p) => p.name), ["omniroute", "claude", "openai", "groq", "ollama"]);
     const openai = providers.find((p) => p.name === "openai")!;
     assert.ok(openai.type === "openai-compatible");
     assert.equal(openai.baseUrl, "https://api.openai.com/v1");
@@ -29,7 +29,7 @@ describe("provider dari .env", () => {
       OPENAI_BASE_URL: "http://proxy.local/v1",
       ZENTARA_AI_ORDER: "openai, ollama",
     });
-    assert.deepEqual(providers.map((p) => p.name), ["openai", "ollama", "claude", "omniroute"]);
+    assert.deepEqual(providers.map((p) => p.name), ["openai", "ollama", "omniroute", "claude"]);
     const openai = providers[0]!;
     assert.ok(openai.type === "openai-compatible");
     assert.equal(openai.model, "gpt-x");
@@ -85,5 +85,15 @@ describe("helper ai:setup", () => {
       { id: "codex-mini-latest", created: 1746673257 },
     ];
     assert.deepEqual(suggestModels(models), ["gpt-5", "gpt-4.1", "gpt-3.5-turbo"]);
+  });
+});
+
+describe("OmniRoute sebagai default", () => {
+  it("model auto dan alamat lokal bawaan", () => {
+    const omni = defaultProviders({})[0]!;
+    assert.equal(omni.name, "omniroute");
+    assert.ok(omni.type === "openai-compatible");
+    assert.equal(omni.baseUrl, "http://localhost:20128/v1");
+    assert.equal(omni.model, "auto");
   });
 });

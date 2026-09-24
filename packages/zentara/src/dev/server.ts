@@ -164,3 +164,88 @@ export function openBrowser(url: string): void {
     // Tidak ada browser: pengguna bisa membuka URL-nya sendiri.
   }
 }
+
+/** Apakah sebuah perintah tersedia di PATH (mis. `omniroute` yang dipasang dengan npm -g). */
+export function commandExists(command: string): boolean {
+  const finder = process.platform === "win32" ? "where" : "which";
+  try {
+    return spawnSync(finder, [command], { stdio: "ignore", windowsHide: true }).status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Proses latar belakang sederhana (mis. gateway OmniRoute) yang dijalankan CLI interaktif dan
+ * dihentikan saat CLI keluar. Output disimpan, tidak dicetak.
+ */
+export class BackgroundProcess {
+  private child: ChildProcess | undefined;
+  private readonly lines: string[] = [];
+
+  constructor(
+    private readonly command: string,
+    private readonly args: string[],
+    private readonly options: { cwd: string; env: NodeJS.ProcessEnv },
+  ) {}
+
+  get running(): boolean {
+    return Boolean(this.child);
+  }
+
+  start(): void {
+    if (this.child) return;
+    const cmd = platformCommand(this.command, this.args);
+    const child = spawn(cmd.command, cmd.args, {
+      cwd: this.options.cwd,
+      env: { ...this.options.env, NO_COLOR: "1" },
+      shell: cmd.shell,
+      stdio: ["ignore", "pipe", "pipe"],
+      detached: process.platform !== "win32",
+      windowsHide: true,
+    });
+    this.child = child;
+    const keep = (chunk: Buffer) => {
+      this.lines.push(...chunk.toString().replace(ANSI, "").split(/\r?\n/).filter(Boolean));
+      if (this.lines.length > 300) this.lines.splice(0, this.lines.length - 300);
+    };
+    child.stdout?.on("data", keep);
+    child.stderr?.on("data", keep);
+    child.on("error", (err) => this.lines.push(err.message));
+    child.on("exit", () => {
+      if (this.child === child) this.child = undefined;
+    });
+  }
+
+  logs(count = 40): string[] {
+    return this.lines.slice(-count);
+  }
+
+  stop(): Promise<void> {
+    const child = this.child;
+    if (!child || child.pid === undefined) return Promise.resolve();
+    this.child = undefined;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        killTree(child.pid!, "SIGKILL");
+        resolve();
+      }, 4000);
+      child.once("exit", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      killTree(child.pid!, "SIGTERM");
+    });
+  }
+}
+
+/** Tunggu sampai URL menjawab (status apa pun), atau batas waktu habis. */
+export async function waitForUrl(url: string, timeoutMs: number, isAlive: () => boolean = () => true): Promise<boolean> {
+  const until = Date.now() + timeoutMs;
+  while (Date.now() < until) {
+    if (await isServerUp(url)) return true;
+    if (!isAlive()) return false;
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return false;
+}

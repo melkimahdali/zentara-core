@@ -2,6 +2,15 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.8.3]
+
+### Diubah
+- **OmniRoute menjadi provider AI default** (gratis, tanpa API key): dicoba paling awal dengan model `auto`, lalu Claude, provider cloud yang key-nya terisi, dan Ollama. Urutan tetap bisa diubah lewat `ZENTARA_AI_ORDER` atau `ai:setup` ("Jadikan provider utama").
+- `ai:setup`: OmniRoute di urutan pertama (Enter = OmniRoute), API key OmniRoute opsional, dan petunjuk pemasangan (`npm install -g omniroute`) bila server belum berjalan.
+
+### Ditambahkan
+- CLI interaktif menawarkan menjalankan **OmniRoute di latar belakang** (dengan konfirmasi) bila sudah terpasang tapi belum berjalan, dan mematikannya saat keluar. Bila belum terpasang, CLI menampilkan cara memasangnya dan memakai provider berikutnya.
+
 ## [0.8.2]
 
 ### Diubah

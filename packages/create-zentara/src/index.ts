@@ -227,7 +227,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       console.log(`  ${pm} install`);
       if (template === "api") console.log(`  npx zentara db:migrate && npx zentara db:seed`);
     }
-    console.log(`  npx zentara ai:setup          ${c.dim("# atur provider AI (sekali saja)")}`);
+    console.log(`  npm install -g omniroute      ${c.dim("# AI gratis (sekali saja); atau pilih provider lain: npx zentara ai:setup")}`);
     console.log(`  npx zentara                   ${c.dim("# chat dengan Zentara AI + server dev di latar belakang")}`);
     console.log(`\nAtau jalankan server saja: ${runCmd} dev ${c.dim("(http://localhost:3000)")}\n`);
     return 0;

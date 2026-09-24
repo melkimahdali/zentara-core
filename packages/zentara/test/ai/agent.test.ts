@@ -304,9 +304,9 @@ describe("menghentikan AI (Esc / tombol Berhenti)", () => {
 });
 
 describe("resolveAiConfig", () => {
-  it("default: claude -> omniroute -> ollama, mode ask", () => {
+  it("default: omniroute (gratis) -> claude -> ollama, mode ask", () => {
     const c = resolveAiConfig(undefined, {});
-    assert.deepEqual(c.providers.map((p) => p.name), ["claude", "omniroute", "ollama"]);
+    assert.deepEqual(c.providers.map((p) => p.name), ["omniroute", "claude", "ollama"]);
     assert.equal(c.mode, "ask");
   });
   it("env dan validasi", () => {
