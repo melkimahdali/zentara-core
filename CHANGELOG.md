@@ -11,6 +11,9 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi
 - Workflow rilis otomatis (npm Trusted Publishing + provenance) dan uji simulasi publish (`npm run e2e`).
 - Lisensi MIT.
 
+### Diperbaiki (sebelum rilis)
+- Windows: `create-zentara` (migrasi & seed setelah install) dan Zentara AI (`run_check` lewat `npm`) gagal karena path berspasi terpotong saat dijalankan lewat shell dan `npm.cmd` tidak bisa dijalankan tanpa shell. CI kini juga menjalankan e2e di Windows.
+
 ### Fitur yang sudah ada sejak tahap sebelumnya
 - **Tahap 1:** routing berbasis file, respons & error handling, render HTML ter-escape, file statis, config.
 - **Tahap 2:** middleware, cookie, session terenkripsi, CSRF, CORS, validasi Standard Schema, CLI dasar.
