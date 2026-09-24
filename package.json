@@ -1,7 +1,7 @@
 {
   "name": "zentara-core",
-  "version": "0.3.0",
-  "description": "Zentara Core Framework – Intelligence in Harmony",
+  "version": "0.4.0",
+  "description": "Zentara Core Framework \u2013 Intelligence in Harmony",
   "main": "dist/main.js",
   "type": "module",
   "engines": {
@@ -23,5 +23,8 @@
   },
   "bin": {
     "zentara": "dist/cli.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0"
   }
 }
