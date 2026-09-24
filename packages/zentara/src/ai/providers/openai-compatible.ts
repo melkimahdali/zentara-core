@@ -1,3 +1,4 @@
+import type { TokenParam } from "../presets.js";
 import {
   ProviderUnavailableError,
   safeToolId,
@@ -19,6 +20,8 @@ export interface OpenAICompatibleOptions {
   model?: string;
   apiKey?: string;
   maxTokens?: number;
+  /** Nama parameter batas token. Default "max_tokens"; OpenAI memakai "max_completion_tokens". */
+  tokenParam?: TokenParam;
   timeoutMs?: number;
   fetch?: typeof fetch;
 }
@@ -36,6 +39,13 @@ interface OpenAIResponse {
 }
 
 const UNAVAILABLE_STATUS = new Set([401, 402, 403, 404, 408, 429]);
+
+/** Request ditolak server karena isinya (mis. 400), bukan karena provider tidak tersedia. */
+class RequestRejectedError extends Error {
+  constructor(readonly status: number, readonly detail: string, provider: string) {
+    super(`${provider}: request ditolak (${status}) ${detail}`);
+  }
+}
 
 export class OpenAICompatibleProvider implements ModelProvider {
   readonly name: string;
@@ -79,7 +89,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         const label = res.status === 402 ? "kredit habis" : res.status === 429 ? "kuota/rate limit habis" : "tidak tersedia";
         throw new ProviderUnavailableError(this.name, `${label} (${res.status}) ${detail}`.trim());
       }
-      throw new Error(`${this.name}: request ditolak (${res.status}) ${detail}`);
+      throw new RequestRejectedError(res.status, detail, this.name);
     }
     try {
       return JSON.parse(body) as unknown;
@@ -88,18 +98,32 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
   }
 
+  /** Daftar ID model yang dilaporkan server (GET /models). */
+  async listModels(): Promise<string[]> {
+    const list = (await this.request("/models", { method: "GET" })) as { data?: { id?: unknown }[] };
+    return (list.data ?? []).map((m) => m.id).filter((id): id is string => typeof id === "string");
+  }
+
   /** Pilih model: dari config, atau model pertama yang dilaporkan server. */
   async model(): Promise<string> {
     if (this.resolvedModel) return this.resolvedModel;
-    const list = (await this.request("/models", { method: "GET" })) as { data?: { id?: string }[] };
-    const id = list.data?.find((m) => typeof m.id === "string")?.id;
+    const id = (await this.listModels())[0];
     if (!id) throw new ProviderUnavailableError(this.name, "server tidak melaporkan model apa pun");
     this.resolvedModel = id;
     return id;
   }
 
   async check(): Promise<string> {
-    return `model ${await this.model()} siap`;
+    if (!this.resolvedModel) return `model ${await this.model()} siap`;
+    // Model sudah diatur: pastikan server mengenalnya (bila server mau memberi daftar model).
+    const models = await this.listModels().catch((err: unknown) => {
+      if (err instanceof ProviderUnavailableError) throw err;
+      return undefined;
+    });
+    if (models && models.length > 0 && !models.includes(this.resolvedModel)) {
+      return `terhubung, tapi model "${this.resolvedModel}" tidak ada di daftar model akun ini`;
+    }
+    return `model ${this.resolvedModel} siap`;
   }
 
   private toMessages(system: string, messages: ChatMessage[]): unknown[] {
@@ -125,20 +149,36 @@ export class OpenAICompatibleProvider implements ModelProvider {
     return out;
   }
 
+  private tokenParam: TokenParam | undefined;
+
   async complete(request: CompletionRequest): Promise<ModelTurn> {
     const model = await this.model();
-    const data = (await this.request("/chat/completions", {
-      method: "POST",
-      body: JSON.stringify({
-        model,
-        max_tokens: this.options.maxTokens ?? 16000,
-        messages: this.toMessages(request.system, request.messages),
-        tools: request.tools.map((t) => ({
-          type: "function",
-          function: { name: t.name, description: t.description, parameters: t.inputSchema },
-        })),
-      }),
-    })) as OpenAIResponse;
+    const send = (param: TokenParam) =>
+      this.request("/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model,
+          [param]: this.options.maxTokens ?? 16000,
+          messages: this.toMessages(request.system, request.messages),
+          tools: request.tools.map((t) => ({
+            type: "function",
+            function: { name: t.name, description: t.description, parameters: t.inputSchema },
+          })),
+        }),
+      }) as Promise<OpenAIResponse>;
+
+    const param = (this.tokenParam ??= this.options.tokenParam ?? "max_tokens");
+    let data: OpenAIResponse;
+    try {
+      data = await send(param);
+    } catch (err) {
+      // Sebagian model (mis. model reasoning OpenAI) menolak max_tokens dan meminta max_completion_tokens,
+      // sebagian server lain sebaliknya: coba sekali dengan parameter yang satunya lalu ingat pilihannya.
+      const other: TokenParam = param === "max_tokens" ? "max_completion_tokens" : "max_tokens";
+      if (!(err instanceof RequestRejectedError) || err.status !== 400 || !/max_(completion_)?tokens/i.test(err.detail)) throw err;
+      data = await send(other);
+      this.tokenParam = other;
+    }
 
     const choice = data.choices?.[0];
     if (!choice?.message) throw new ProviderUnavailableError(this.name, "respons tidak berisi jawaban");

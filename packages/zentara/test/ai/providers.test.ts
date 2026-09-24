@@ -134,9 +134,13 @@ describe("AnthropicProvider", () => {
 describe("OpenAICompatibleProvider", () => {
   let server: Awaited<ReturnType<typeof fakeServer>>;
   let status = 200;
+  let rejectParam: string | undefined;
   before(async () => {
-    server = await fakeServer(({ url }) => {
+    server = await fakeServer(({ url, body }) => {
       if (url === "/v1/models") return { status: 200, body: { data: [{ id: "free/kimi-k2" }, { id: "other" }] } };
+      if (rejectParam && body && rejectParam in body) {
+        return { status: 400, body: { error: { message: `Unsupported parameter: '${rejectParam}'. Use 'max_completion_tokens' instead.` } } };
+      }
       if (status !== 200) return { status, body: { error: { message: "quota exceeded" } } };
       return {
         status: 200,
@@ -167,6 +171,44 @@ describe("OpenAICompatibleProvider", () => {
     assert.equal(sent.body.messages[2].tool_calls[0].function.arguments, '{"path":"README.md"}');
     assert.deepEqual(sent.body.messages[3], { role: "tool", tool_call_id: "call_1", content: "# Halo" });
     assert.equal(sent.body.tools[0].function.name, "read_file");
+  });
+
+  it("tokenParam: OpenAI memakai max_completion_tokens", async () => {
+    status = 200;
+    const p = new OpenAICompatibleProvider({ name: "openai", baseUrl: `${server.base}/v1`, model: "m", tokenParam: "max_completion_tokens" });
+    await p.complete({ system: "", messages: history, tools });
+    const body = server.requests.at(-1)!.body;
+    assert.equal(body.max_completion_tokens, 16000);
+    assert.equal("max_tokens" in body, false);
+  });
+
+  it("server menolak parameter token -> coba sekali dengan parameter lain lalu diingat", async () => {
+    status = 200;
+    rejectParam = "max_tokens";
+    const p = new OpenAICompatibleProvider({ name: "x", baseUrl: `${server.base}/v1`, model: "m" });
+    const before = server.requests.length;
+    const turn = await p.complete({ system: "", messages: history, tools });
+    assert.equal(turn.toolCalls.length, 1);
+    const sent = server.requests.slice(before).map((r) => ("max_tokens" in r.body ? "max_tokens" : "max_completion_tokens"));
+    assert.deepEqual(sent, ["max_tokens", "max_completion_tokens"]);
+    await p.complete({ system: "", messages: history, tools });
+    assert.ok("max_completion_tokens" in server.requests.at(-1)!.body, "pilihan diingat");
+    rejectParam = undefined;
+  });
+
+  it("400 lain tidak diulang dan bukan fallback", async () => {
+    status = 400;
+    const p = new OpenAICompatibleProvider({ name: "x", baseUrl: `${server.base}/v1`, model: "m" });
+    const before = server.requests.length;
+    await assert.rejects(p.complete({ system: "", messages: history, tools }), (err: unknown) => !(err instanceof ProviderUnavailableError));
+    assert.equal(server.requests.length - before, 1);
+    status = 200;
+  });
+
+  it("check: model yang tidak ada di akun dilaporkan", async () => {
+    status = 200;
+    assert.match(await new OpenAICompatibleProvider({ name: "x", baseUrl: `${server.base}/v1`, model: "free/kimi-k2" }).check(), /siap/);
+    assert.match(await new OpenAICompatibleProvider({ name: "x", baseUrl: `${server.base}/v1`, model: "tidak-ada" }).check(), /tidak ada di daftar/);
   });
 
   it("429/402 -> tidak tersedia; server mati -> tidak tersedia", async () => {

@@ -6,6 +6,8 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import readline from "node:readline/promises";
 import { resolveAiConfig, createProviders, type AiUserConfig } from "./ai/config.js";
+import { PRESETS } from "./ai/presets.js";
+import { interactiveSetup } from "./ai/setup.js";
 import { latestJournal, undoLatest } from "./ai/journal.js";
 import { createAiSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
@@ -35,7 +37,8 @@ Bicara dengan AI (bahasa sehari-hari):
   zentara                                          Mode obrolan (di terminal interaktif)
   zentara ai "<perintah>" [--auto] [--dry-run]
   zentara ai:status                                Cek provider AI yang tersedia
-  zentara ai:setup                                 Panduan memasang provider (Claude, OmniRoute, Ollama)
+  zentara ai:setup [provider]                      Atur provider AI (Claude, OpenAI, Gemini, Groq, DeepSeek,
+                                                   OpenRouter, OmniRoute, Ollama): API key, model, tes koneksi
   zentara undo [--yes]                             Batalkan perubahan AI terakhir
 
   --auto      Perubahan biasa langsung dikerjakan; hanya aksi krusial yang ditanyakan
@@ -300,38 +303,33 @@ async function aiStatus(args: ParsedArgs, io: CliIO): Promise<number> {
 }
 
 async function aiSetup(args: ParsedArgs, io: CliIO): Promise<number> {
-  const config = await loadAiConfig(io, args.flags);
-  const status = new Map<string, boolean>();
-  for (const provider of createProviders(config.providers)) {
-    status.set(provider.name, await provider.check().then(() => true, () => false));
+  loadDotEnv(io.cwd);
+  const user = (await loadConfigFile(io.cwd)) as { ai?: AiUserConfig };
+  if (io.interactive) {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    try {
+      return await interactiveSetup({ root: io.cwd, rl, io, preset: args.positional[1], configProviders: user.ai?.providers });
+    } finally {
+      rl.close();
+    }
   }
-  const mark = (name: string) => (status.get(name) ? c.green("✓ siap") : c.yellow("belum siap"));
-  io.out(`Zentara AI memakai rantai provider: jika satu habis kredit/kuota atau mati, otomatis pindah ke berikutnya.
 
-1. Claude (Anthropic) ${mark("claude")}
-   Isi ANTHROPIC_API_KEY di file .env (buat kunci di https://console.anthropic.com).
+  // Tanpa terminal interaktif: tampilkan panduan.
+  const env = process.env;
+  const rows = PRESETS.map((p) => {
+    const how = p.local ? `jalankan servernya (${p.urlEnv}, ${p.modelEnv})` : `isi ${p.keyEnv} (model: ${p.modelEnv}${p.defaultModel ? `, default ${p.defaultModel}` : ""})`;
+    const state = p.local ? "" : p.keyEnv && env[p.keyEnv] ? c.green(" ✓") : "";
+    return `  ${p.name.padEnd(11)} ${p.label}${state}
+              ${c.dim(how)}`;
+  });
+  io.out(`Zentara AI memakai rantai provider: bila satu habis kredit/kuota atau mati, otomatis pindah ke berikutnya.
 
-2. OmniRoute (opsional, gateway ke banyak provider termasuk yang gratis) ${mark("omniroute")}
-   Pasang dan jalankan sesuai petunjuk di https://github.com/diegosouzapw/OmniRoute
-   Zentara otomatis memakai http://localhost:20128/v1 (ubah dengan OMNIROUTE_URL,
-   pilih model dengan OMNIROUTE_MODEL, kunci dengan OMNIROUTE_API_KEY bila diperlukan).
+Cara termudah (di terminal interaktif):  npx zentara ai:setup   atau   npx zentara ai:setup openai
 
-3. Ollama (opsional, model lokal & offline) ${mark("ollama")}
-   Pasang dari https://ollama.com lalu unduh model yang mendukung tool calling.
-   Zentara otomatis memakai http://localhost:11434/v1 (pilih model dengan OLLAMA_MODEL).
+Atau isi langsung di .env. Provider dengan API key terisi otomatis dipakai:
+${rows.join("\n")}
 
-Provider yang tidak dipasang otomatis dilewati. Untuk urutan/provider kustom, tambahkan di zentara.config.mjs:
-
-  ai: {
-    mode: "ask",            // atau "auto"
-    providers: [
-      { type: "anthropic", name: "claude" },
-      { type: "openai-compatible", name: "omniroute", baseUrl: "http://localhost:20128/v1" },
-      { type: "openai-compatible", name: "ollama", baseUrl: "http://localhost:11434/v1", model: "qwen3-coder" },
-    ],
-  },
-
-Cek kapan saja dengan: zentara ai:status`);
+Urutan: ZENTARA_AI_ORDER=openai,claude,ollama (provider lain menyusul). Cek: npx zentara ai:status`);
   return 0;
 }
 
