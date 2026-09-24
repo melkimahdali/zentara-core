@@ -1,5 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { Cookies } from "./cookies.js";
 import { HttpError } from "./errors.js";
+import type { ZenLogger } from "./logger.js";
+import { SESSION_SLOT, type Session } from "./session.js";
 
 export type Query = Record<string, string | string[]>;
 
@@ -15,6 +18,10 @@ export interface ZenContext {
   params: Record<string, string>;
   /** Tempat bebas untuk plugin/handler berbagi data selama satu request. */
   state: Record<string, unknown>;
+  cookies: Cookies;
+  logger: ZenLogger;
+  /** Session request. Butuh middleware `session()`; melempar error bila belum dipasang. */
+  readonly session: Session;
   /** Body mentah. Dibaca sekali lalu di-cache; melempar 413 bila melebihi `bodyLimit`. */
   body(): Promise<Buffer>;
   text(): Promise<string>;
@@ -24,6 +31,7 @@ export interface ZenContext {
 
 export interface ContextOptions {
   bodyLimit: number;
+  logger: ZenLogger;
 }
 
 export function parseRequestUrl(rawUrl: string | undefined): URL {
@@ -36,7 +44,7 @@ export function parseRequestUrl(rawUrl: string | undefined): URL {
   }
 }
 
-function toQuery(params: URLSearchParams): Query {
+export function toQuery(params: URLSearchParams): Query {
   const query: Query = {};
   for (const [key, value] of params) {
     const existing = query[key];
@@ -102,6 +110,13 @@ export function createContext(
     query: toQuery(url.searchParams),
     params: {},
     state: {},
+    cookies: new Cookies(req, res),
+    logger: options.logger,
+    get session(): Session {
+      const current = (ctx as unknown as Record<symbol, Session | undefined>)[SESSION_SLOT];
+      if (!current) throw new Error("ctx.session belum tersedia: pasang middleware session() terlebih dahulu");
+      return current;
+    },
     body() {
       bodyPromise ??= readBody(req, res, options.bodyLimit);
       return bodyPromise;

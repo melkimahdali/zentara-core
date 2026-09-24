@@ -1,11 +1,11 @@
 # CORE_SPEC
 
-Kontrak inti Zentara Core v0.2. Perubahan pada kontrak ini dianggap *breaking change*.
+Kontrak inti Zentara Core v0.3. Perubahan pada kontrak ini dianggap *breaking change*.
 
 ## 1. Siklus hidup runtime
 
 1. `new ZenRuntime(userConfig)`: config digabung dengan env lalu divalidasi (`resolveConfig`). Config yang tidak valid langsung melempar error.
-2. `init()`: plugin dijalankan berurutan (`setup(runtime)`), lalu route dimuat dan divalidasi. Route yang bentrok, pola yang tidak valid, atau file tanpa handler menggagalkan boot.
+2. `init()`: plugin dijalankan berurutan (`setup(runtime)`, boleh memanggil `runtime.use()`), lalu file middleware aplikasi dimuat, lalu route dimuat dan divalidasi. Route yang bentrok, pola yang tidak valid, atau file tanpa handler menggagalkan boot.
 3. `start()`: server HTTP mendengarkan `host:port` dan mengembalikan `AddressInfo`. `port: 0` berarti port acak.
 4. `stop()`: server berhenti menerima koneksi, lalu menunggu request yang sedang berjalan. `SIGINT`/`SIGTERM` di `main.ts` memanggil `stop()`.
 
@@ -66,3 +66,41 @@ Aturan tambahan:
 ## 8. File statis
 
 Hanya untuk `GET`/`HEAD`, dan hanya bila tidak ada route yang cocok. Path di-decode dan dinormalisasi, lalu dipastikan tetap di dalam `publicDir`. Null byte dan dotfile ditolak (`404`).
+
+## 9. Middleware
+
+- Tipe: `(ctx, next) => unknown`. `next()` mengembalikan `Promise` berisi hasil middleware atau handler berikutnya. Memanggil `next()` dua kali adalah error.
+- Rantai global, berurutan: `config.middleware` → `runtime.use()` (dari plugin) → `export default` di `config.middlewareFile`. Rantai global membungkus seluruh request, termasuk 404, file statis, 405, dan OPTIONS otomatis.
+- Rantai per route (`export const middleware`) berjalan setelah route cocok dan handler ditemukan, dengan `ctx.params` sudah terisi.
+- Respons ditulis **setelah** seluruh rantai selesai, jadi middleware masih bisa mengatur header sesudah `await next()`, kecuali bila handler atau file statis sudah menulis `ctx.res` sendiri.
+- `runtime.use()` setelah `start()` akan melempar error.
+
+## 10. Cookie & session
+
+- `ctx.cookies.set()` default-nya `Path=/; HttpOnly; SameSite=Lax`. `SameSite=None` atau `Partitioned` otomatis menambahkan `Secure`. Nama dan atribut yang mengandung `;` atau karakter kontrol ditolak.
+- Format cookie session: `v1.` + base64url(`iv[12] | tag[16] | AES-256-GCM(JSON {d: data, e: expiresAtMs})`).
+  - Kunci diturunkan dengan HKDF-SHA256 dari secret.
+  - AAD berisi nama cookie.
+  - Cookie yang rusak, dipalsukan, atau kedaluwarsa diperlakukan sebagai session baru, lalu cookie-nya dihapus.
+- Secret minimal 32 karakter dan wajib di `NODE_ENV=production`. Di luar production, bila secret kosong, dipakai secret acak dengan peringatan.
+- Cookie hanya ditulis bila data berubah, atau di setiap request bila `rolling: true`. `destroy()` menghapus cookie. Session di atas ±4 KB menghasilkan error.
+- Perubahan session tidak disimpan bila handler melempar error.
+
+## 11. CSRF & CORS
+
+- `csrf()` hanya memeriksa method selain `GET`/`HEAD`/`OPTIONS`, dengan urutan:
+  1. `Origin` ada di `trustedOrigins` → izinkan.
+  2. `Sec-Fetch-Site` ada: izinkan hanya `same-origin`/`none`, selain itu `403`.
+  3. `Origin` ada: host-nya harus sama dengan header `Host`, selain itu `403`.
+  4. Tidak ada kedua header (bukan browser) → izinkan.
+- `cors()`:
+  - Preflight (`OPTIONS` + `Access-Control-Request-Method`) dijawab `204` tanpa menjalankan handler.
+  - Origin yang tidak diizinkan tidak mendapat header CORS.
+  - `credentials: true` dengan origin `"*"` menghasilkan error konfigurasi.
+
+## 12. Validasi
+
+- Schema harus mengikuti Standard Schema v1 (`schema["~standard"].validate`).
+- Kegagalan menghasilkan `HttpError(422, "Validasi gagal", { details: { source, issues: [{ path, message }] } })`. `path` berupa segmen yang digabung dengan `.`.
+- Urutan validasi di `validate()`: `params` → `query` → `body`. Handler hanya dipanggil bila semuanya valid.
+- Respons error berbentuk JSON bila `Accept` meminta JSON, atau bila error memiliki `details` dan `Accept` tidak meminta HTML.

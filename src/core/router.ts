@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import { HttpError } from "./errors.js";
 import type { ZenContext } from "./context.js";
 import type { ZenLogger } from "./logger.js";
+import type { Middleware } from "./middleware.js";
 
 export const HTTP_METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const;
 export type HttpMethod = (typeof HTTP_METHODS)[number];
@@ -24,6 +25,8 @@ export interface Route {
   file: string;
   segments: Segment[];
   module: RouteModule;
+  /** Middleware khusus route ini, dari `export const middleware = [...]`. */
+  middleware: Middleware[];
 }
 
 export interface RouteMatch {
@@ -94,6 +97,14 @@ export function compareRoutes(a: Route, b: Route): number {
   return 0;
 }
 
+function validateMiddleware(value: unknown, file: string): Middleware[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || !value.every((m) => typeof m === "function")) {
+    throw new Error(`Export "middleware" di ${file} harus berupa array function`);
+  }
+  return value as Middleware[];
+}
+
 function validateModule(mod: Record<string, unknown>, file: string): RouteModule {
   const out: RouteModule = {};
   for (const key of [...HTTP_METHODS, "default"] as const) {
@@ -160,8 +171,14 @@ export class ZenRouter {
       if (clash) throw new Error(`Route bentrok: ${clash} dan ${relative} memetakan ke ${formatPattern(segments)}`);
       seen.set(key, relative);
 
-      const mod = validateModule((await import(pathToFileURL(file).href)) as Record<string, unknown>, relative);
-      routes.push({ pattern: formatPattern(segments), file, segments, module: mod });
+      const exports = (await import(pathToFileURL(file).href)) as Record<string, unknown>;
+      routes.push({
+        pattern: formatPattern(segments),
+        file,
+        segments,
+        module: validateModule(exports, relative),
+        middleware: validateMiddleware(exports.middleware, relative),
+      });
     }
 
     this.routes = routes.sort(compareRoutes);

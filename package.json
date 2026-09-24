@@ -1,6 +1,6 @@
 {
   "name": "zentara-core",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Zentara Core Framework – Intelligence in Harmony",
   "main": "dist/main.js",
   "type": "module",
@@ -12,11 +12,16 @@
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"test/**/*.test.ts\""
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "zen": "tsx src/cli.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
     "tsx": "^4.23.15",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "zod": "^4.6.5"
+  },
+  "bin": {
+    "zentara": "dist/cli.js"
   }
 }

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isLogLevel, type LogLevel } from "./logger.js";
+import type { Middleware } from "./middleware.js";
 import type { ZenPlugin } from "./plugin.js";
 
 export interface ZenConfig {
@@ -17,6 +18,13 @@ export interface ZenConfig {
   bodyLimit: number;
   logLevel: LogLevel;
   plugins: ZenPlugin[];
+  /** Middleware global, dijalankan sebelum middleware plugin dan file middleware aplikasi. */
+  middleware: Middleware[];
+  /**
+   * File yang meng-export default array middleware aplikasi (tanpa ekstensi atau dengan).
+   * Default: `app/middleware` di samping folder route. `false` untuk mematikan.
+   */
+  middlewareFile: string | false;
 }
 
 export type UserConfig = Partial<ZenConfig>;
@@ -45,6 +53,7 @@ export function resolveConfig(user: UserConfig = {}, env: NodeJS.ProcessEnv = pr
   const bodyLimit = user.bodyLimit ?? 1024 * 1024;
   if (!Number.isInteger(bodyLimit) || bodyLimit < 0) throw new Error(`Invalid bodyLimit: ${bodyLimit}`);
 
+  const routesDir = user.routesDir ? path.resolve(cwd, user.routesDir) : DEFAULT_ROUTES_DIR;
   const publicDir = user.publicDir === false ? false : path.resolve(cwd, user.publicDir ?? "public");
 
   return {
@@ -52,11 +61,18 @@ export function resolveConfig(user: UserConfig = {}, env: NodeJS.ProcessEnv = pr
     env: envName,
     host: env.HOST || user.host || "0.0.0.0",
     port: parsePort(env.PORT ?? user.port ?? 3000),
-    routesDir: user.routesDir ? path.resolve(cwd, user.routesDir) : DEFAULT_ROUTES_DIR,
+    routesDir,
     publicDir,
     bodyLimit,
     logLevel,
     plugins: user.plugins ?? [],
+    middleware: user.middleware ?? [],
+    middlewareFile:
+      user.middlewareFile === false
+        ? false
+        : user.middlewareFile
+          ? path.resolve(cwd, user.middlewareFile)
+          : path.join(path.dirname(routesDir), "middleware"),
   };
 }
 

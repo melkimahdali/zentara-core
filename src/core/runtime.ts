@@ -1,9 +1,13 @@
+import fs from "node:fs";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { resolveConfig, type UserConfig, type ZenConfig } from "./config.js";
-import { createContext, parseRequestUrl } from "./context.js";
+import { createContext, parseRequestUrl, type ZenContext } from "./context.js";
 import { HttpError } from "./errors.js";
 import { ZenLogger } from "./logger.js";
+import { compose, type Middleware } from "./middleware.js";
 import { ZenPluginManager } from "./plugin.js";
 import { ZenResponse } from "./response.js";
 import { allowedMethods, resolveHandler, ZenRouter } from "./router.js";
@@ -16,18 +20,47 @@ export class ZenRuntime {
   readonly plugins: ZenPluginManager;
   server: http.Server | undefined;
   private initialized = false;
+  private readonly middleware: Middleware[];
 
   constructor(userConfig: UserConfig = {}) {
     this.config = resolveConfig(userConfig);
     this.logger = new ZenLogger(this.config.logLevel);
     this.router = new ZenRouter(this.logger);
     this.plugins = new ZenPluginManager(this, this.config.plugins);
+    this.middleware = [...this.config.middleware];
+  }
+
+  /** Tambahkan middleware global. Hanya bisa dipanggil sebelum server berjalan (mis. di `setup()` plugin). */
+  use(...middleware: Middleware[]): this {
+    if (this.server) throw new Error("runtime.use() harus dipanggil sebelum start()");
+    for (const m of middleware) {
+      if (typeof m !== "function") throw new Error("runtime.use() hanya menerima function middleware");
+    }
+    this.middleware.push(...middleware);
+    return this;
+  }
+
+  private async loadAppMiddleware(): Promise<void> {
+    const base = this.config.middlewareFile;
+    if (base === false) return;
+    const candidates = path.extname(base) ? [base] : [".ts", ".mts", ".js", ".mjs"].map((ext) => base + ext);
+    const file = candidates.find((f) => fs.existsSync(f));
+    if (!file) return;
+
+    const mod = (await import(pathToFileURL(file).href)) as { default?: unknown };
+    const list = mod.default;
+    if (!Array.isArray(list) || !list.every((m) => typeof m === "function")) {
+      throw new Error(`${path.basename(file)} harus meng-export default array middleware`);
+    }
+    this.use(...(list as Middleware[]));
+    this.logger.debug(`Loaded ${list.length} middleware dari ${path.basename(file)}`);
   }
 
   async init(): Promise<void> {
     if (this.initialized) return;
     this.logger.info(`Booting ${this.config.appName} (${this.config.env})...`);
     await this.plugins.load();
+    await this.loadAppMiddleware();
     await this.router.loadRoutes(this.config.routesDir);
     this.initialized = true;
   }
@@ -43,32 +76,36 @@ export class ZenRuntime {
 
   private async dispatch(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = parseRequestUrl(req.url);
-    const method = (req.method ?? "GET").toUpperCase();
-    const match = this.router.match(url.pathname);
+    const ctx = createContext(req, res, { bodyLimit: this.config.bodyLimit, logger: this.logger }, url);
+    const result = await compose(this.middleware, (c) => this.route(c))(ctx);
+    this.send(req, res, result);
+  }
+
+  /** Ujung rantai middleware global: cocokkan route, jalankan middleware route, lalu handler. */
+  private async route(ctx: ZenContext): Promise<unknown> {
+    const match = this.router.match(ctx.path);
 
     if (!match) {
-      if ((method === "GET" || method === "HEAD") && this.config.publicDir) {
-        const file = await resolveStaticFile(this.config.publicDir, url.pathname);
-        if (file) return sendStaticFile(req, res, file);
+      if ((ctx.method === "GET" || ctx.method === "HEAD") && this.config.publicDir) {
+        const file = await resolveStaticFile(this.config.publicDir, ctx.path);
+        if (file) {
+          await sendStaticFile(ctx.req, ctx.res, file);
+          return undefined;
+        }
       }
       throw new HttpError(404);
     }
 
     const { route, params } = match;
-    const handler = resolveHandler(route.module, method);
+    ctx.params = params;
+    const handler = resolveHandler(route.module, ctx.method);
     if (!handler) {
       const allow = allowedMethods(route.module).join(", ");
-      if (method === "OPTIONS") {
-        res.writeHead(204, { Allow: allow }).end();
-        return;
-      }
+      if (ctx.method === "OPTIONS") return new ZenResponse(null, { status: 204, headers: { Allow: allow } });
       throw new HttpError(405, undefined, { headers: { Allow: allow } });
     }
 
-    const ctx = createContext(req, res, { bodyLimit: this.config.bodyLimit }, url);
-    ctx.params = params;
-    const result = await handler(ctx);
-    this.send(req, res, result);
+    return compose(route.middleware, handler)(ctx);
   }
 
   private send(req: IncomingMessage, res: ServerResponse, result: unknown): void {
@@ -109,8 +146,9 @@ export class ZenRuntime {
 
     const message = httpError?.expose ? httpError.message : status >= 500 ? "Internal Server Error" : "Error";
     const accept = String(req.headers.accept ?? "");
-    const wantsJson = accept.includes("application/json") && !accept.includes("text/html");
-    const body = wantsJson ? JSON.stringify({ error: { status, message } }) : message;
+    const details = httpError?.expose ? httpError.details : undefined;
+    const wantsJson = !accept.includes("text/html") && (accept.includes("application/json") || details !== undefined);
+    const body = wantsJson ? JSON.stringify({ error: { status, message, details } }) : message;
 
     res.statusCode = status;
     for (const [key, value] of Object.entries(httpError?.headers ?? {})) res.setHeader(key, value);
