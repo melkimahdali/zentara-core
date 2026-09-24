@@ -215,10 +215,9 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       console.log(`  ${pm} install`);
       if (template === "api") console.log(`  npx zentara db:migrate && npx zentara db:seed`);
     }
-    console.log(`  ${runCmd} dev                 ${c.dim("# http://localhost:3000")}`);
-    console.log(`\nBangun dengan bahasa sehari-hari:`);
-    console.log(`  npx zentara ai:setup`);
-    console.log(`  npx zentara "buatkan halaman daftar produk"\n`);
+    console.log(`  npx zentara ai:setup          ${c.dim("# atur provider AI (sekali saja)")}`);
+    console.log(`  npx zentara                   ${c.dim("# chat dengan Zentara AI + server dev di latar belakang")}`);
+    console.log(`\nAtau jalankan server saja: ${runCmd} dev ${c.dim("(http://localhost:3000)")}\n`);
     return 0;
   } catch (err) {
     rl?.close();

@@ -16,9 +16,11 @@ export interface ToolContext {
   journal: Journal;
   /** Bila true, aksi yang mengubah sesuatu tidak dieksekusi (hanya dilaporkan). */
   dryRun: boolean;
-  runScript: (script: string, args?: string[]) => Promise<CommandResult>;
+  runScript: (script: string, args?: string[], signal?: AbortSignal) => Promise<CommandResult>;
   /** Jalankan perintah database Zentara (db:generate/db:migrate/db:seed) di proses terpisah. */
   runDb: (action: DbAction) => Promise<CommandResult>;
+  /** Sinyal berhenti untuk tugas yang sedang berjalan (diisi oleh agen). */
+  signal?: AbortSignal;
 }
 
 export type DbAction = "generate" | "migrate" | "seed";
@@ -106,7 +108,9 @@ function preview(content: string, lines = 40): string {
 }
 
 async function gate(ctx: ToolContext, action: PendingAction): Promise<void> {
-  if (!(await ctx.approval.approve(action))) {
+  const approved = await ctx.approval.approve(action, ctx.signal);
+  if (ctx.signal?.aborted) throw new ToolError("Dibatalkan: pengguna menghentikan pekerjaan.");
+  if (!approved) {
     throw new ToolError("Pengguna tidak menyetujui aksi ini. Jangan ulangi; tanyakan atau pilih pendekatan lain.");
   }
 }
@@ -298,7 +302,7 @@ export const agentTools: AgentTool[] = [
     async run(input, ctx) {
       const check = str(input, "check")!;
       if (!["typecheck", "test", "build"].includes(check)) throw new ToolError("check harus typecheck, test, atau build");
-      const result = await ctx.runScript(check);
+      const result = await ctx.runScript(check, [], ctx.signal);
       return `${result.ok ? "BERHASIL" : "GAGAL"}: npm run ${check}\n${truncate(result.output)}`;
     },
   },
@@ -375,7 +379,7 @@ export const agentTools: AgentTool[] = [
 
 /** Jalankan skrip npm di proyek (tanpa shell), dengan batas waktu. */
 export function createScriptRunner(root: string, timeoutMs = 5 * 60 * 1000) {
-  return (script: string, args: string[] = []): Promise<CommandResult> => {
+  return (script: string, args: string[] = [], signal?: AbortSignal): Promise<CommandResult> => {
     const argv = script === "__install__" ? ["install", ...args] : ["run", script, "--silent"];
     if (script !== "__install__") {
       const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")) as { scripts?: Record<string, string> };
@@ -383,13 +387,13 @@ export function createScriptRunner(root: string, timeoutMs = 5 * 60 * 1000) {
     }
     return new Promise((resolve) => {
       const cmd = platformCommand("npm", argv);
-      const child = spawn(cmd.command, cmd.args, { cwd: root, env: { ...process.env, FORCE_COLOR: "0" }, timeout: timeoutMs, shell: cmd.shell });
+      const child = spawn(cmd.command, cmd.args, { cwd: root, env: { ...process.env, FORCE_COLOR: "0" }, timeout: timeoutMs, shell: cmd.shell, signal });
       let output = "";
       child.stdout.on("data", (c: Buffer) => (output += c.toString()));
       child.stderr.on("data", (c: Buffer) => (output += c.toString()));
-      child.on("error", (err) => resolve({ ok: false, output: `${output}\n${err.message}` }));
-      child.on("close", (code, signal) =>
-        resolve({ ok: code === 0, output: signal ? `${output}\n(dihentikan: ${signal})` : output }),
+      child.on("error", (err) => resolve({ ok: false, output: `${output}\n${err.name === "AbortError" ? "(dihentikan pengguna)" : err.message}` }));
+      child.on("close", (code, killSignal) =>
+        resolve({ ok: code === 0, output: killSignal ? `${output}\n(dihentikan: ${killSignal})` : output }),
       );
     });
   };

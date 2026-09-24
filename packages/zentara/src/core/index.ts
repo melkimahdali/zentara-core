@@ -35,3 +35,4 @@ export {
 export { HTTP_METHODS, type HttpMethod, type RouteHandler, type RouteModule } from "./router.js";
 export { loadZenStyles } from "./style.js";
 export { escapeHtml, Fragment, h, raw, renderToString, type Child, type Component } from "./view.js";
+export { welcomePage } from "./devpage/welcome.js";

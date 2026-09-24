@@ -9,7 +9,7 @@ import { ProviderChain } from "../../src/ai/chain.js";
 import { resolveAiConfig } from "../../src/ai/config.js";
 import { Journal, latestJournal, undoLatest } from "../../src/ai/journal.js";
 import { agentTools, resolveProjectPath, type ToolContext } from "../../src/ai/tools.js";
-import { ProviderUnavailableError, type CompletionRequest, type ModelProvider, type ModelTurn } from "../../src/ai/types.js";
+import { AbortedError, ProviderUnavailableError, type CompletionRequest, type ModelProvider, type ModelTurn } from "../../src/ai/types.js";
 
 const quietUI: AgentUI = { thinking() {}, assistant() {}, toolStart() {}, toolEnd() {}, info() {} };
 
@@ -260,6 +260,46 @@ describe("Agent", () => {
     const loop = Array.from({ length: 10 }, (_, i) => tool(String(i), "list_files", {}));
     const agent = new Agent({ chain: new ProviderChain([new ScriptedProvider("p", loop)]), tools: agentTools, context: makeContext(), system: "s", ui: quietUI, maxSteps: 3 });
     assert.equal((await agent.run("x")).status, "incomplete");
+  });
+});
+
+describe("menghentikan AI (Esc / tombol Berhenti)", () => {
+  it("abort saat menunggu model -> interrupted, percakapan tetap bisa dilanjutkan", async () => {
+    let calls = 0;
+    const provider: ModelProvider = {
+      name: "lambat",
+      describe: () => "lambat",
+      check: async () => "ok",
+      complete: (req) => {
+        calls++;
+        if (calls > 1) return Promise.resolve({ text: "lanjut", toolCalls: [], stop: "end" });
+        return new Promise<ModelTurn>((_resolve, reject) => req.signal?.addEventListener("abort", () => reject(new AbortedError())));
+      },
+    };
+    const agent = new Agent({ chain: new ProviderChain([provider]), tools: agentTools, context: makeContext(), system: "s", ui: quietUI });
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 20);
+    const first = await agent.run("tugas panjang", { signal: controller.signal });
+    assert.equal(first.status, "interrupted");
+    const second = await agent.run("tugas berikutnya");
+    assert.equal(second.status, "done");
+  });
+
+  it("abort saat menunggu persetujuan -> file tidak ditulis, semua tool call dijawab", async () => {
+    const controller = new AbortController();
+    const context = makeContext();
+    context.approval = new ApprovalPolicy("ask", (_a, signal) => new Promise((resolve) => signal?.addEventListener("abort", () => resolve("no"))));
+    const provider = new ScriptedProvider("p", [
+      { text: "", toolCalls: [{ id: "a", name: "write_file", input: { path: "src/x.ts", content: "1" } }, { id: "b", name: "read_file", input: { path: "src/a.ts" } }], stop: "tool_use" },
+    ]);
+    const agent = new Agent({ chain: new ProviderChain([provider]), tools: agentTools, context, system: "s", ui: quietUI });
+    setTimeout(() => controller.abort(), 20);
+    const result = await agent.run("tulis", { signal: controller.signal });
+    assert.equal(result.status, "interrupted");
+    assert.ok(!fs.existsSync(path.join(root, "src/x.ts")));
+    await agent.run("lagi");
+    const toolResults = provider.calls[1]!.messages.find((m) => m.role === "tool_results");
+    assert.equal(toolResults?.role === "tool_results" && toolResults.results.length, 2);
   });
 });
 

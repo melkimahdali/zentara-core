@@ -5,6 +5,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveConfig, type UserConfig, type ZenConfig } from "./config.js";
 import { createContext, parseRequestUrl, type ZenContext } from "./context.js";
+import { renderErrorPage, renderNotFoundPage, renderStatusPage } from "./devpage/error.js";
+import { appInfo, setAppInfo } from "./devpage/info.js";
 import { HttpError } from "./errors.js";
 import { ZenLogger } from "./logger.js";
 import { compose, type Middleware } from "./middleware.js";
@@ -12,6 +14,13 @@ import { ZenPluginManager } from "./plugin.js";
 import { ZenResponse } from "./response.js";
 import { allowedMethods, resolveHandler, ZenRouter } from "./router.js";
 import { resolveStaticFile, sendStaticFile } from "./static.js";
+
+/** 404 karena tidak ada route yang cocok (bukan HttpError(404) yang dilempar aplikasi). */
+class RouteNotFoundError extends HttpError {
+  constructor() {
+    super(404);
+  }
+}
 
 export class ZenRuntime {
   readonly config: ZenConfig;
@@ -59,10 +68,28 @@ export class ZenRuntime {
   async init(): Promise<void> {
     if (this.initialized) return;
     this.logger.info(`Booting ${this.config.appName} (${this.config.env})...`);
+    this.publishAppInfo();
     await this.plugins.load();
     await this.loadAppMiddleware();
     await this.router.loadRoutes(this.config.routesDir);
+    this.publishAppInfo();
     this.initialized = true;
+  }
+
+  /** Informasi untuk halaman sambutan & halaman error bawaan. */
+  private publishAppInfo(): void {
+    const root = process.cwd();
+    setAppInfo({
+      appName: this.config.appName,
+      env: this.config.env,
+      debug: this.config.debug,
+      root,
+      routes: this.router.list.map((r) => ({
+        pattern: r.pattern,
+        methods: allowedMethods(r.module).filter((m) => m !== "HEAD" && m !== "OPTIONS"),
+        file: path.relative(root, r.file).split(path.sep).join("/"),
+      })),
+    });
   }
 
   /** Handler Node `http` yang tidak pernah melempar; semua error diubah menjadi respons HTTP. */
@@ -93,7 +120,7 @@ export class ZenRuntime {
           return undefined;
         }
       }
-      throw new HttpError(404);
+      throw new RouteNotFoundError();
     }
 
     const { route, params } = match;
@@ -147,14 +174,38 @@ export class ZenRuntime {
     const message = httpError?.expose ? httpError.message : status >= 500 ? "Internal Server Error" : "Error";
     const accept = String(req.headers.accept ?? "");
     const details = httpError?.expose ? httpError.details : undefined;
-    const wantsJson = !accept.includes("text/html") && (accept.includes("application/json") || details !== undefined);
-    const body = wantsJson ? JSON.stringify({ error: { status, message, details } }) : message;
+    const wantsHtml = accept.includes("text/html");
+    const wantsJson = !wantsHtml && (accept.includes("application/json") || details !== undefined);
+    let body: string;
+    let type: string;
+    if (wantsJson) {
+      body = JSON.stringify({ error: { status, message, details } });
+      type = "application/json; charset=utf-8";
+    } else if (wantsHtml) {
+      // Browser: halaman error yang rapi. Detail (stack trace, kode) hanya saat debug.
+      body = this.errorHtml(req, err, status, httpError);
+      type = "text/html; charset=utf-8";
+    } else {
+      body = message;
+      type = "text/plain; charset=utf-8";
+    }
 
     res.statusCode = status;
     for (const [key, value] of Object.entries(httpError?.headers ?? {})) res.setHeader(key, value);
-    res.setHeader("Content-Type", wantsJson ? "application/json; charset=utf-8" : "text/plain; charset=utf-8");
+    res.setHeader("Content-Type", type);
     res.setHeader("Content-Length", Buffer.byteLength(body));
     res.end(req.method === "HEAD" ? undefined : body);
+  }
+
+  private errorHtml(req: IncomingMessage, err: unknown, status: number, httpError: HttpError | undefined): string {
+    try {
+      if (this.config.debug && err instanceof RouteNotFoundError) return renderNotFoundPage(req, appInfo().routes);
+      if (this.config.debug && status >= 500) return renderErrorPage(err, req, status);
+      return renderStatusPage(status, httpError?.expose ? httpError.message : undefined);
+    } catch (renderErr) {
+      this.logger.error("Gagal membuat halaman error", renderErr);
+      return `<!doctype html><title>${status}</title><h1>${status}</h1>`;
+    }
   }
 
   async start(): Promise<AddressInfo> {

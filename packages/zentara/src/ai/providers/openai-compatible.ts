@@ -1,5 +1,6 @@
 import type { TokenParam } from "../presets.js";
 import {
+  AbortedError,
   ProviderUnavailableError,
   safeToolId,
   type ChatMessage,
@@ -38,6 +39,11 @@ interface OpenAIResponse {
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
+export interface ModelInfo {
+  id: string;
+  created?: number;
+}
+
 const UNAVAILABLE_STATUS = new Set([401, 402, 403, 404, 408, 429]);
 
 /** Request ditolak server karena isinya (mis. 400), bukan karena provider tidak tersedia. */
@@ -70,15 +76,17 @@ export class OpenAICompatibleProvider implements ModelProvider {
     return h;
   }
 
-  private async request(path: string, init: RequestInit): Promise<unknown> {
+  private async request(path: string, init: RequestInit, signal?: AbortSignal): Promise<unknown> {
     let res: Response;
+    const timeout = AbortSignal.timeout(this.options.timeoutMs ?? 5 * 60 * 1000);
     try {
       res = await this.fetchImpl(`${this.baseUrl}${path}`, {
         ...init,
         headers: this.headers(),
-        signal: AbortSignal.timeout(this.options.timeoutMs ?? 5 * 60 * 1000),
+        signal: signal ? AbortSignal.any([timeout, signal]) : timeout,
       });
     } catch (cause) {
+      if (signal?.aborted) throw new AbortedError();
       const timeout = cause instanceof Error && cause.name === "TimeoutError";
       throw new ProviderUnavailableError(this.name, timeout ? "timeout" : `tidak bisa terhubung ke ${this.baseUrl}`, { cause });
     }
@@ -100,8 +108,15 @@ export class OpenAICompatibleProvider implements ModelProvider {
 
   /** Daftar ID model yang dilaporkan server (GET /models). */
   async listModels(): Promise<string[]> {
-    const list = (await this.request("/models", { method: "GET" })) as { data?: { id?: unknown }[] };
-    return (list.data ?? []).map((m) => m.id).filter((id): id is string => typeof id === "string");
+    return (await this.listModelInfo()).map((m) => m.id);
+  }
+
+  /** Model beserta waktu rilisnya (`created`, detik Unix) bila server melaporkannya. */
+  async listModelInfo(): Promise<ModelInfo[]> {
+    const list = (await this.request("/models", { method: "GET" })) as { data?: { id?: unknown; created?: unknown }[] };
+    return (list.data ?? [])
+      .filter((m): m is { id: string; created?: unknown } => typeof m.id === "string")
+      .map((m) => ({ id: m.id, created: typeof m.created === "number" ? m.created : undefined }));
   }
 
   /** Pilih model: dari config, atau model pertama yang dilaporkan server. */
@@ -165,7 +180,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
             function: { name: t.name, description: t.description, parameters: t.inputSchema },
           })),
         }),
-      }) as Promise<OpenAIResponse>;
+      }, request.signal) as Promise<OpenAIResponse>;
 
     const param = (this.tokenParam ??= this.options.tokenParam ?? "max_tokens");
     let data: OpenAIResponse;

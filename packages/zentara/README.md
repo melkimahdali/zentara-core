@@ -2,7 +2,7 @@
 
 Framework web TypeScript AI-driven asal Nusantara: routing berbasis file, auth, database, dan **Zentara AI** yang membangun aplikasi dari bahasa sehari-hari.
 
-> Status: **v0.6, rilis awal**. API masih bisa berubah sebelum v1.0.
+> Status: **v0.7**. API masih bisa berubah sebelum v1.0.
 
 ## Mulai cepat
 
@@ -11,8 +11,10 @@ Butuh Node.js 22 atau lebih baru.
 ```bash
 npm create zentara@latest toko-saya     # pilih template: api (login + database) atau minimal
 cd toko-saya
-npm run dev                             # http://localhost:3000, auto-reload
+npx zentara                             # CLI interaktif: chat dengan AI + server dev di latar belakang
 ```
+
+Atau jalankan server saja dengan `npm run dev` (http://localhost:3000, auto-reload). Halaman sambutan dan halaman error di browser juga punya chat Zentara AI selama pengembangan.
 
 | Perintah | Fungsi |
 |---|---|
@@ -22,6 +24,7 @@ npm run dev                             # http://localhost:3000, auto-reload
 | `zentara routes` | daftar route |
 | `zentara make:route <path>` · `make:middleware <nama>` | buat file baru |
 | `zentara db:generate` · `db:migrate` · `db:seed` | database |
+| `zentara` | CLI interaktif Zentara AI (gaya Claude Code) |
 | `zentara "<kalimat>"` · `ai:status` · `ai:setup` · `undo` | Zentara AI |
 
 Di dalam proyek, jalankan lewat `npx zentara ...` atau skrip `npm run dev` / `build` / `start`.
@@ -38,10 +41,48 @@ import { createSqlite, createPostgres } from "zentara/db";
 Tidak perlu hafal perintah. Tulis apa yang Anda mau dalam bahasa sehari-hari:
 
 ```bash
-npx zentara "buatkan API produk dengan nama, harga, dan stok, lengkap dengan validasi"
-npx zentara                       # mode obrolan: ketik permintaan satu per satu
+npx zentara                       # CLI interaktif: percakapan berlanjut, server dev di latar belakang
+npx zentara "buatkan API produk dengan nama, harga, dan stok, lengkap dengan validasi"   # satu perintah
 npx zentara undo                  # batalkan perubahan AI terakhir
 ```
+
+### CLI interaktif
+
+`npx zentara` (tanpa argumen) membuka sesi obrolan di terminal:
+
+- **Server dev di latar belakang.** Saat dibuka, Zentara bertanya dulu *"Jalankan server dev (npm run dev) di latar belakang?"*. Bila Ya, tidak perlu membuka terminal kedua; lognya disimpan (lihat dengan `/logs`) dan error server muncul di baris status. AI juga bisa membaca log itu untuk mencari penyebab error, dan menyalakan server hanya setelah Anda setujui. Bila `npm run dev` sudah berjalan di terminal lain, Zentara memakainya. Lewati pertanyaannya dengan `--no-dev`.
+- **Percakapan berlanjut**, jadi permintaan berikutnya bisa merujuk yang sebelumnya ("ubah warnanya jadi biru").
+- **Esc** menghentikan AI kapan saja. **Ctrl+C dua kali** untuk keluar (server dev ikut dimatikan).
+- **Persetujuan lewat menu** (↑/↓ lalu Enter, atau angka): *Ya*, *Ya dan setujui semua perubahan biasa*, atau *Tidak*. Perubahan ditampilkan sebagai diff berwarna.
+- **Perintah garis miring:**
+
+| Perintah | Fungsi |
+|---|---|
+| `/help` | bantuan |
+| `/mode ask` · `/mode auto` | ganti mode persetujuan |
+| `/dev` · `/dev start` · `/dev stop` · `/dev restart` | kendalikan server dev |
+| `/logs` | log server dev terakhir |
+| `/open [path]` | buka aplikasi di browser |
+| `/undo` | batalkan perubahan AI terakhir |
+| `/status` · `/setup` | cek atau atur provider AI |
+| `/clear` | mulai percakapan baru |
+| `/exit` | keluar |
+
+### Zentara AI di browser
+
+Selama pengembangan (`npx zentara` atau `npm run dev`), Zentara AI juga bisa dipakai dari browser:
+
+- **Halaman sambutan** (`src/app/routes/index.ts` bawaan template) menampilkan status aplikasi, daftar route, dan kotak chat Zentara AI. Ganti file itu untuk halaman Anda sendiri; pakai lagi kapan saja dengan `export { welcomePage as GET } from "zentara";`.
+- **Halaman error** menampilkan pesan, stack trace dengan potongan kode yang disorot, penyebab (`cause`), dan detail request. Tombol **✦ Tanya Zentara AI** mengirim error itu ke AI, yang menjelaskan penyebabnya lalu mengusulkan perbaikan. Setiap perubahan tetap meminta persetujuan (diff + tombol Setujui/Tolak) dan bisa dibatalkan.
+- **Halaman 404** menampilkan route yang tersedia dan tombol untuk membuat halaman itu dengan AI.
+- Aplikasi yang gagal dijalankan (mis. salah ketik di file route) tetap menampilkan halaman error di port-nya, dan server mulai ulang otomatis setelah file diperbaiki.
+
+Keamanan chat di browser:
+- hanya aktif saat pengembangan, lewat server kecil yang hanya mendengar di `127.0.0.1`;
+- setiap request butuh token acak per sesi, dan hanya diterima dari halaman `localhost` (situs lain dan DNS rebinding ditolak);
+- aturannya sama dengan di terminal: `.env` dan file database tidak bisa diakses, aksi krusial selalu ditanyakan, dan semua perubahan bisa di-undo.
+
+Di produksi (`zentara start`), pengunjung hanya melihat halaman error sederhana tanpa detail, dan halaman sambutan tanpa chat maupun daftar route. Klien API (`Accept: application/json`) tetap mendapat JSON.
 
 Cara kerja AI:
 1. Membaca struktur proyek, route, schema database, dan kode yang ada.
@@ -54,11 +95,12 @@ Cara kerja AI:
 
 | Mode | Perubahan file biasa | Aksi krusial |
 |---|---|---|
-| `ask` (default) | ditanyakan satu per satu (`s` = setujui semua sisanya) | selalu ditanyakan |
+| `ask` (default) | ditanyakan satu per satu (bisa pilih "setujui semua" untuk sisanya) | selalu ditanyakan |
 | `auto` (`--auto` atau `ai.mode: "auto"`) | langsung dikerjakan | selalu ditanyakan |
 
 Yang termasuk **aksi krusial**:
 - menghapus file, memasang paket npm, serta menerapkan migrasi atau seed ke database;
+- menyalakan atau memulai ulang server dev (dari CLI interaktif);
 - mengedit file migrasi di `drizzle/` secara manual;
 - mengubah `package.json`, `zentara.config`, `tsconfig`, `.github/`, `.gitignore`, atau `.env*`.
 
@@ -359,6 +401,7 @@ export default {
   port: 3000,          // env PORT menimpa nilai ini
   host: "0.0.0.0",     // env HOST
   logLevel: "info",    // debug | info | warn | error | silent (env LOG_LEVEL)
+  debug: true,         // halaman error lengkap; default true hanya saat NODE_ENV=development (env ZENTARA_DEBUG)
   bodyLimit: 1048576,
   publicDir: "public", // atau false
   plugins: [],

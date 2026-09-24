@@ -9,8 +9,10 @@ import { resolveAiConfig, createProviders, type AiUserConfig } from "./ai/config
 import { PRESETS } from "./ai/presets.js";
 import { interactiveSetup } from "./ai/setup.js";
 import { latestJournal, undoLatest } from "./ai/journal.js";
-import { createAiSession } from "./ai/session.js";
+import { createTerminalSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
+import { startDevtools, type Devtools } from "./dev/devtools.js";
+import { startRepl } from "./repl/repl.js";
 import { ProviderUnavailableError } from "./ai/types.js";
 import { defaultAppDir, loadConfigFile, resolveConfig } from "./core/config.js";
 import type { DbCommandResult } from "./db/commands.js";
@@ -28,13 +30,15 @@ export interface CliIO {
 const HELP = `Zentara CLI
 
 Menjalankan aplikasi:
-  zentara dev                                      Server pengembangan dengan auto-reload (src/app)
+  zentara dev [--no-ai]                            Server pengembangan dengan auto-reload (src/app),
+                                                   halaman error lengkap & chat Zentara AI di browser
   zentara build                                    Kompilasi TypeScript ke dist/
   zentara start                                    Jalankan hasil build (produksi, dist/app)
 
 Bicara dengan AI (bahasa sehari-hari):
+  zentara                                          CLI interaktif: chat dengan AI, server dev di latar
+                                                   belakang (ditanya dulu; --no-dev untuk melewati)
   zentara "buatkan API produk dengan nama dan harga"
-  zentara                                          Mode obrolan (di terminal interaktif)
   zentara ai "<perintah>" [--auto] [--dry-run]
   zentara ai:status                                Cek provider AI yang tersedia
   zentara ai:setup [provider]                      Atur provider AI (Claude, OpenAI, Gemini, Groq, DeepSeek,
@@ -237,7 +241,7 @@ async function loadAiConfig(io: CliIO, flags: ParsedArgs["flags"]) {
 async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Promise<number> {
   const config = await loadAiConfig(io, args.flags);
   const rl = io.interactive ? readline.createInterface({ input: process.stdin, output: process.stdout }) : undefined;
-  const session = createAiSession({
+  const session = createTerminalSession({
     root: io.cwd,
     config,
     io,
@@ -281,6 +285,32 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
   } finally {
     rl?.close();
   }
+}
+
+/** Mode obrolan interaktif (gaya Claude Code). */
+async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): Promise<number> {
+  await ensureTypeScriptLoader(io.cwd);
+  let appPort = 3000;
+  try {
+    appPort = resolveConfig(await loadConfigFile(io.cwd), serverEnv, io.cwd).port;
+  } catch {
+    // Config rusak: AI tetap bisa dipakai untuk memperbaikinya.
+  }
+  return startRepl({
+    cwd: io.cwd,
+    io,
+    version: version(),
+    loadConfig: () => loadAiConfig(io, args.flags),
+    serverEnv,
+    fallbackDev: { command: process.execPath, args: [fileURLToPath(import.meta.url), "dev"] },
+    appPort,
+    offerDevServer: args.flags["no-dev"] !== true,
+    dryRun: args.flags["dry-run"] === true,
+    runSetup: async (rl) => {
+      const user = (await loadConfigFile(io.cwd)) as { ai?: AiUserConfig };
+      return interactiveSetup({ root: io.cwd, rl, io, configProviders: user.ai?.providers });
+    },
+  });
 }
 
 async function aiStatus(args: ParsedArgs, io: CliIO): Promise<number> {
@@ -383,7 +413,12 @@ function serveEntry(): string {
   return fs.existsSync(js) ? js : path.join(here, "serve.ts");
 }
 
-async function devServer(io: CliIO): Promise<number> {
+/** Argumen tsx watch: pantau juga seluruh folder aplikasi (file route baru) dan .env. */
+export function devWatchArgs(cwd: string, appDir: string, entry: string): string[] {
+  return ["watch", "--clear-screen=false", "--include", appDir, "--include", path.join(cwd, ".env"), "--include", path.join(cwd, "zentara.config.mjs"), entry];
+}
+
+async function devServer(args: ParsedArgs, io: CliIO): Promise<number> {
   const appDir = path.join(io.cwd, "src", "app");
   if (!fs.existsSync(appDir)) {
     io.err("Folder src/app tidak ditemukan. Jalankan perintah ini di folder proyek Zentara.");
@@ -391,11 +426,29 @@ async function devServer(io: CliIO): Promise<number> {
   }
   const tsxPkg = localRequire.resolve("tsx/package.json");
   const tsxCli = path.join(path.dirname(tsxPkg), (JSON.parse(fs.readFileSync(tsxPkg, "utf8")) as { bin: string }).bin);
-  return runChild(process.execPath, [tsxCli, "watch", "--clear-screen=false", serveEntry()], io.cwd, {
-    ...process.env,
-    NODE_ENV: process.env.NODE_ENV ?? "development",
-    ZENTARA_APP_DIR: appDir,
-  });
+
+  // Salin env sebelum config AI memuat .env ke proses ini: perubahan .env harus tetap terbaca saat server dimulai ulang.
+  const childEnv = { ...process.env };
+  // Chat Zentara AI dari browser. Dilewati bila sudah disediakan proses induk (CLI interaktif).
+  let devtools: Devtools | undefined;
+  if (!process.env.ZENTARA_DEVTOOLS_PORT && args.flags["no-ai"] !== true) {
+    try {
+      await ensureTypeScriptLoader(io.cwd);
+      devtools = await startDevtools({ root: io.cwd, loadConfig: () => loadAiConfig(io, {}), log: io.out });
+    } catch (err) {
+      io.err(c.yellow(`Chat Zentara AI di browser tidak aktif: ${(err as Error).message}`));
+    }
+  }
+  try {
+    return await runChild(process.execPath, [tsxCli, ...devWatchArgs(io.cwd, appDir, serveEntry())], io.cwd, {
+      ...childEnv,
+      ...devtools?.env,
+      NODE_ENV: childEnv.NODE_ENV ?? "development",
+      ZENTARA_APP_DIR: appDir,
+    });
+  } finally {
+    await devtools?.close();
+  }
 }
 
 async function build(io: CliIO): Promise<number> {
@@ -446,6 +499,8 @@ function version(): string {
 }
 
 export async function run(argv: readonly string[], io: CliIO): Promise<number> {
+  // Salinan env sebelum .env dimuat ke proses ini: dipakai untuk server dev yang dijalankan CLI.
+  const serverEnv = { ...process.env };
   const args = parseArgs(argv);
   const command = args.positional[0];
   if (args.flags.version) {
@@ -457,20 +512,23 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
   if (isNaturalLanguage(args.positional)) return runAi(args.positional.join(" "), args, io);
   switch (command) {
     case "dev":
-      return devServer(io);
+      return devServer(args, io);
     case "build":
       return build(io);
     case "start":
       return start(io);
     case undefined:
-      if (io.interactive) return runAi(undefined, args, io);
+      if (io.interactive) return repl(args, io, serverEnv);
       io.out(HELP);
       return 0;
     case "help":
       io.out(HELP);
       return 0;
-    case "ai":
-      return runAi(args.positional.slice(1).join(" ") || undefined, args, io);
+    case "ai": {
+      const task = args.positional.slice(1).join(" ") || undefined;
+      if (!task && io.interactive) return repl(args, io, serverEnv);
+      return runAi(task, args, io);
+    }
     case "ai:status":
       return aiStatus(args, io);
     case "ai:setup":

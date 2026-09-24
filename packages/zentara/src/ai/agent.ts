@@ -1,7 +1,7 @@
 import type { ProviderChain } from "./chain.js";
 import type { AgentTool, CommandResult, ToolContext } from "./tools.js";
 import { ToolError } from "./tools.js";
-import type { ChatMessage, ToolCall, ToolResult } from "./types.js";
+import { AbortedError, type ChatMessage, type ToolCall, type ToolResult } from "./types.js";
 
 export interface AgentUI {
   thinking(provider: string): void;
@@ -25,7 +25,7 @@ export interface AgentOptions {
 }
 
 export interface AgentResult {
-  status: "done" | "incomplete" | "refused" | "verification_failed";
+  status: "done" | "incomplete" | "refused" | "verification_failed" | "interrupted";
   changedFiles: string[];
   steps: number;
   providersUsed: string[];
@@ -35,6 +35,11 @@ const WRITE_TOOLS = new Set(["write_file", "edit_file", "delete_file", "install_
 
 /** Loop agen: kirim percakapan ke model, jalankan tool yang diminta, ulangi sampai selesai. */
 export class Agent {
+  /** Lupakan percakapan sebelumnya (mis. perintah /clear). */
+  reset(): void {
+    this.messages.length = 0;
+  }
+
   private readonly messages: ChatMessage[] = [];
   private readonly toolMap: Map<string, AgentTool>;
 
@@ -43,8 +48,10 @@ export class Agent {
   }
 
   /** Percakapan dipertahankan antar pemanggilan, jadi permintaan lanjutan bisa merujuk tugas sebelumnya. */
-  async run(task: string): Promise<AgentResult> {
+  async run(task: string, options: { signal?: AbortSignal } = {}): Promise<AgentResult> {
     const { chain, ui, context } = this.options;
+    const { signal } = options;
+    context.signal = signal;
     const maxSteps = this.options.maxSteps ?? 40;
     const maxFix = this.options.maxFixAttempts ?? 2;
     const verify = this.options.verify ?? (() => defaultVerify(context));
@@ -56,22 +63,36 @@ export class Agent {
     this.messages.push({ role: "user", text: task });
 
     for (let step = 1; step <= maxSteps; step++) {
-      ui.thinking(chain.current?.name ?? "?");
-      const turn = await chain.complete({
-        system: this.options.system,
-        messages: this.messages,
-        tools: this.options.tools.map((t) => t.spec),
-      });
-      providersUsed.add(turn.provider);
-      this.messages.push({ role: "assistant", text: turn.text, toolCalls: turn.toolCalls, native: turn.native });
-      if (turn.text.trim()) ui.assistant(turn.text.trim(), turn.provider);
-
       const result = (status: AgentResult["status"]): AgentResult => ({
         status,
         steps: step,
         providersUsed: [...providersUsed],
         changedFiles: context.journal.changedFiles.filter((f) => !changedBefore.has(f)),
       });
+      const interrupted = () => {
+        // Model harus tahu tugas sebelumnya berhenti di tengah jalan saat pengguna menulis lagi.
+        this.messages.push({ role: "user", text: "[Pengguna menghentikan pekerjaan ini. Tunggu permintaan berikutnya.]" });
+        this.messages.push({ role: "assistant", text: "Baik, saya berhenti.", toolCalls: [] });
+        return result("interrupted");
+      };
+      if (signal?.aborted) return interrupted();
+
+      ui.thinking(chain.current?.name ?? "?");
+      let turn;
+      try {
+        turn = await chain.complete({
+          system: this.options.system,
+          messages: this.messages,
+          tools: this.options.tools.map((t) => t.spec),
+          signal,
+        });
+      } catch (err) {
+        if (err instanceof AbortedError || signal?.aborted) return interrupted();
+        throw err;
+      }
+      providersUsed.add(turn.provider);
+      this.messages.push({ role: "assistant", text: turn.text, toolCalls: turn.toolCalls, native: turn.native });
+      if (turn.text.trim()) ui.assistant(turn.text.trim(), turn.provider);
 
       if (turn.stop === "refusal") {
         ui.info("Model menolak permintaan ini.");
@@ -87,6 +108,7 @@ export class Agent {
 
         ui.info("Memverifikasi perubahan (typecheck & test)...");
         const check = await verify();
+        if (signal?.aborted) return interrupted();
         if (check.ok) {
           ui.info("Verifikasi berhasil.");
           return result("done");
@@ -108,7 +130,9 @@ export class Agent {
       for (const call of turn.toolCalls) {
         ui.toolStart(call);
         let res: ToolResult;
-        if (turn.stop === "max_tokens") {
+        if (signal?.aborted) {
+          res = { id: call.id, isError: true, content: "Dibatalkan: pengguna menghentikan pekerjaan." };
+        } else if (turn.stop === "max_tokens") {
           res = { id: call.id, isError: true, content: "Input tool terpotong (max_tokens). Pecah menjadi langkah/file yang lebih kecil." };
         } else {
           res = await this.execute(call);
@@ -118,6 +142,7 @@ export class Agent {
         results.push(res);
       }
       this.messages.push({ role: "tool_results", results });
+      if (signal?.aborted) return interrupted();
     }
 
     ui.info(`Batas ${maxSteps} langkah tercapai.`);
@@ -148,7 +173,7 @@ export class Agent {
 async function defaultVerify(context: ToolContext): Promise<CommandResult> {
   const outputs: string[] = [];
   for (const script of ["typecheck", "test"]) {
-    const r = await context.runScript(script);
+    const r = await context.runScript(script, [], context.signal);
     outputs.push(`$ npm run ${script}\n${r.output}`);
     if (!r.ok) return { ok: false, output: outputs.join("\n\n") };
   }

@@ -54,6 +54,8 @@ export interface CompletionRequest {
   system: string;
   messages: ChatMessage[];
   tools: ToolSpec[];
+  /** Dihentikan pengguna (Esc/Ctrl+C di terminal, tombol Berhenti di browser). */
+  signal?: AbortSignal;
 }
 
 export interface ModelProvider {
@@ -77,6 +79,14 @@ export class ProviderUnavailableError extends Error {
   ) {
     super(`${provider}: ${reason}`, options);
     this.name = "ProviderUnavailableError";
+  }
+}
+
+/** Pekerjaan AI dihentikan oleh pengguna. Tidak memicu fallback ke provider lain. */
+export class AbortedError extends Error {
+  constructor() {
+    super("Dihentikan oleh pengguna");
+    this.name = "AbortedError";
   }
 }
 
