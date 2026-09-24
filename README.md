@@ -1,7 +1,6 @@
-<p align="center"><img src="assets/zentara-logo.png" alt="Zentara Core" width="160"></p>
+<p align="center"><img src="assets/zentara-banner.webp" alt="Zentara Core — AI-driven TypeScript web framework from Indonesia. Rooted here. Built for what's next." width="100%"></p>
 
-<h1 align="center">Zentara Core</h1>
-<p align="center"><em>Rooted here. Built for what's next.</em></p>
+# Zentara Core
 
 Framework web TypeScript **AI-driven asal Nusantara**. Tulis apa yang Anda mau dalam bahasa sehari-hari, lalu Zentara AI yang mengerjakan langkah teknisnya, dengan persetujuan Anda dan selalu diverifikasi dengan test.
 
@@ -23,7 +22,7 @@ Fitur utama:
 
 ## Brand
 
-Logo, favicon, versi terminal (ANSI/ASCII), dan pedoman warna ada di [`assets/brand`](assets/brand). Warna utama: Zentara Teal `#2ED3B7`, Heritage Gold `#C89B52`, Core Obsidian `#0D1719`, Pearl White `#F2F4F0`, Muted Slate `#829490`. Aset kecil yang dipakai framework dibuat dari master logo dengan `scripts/brand/generate.py`.
+Logo, favicon, versi terminal (ANSI/ASCII), dan pedoman warna ada di [`assets/brand`](assets/brand). Warna utama: Zentara Teal `#2ED3B7`, Heritage Gold `#C89B52`, Core Obsidian `#0D1719`, Pearl White `#F2F4F0`, Muted Slate `#829490`. Aset kecil yang dipakai framework dibuat dari master logo dengan `scripts/brand/generate.py`. Banner README ada di `assets/zentara-banner.webp`; gambar pratinjau sosial (1280×640) di `assets/brand/social/social-preview.jpg`.
 
 ## Paket di repo ini
 
