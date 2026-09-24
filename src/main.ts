@@ -1,7 +1,10 @@
+import fs from "node:fs";
 import { loadConfigFile } from "./core/config.js";
 import { ZenRuntime } from "./core/runtime.js";
 
 async function bootstrap(): Promise<void> {
+  // Muat .env bila ada; variabel yang sudah diatur di environment tetap didahulukan.
+  if (fs.existsSync(".env")) process.loadEnvFile(".env");
   const runtime = new ZenRuntime(await loadConfigFile());
   await runtime.start();
 
