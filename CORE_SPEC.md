@@ -1,6 +1,6 @@
 # CORE_SPEC
 
-Kontrak inti Zentara Core v0.3. Perubahan pada kontrak ini dianggap *breaking change*.
+Kontrak inti Zentara Core v0.4. Perubahan pada kontrak ini dianggap *breaking change*.
 
 ## 1. Siklus hidup runtime
 
@@ -104,3 +104,32 @@ Hanya untuk `GET`/`HEAD`, dan hanya bila tidak ada route yang cocok. Path di-dec
 - Kegagalan menghasilkan `HttpError(422, "Validasi gagal", { details: { source, issues: [{ path, message }] } })`. `path` berupa segmen yang digabung dengan `.`.
 - Urutan validasi di `validate()`: `params` → `query` → `body`. Handler hanya dipanggil bila semuanya valid.
 - Respons error berbentuk JSON bila `Accept` meminta JSON, atau bila error memiliki `details` dan `Accept` tidak meminta HTML.
+
+## 13. Zentara AI
+
+- **Masukan.** Perintah CLI yang tidak dikenal dan berisi spasi diteruskan ke AI, begitu juga `zentara ai "<teks>"`. Menjalankan `zentara` tanpa argumen di terminal interaktif membuka mode obrolan.
+- **Loop agen.** Model dipanggil dan tool yang diminta dijalankan, berulang sampai model selesai atau batas `ai.maxSteps` (default 40) tercapai.
+  - Setelah model selesai, bila ada perubahan file, runtime menjalankan `npm run typecheck` lalu `npm run test`.
+  - Bila verifikasi gagal, output kegagalan dikirim kembali ke model, maksimal 2 kali.
+- **Tool.** Tersedia `list_files`, `read_file`, `search`, `list_routes`, `write_file`, `edit_file`, `delete_file`, `run_check` (typecheck/test/build), dan `install_package`.
+- **Risiko tool:**
+
+  | Risiko | Yang termasuk | Perlakuan |
+  |---|---|---|
+  | read | tool yang hanya membaca | tidak pernah ditanyakan |
+  | write | membuat/mengubah file biasa | ditanyakan di mode `ask`; otomatis di mode `auto` atau setelah jawaban "semua" |
+  | critical | `delete_file`, `install_package`, dan penulisan ke `package*.json`, `zentara.config.*`, `tsconfig*.json`, `.github/`, `.gitignore`, `.env*`, `src/core/` | **selalu** ditanyakan |
+
+  Di terminal non-interaktif, semua aksi yang butuh persetujuan ditolak.
+- **Larangan mutlak:**
+  - path di luar root proyek, dicek secara leksikal dan lewat `realpath` leluhur terdekat (mencegah lolos lewat symlink);
+  - menulis ke `.git/`, `node_modules/`, `.zentara/`, `dist/`;
+  - membaca atau mengubah `.env` dan `.env.*` (kecuali `.env.example`).
+- **Undo.** Sebelum file pertama kali diubah dalam satu perintah, isinya dicatat di `.zentara/history/<waktu>.json` (`null` bila file baru). `zentara undo` memulihkan file dalam urutan terbalik lalu menghapus jurnalnya.
+- **Rantai provider.** Provider dicoba berurutan.
+  - `ProviderUnavailableError` membuat rantai pindah ke provider berikutnya dan menetap di sana selama sesi. Pemicunya: kredensial tidak ada, 401/402/403/404/408/429, 5xx, koneksi gagal, timeout, atau respons rusak.
+  - Error lain (mis. 400) diteruskan tanpa fallback.
+  - Percakapan disimpan dalam format netral. Konten asli Claude (termasuk blok thinking) hanya dikirim ulang ke provider yang sama.
+- **Provider:**
+  - `anthropic`: memakai `@anthropic-ai/sdk`, `client.beta.messages.create`, default `claude-opus-5`, effort `high`, beta `server-side-fallback-2026-07-01` dengan `fallbacks: "default"`.
+  - `openai-compatible`: memakai `POST {baseUrl}/chat/completions` dengan function calling. Bila model tidak diatur, dipakai model pertama dari `GET {baseUrl}/models`.

@@ -2,7 +2,7 @@
 
 Framework AI-driven fullstack asal Nusantara. Ditulis dalam TypeScript, tanpa dependency runtime.
 
-> Status: **v0.3 – Tahap 2 (middleware, session, keamanan, validasi, CLI)**. API masih bisa berubah.
+> Status: **v0.4 – Tahap 3 (Zentara AI: bangun aplikasi dengan bahasa sehari-hari)**. API masih bisa berubah.
 
 ## Mulai cepat
 
@@ -18,6 +18,76 @@ npm run zen -- routes   # CLI Zentara (lihat bagian CLI)
 ```
 
 Salin `.env.example` ke `.env` lalu isi `SESSION_SECRET`. Di production, secret ini **wajib** diisi.
+
+## Zentara AI: cukup bicara
+
+Tidak perlu hafal perintah. Tulis apa yang Anda mau dalam bahasa sehari-hari:
+
+```bash
+npm run zen -- "buatkan API produk dengan nama, harga, dan stok, lengkap dengan validasi"
+npm run zen                       # mode obrolan: ketik permintaan satu per satu
+npm run zen -- undo               # batalkan perubahan AI terakhir
+```
+
+Setelah build atau dipasang sebagai paket, perintahnya cukup `zentara "..."`.
+
+Cara kerja AI:
+1. Membaca struktur proyek, route, dan kode yang ada.
+2. Menyampaikan rencana singkat.
+3. Membuat atau mengubah file, dengan persetujuan Anda.
+4. **Selalu menjalankan typecheck dan test.** Bila gagal, AI memperbaikinya sendiri (maksimal 2 kali).
+5. Melaporkan hasilnya: file yang berubah dan cara mencobanya.
+
+### Persetujuan
+
+| Mode | Perubahan file biasa | Aksi krusial |
+|---|---|---|
+| `ask` (default) | ditanyakan satu per satu (`s` = setujui semua sisanya) | selalu ditanyakan |
+| `auto` (`--auto` atau `ai.mode: "auto"`) | langsung dikerjakan | selalu ditanyakan |
+
+Yang termasuk **aksi krusial**:
+- menghapus file dan memasang paket npm;
+- mengubah `package.json`, `zentara.config`, `tsconfig`, `.github/`, `.gitignore`, `.env*`, atau inti framework (`src/core/`).
+
+Yang **tidak pernah** bisa dilakukan AI:
+- membaca atau mengubah `.env` (rahasia tidak dikirim ke provider AI);
+- menulis ke `.git/`, `node_modules/`, atau `dist/`;
+- menyentuh file di luar folder proyek, termasuk lewat symlink.
+
+Pilihan lain:
+- `--dry-run`: melihat rencana tanpa mengubah apa pun.
+- Setiap perubahan dicatat di `.zentara/history/`, jadi `zentara undo` bisa mengembalikannya.
+
+### Provider AI & fallback
+
+Zentara mencoba provider **berurutan**. Kalau satu provider kehabisan kredit (402), kena batas kuota (429), mati, atau belum diatur, Zentara otomatis pindah ke provider berikutnya tanpa kehilangan percakapan.
+
+| Urutan default | Cara mengaktifkan |
+|---|---|
+| 1. **Claude** (`claude-opus-5`) | isi `ANTHROPIC_API_KEY` di `.env` |
+| 2. **[OmniRoute](https://github.com/diegosouzapw/OmniRoute)** (opsional, gateway ke ratusan provider termasuk yang gratis) | pasang & jalankan; otomatis terdeteksi di `localhost:20128` |
+| 3. **Ollama** (opsional, model lokal & offline) | pasang & jalankan; otomatis terdeteksi di `localhost:11434`, pilih model dengan `OLLAMA_MODEL` |
+
+Provider yang tidak dipasang otomatis dilewati. Perintah terkait:
+- `zentara ai:status` menampilkan provider yang siap.
+- `zentara ai:setup` menampilkan panduan pemasangan.
+
+Urutan kustom diatur di `zentara.config.mjs`:
+
+```js
+ai: {
+  mode: "ask",
+  providers: [
+    { type: "anthropic", name: "claude", model: "claude-opus-5" },
+    { type: "openai-compatible", name: "omniroute", baseUrl: "http://localhost:20128/v1" },
+    { type: "openai-compatible", name: "ollama", baseUrl: "http://localhost:11434/v1", model: "qwen3-coder" },
+  ],
+},
+```
+
+Catatan:
+- Claude dipanggil dengan *server-side fallback* (`fallbacks: "default"`). Kalau model utama menolak permintaan karena kebijakan keamanan, API otomatis mengulanginya di model cadangan.
+- Lewat OmniRoute, kode proyek dikirim ke provider pihak ketiga yang Anda pilih. Output selalu menampilkan provider mana yang dipakai.
 
 ## Routing berbasis file
 
@@ -215,6 +285,7 @@ export default definePlugin({
 ```
 src/core/            inti framework (runtime, router, middleware, session, ...)
 src/cli.ts           CLI zentara
+src/ai/              Zentara AI (agen, provider, tool, persetujuan, undo)
 src/app/routes/      route aplikasi
 src/app/middleware.ts middleware global aplikasi
 public/          file statis
