@@ -73,26 +73,42 @@ Pilihan lain:
 
 ### Provider AI & fallback
 
-Zentara mencoba provider **berurutan**. Kalau satu provider kehabisan kredit (402), kena batas kuota (429), mati, atau belum diatur, Zentara otomatis pindah ke provider berikutnya tanpa kehilangan percakapan.
+Cara termudah untuk memilih provider:
 
-| Urutan default | Cara mengaktifkan |
-|---|---|
-| 1. **Claude** (`claude-opus-5`) | isi `ANTHROPIC_API_KEY` di `.env` |
-| 2. **[OmniRoute](https://github.com/diegosouzapw/OmniRoute)** (opsional, gateway ke ratusan provider termasuk yang gratis) | pasang & jalankan; otomatis terdeteksi di `localhost:20128` |
-| 3. **Ollama** (opsional, model lokal & offline) | pasang & jalankan; otomatis terdeteksi di `localhost:11434`, pilih model dengan `OLLAMA_MODEL` |
+```bash
+npx zentara ai:setup            # menu: pilih provider, ketik API key (tersembunyi), pilih model, tes koneksi
+npx zentara ai:setup openai     # langsung ke provider tertentu
+npx zentara ai:status           # lihat rantai provider yang aktif
+```
 
-Provider yang tidak dipasang otomatis dilewati. Perintah terkait:
-- `zentara ai:status` menampilkan provider yang siap.
-- `zentara ai:setup` menampilkan panduan pemasangan.
+Hasilnya disimpan ke `.env` (izin 0600, tidak ikut ter-commit), bukan ke file config.
 
-Urutan kustom diatur di `zentara.config.mjs`:
+Zentara mencoba provider **berurutan**. Kalau satu provider kehabisan kredit (402), kena batas kuota (429), mati, atau belum diatur, Zentara otomatis pindah ke provider berikutnya tanpa kehilangan percakapan. Provider cloud **otomatis ikut** begitu API key-nya ada di `.env`:
+
+| Provider | API key | Model (default) | Keterangan |
+|---|---|---|---|
+| Claude | `ANTHROPIC_API_KEY` | `ZENTARA_CLAUDE_MODEL` (`claude-opus-5`) | selalu ada di rantai; dilewati bila key kosong |
+| OpenAI | `OPENAI_API_KEY` | `OPENAI_MODEL` (`gpt-4.1`) | otomatis memakai `max_completion_tokens` |
+| Google Gemini | `GEMINI_API_KEY` | `GEMINI_MODEL` (`gemini-2.5-flash`) | |
+| Groq | `GROQ_API_KEY` | `GROQ_MODEL` (`llama-3.3-70b-versatile`) | |
+| DeepSeek | `DEEPSEEK_API_KEY` | `DEEPSEEK_MODEL` (`deepseek-chat`) | |
+| OpenRouter | `OPENROUTER_API_KEY` | `OPENROUTER_MODEL` (`openai/gpt-4.1`) | banyak model dengan satu key |
+| [OmniRoute](https://github.com/diegosouzapw/OmniRoute) | – | `OMNIROUTE_MODEL` | lokal di `localhost:20128`, dilewati bila tidak berjalan |
+| Ollama | – | `OLLAMA_MODEL` | lokal & offline di `localhost:11434` |
+
+Pengaturan lain:
+- **Urutan:** `ZENTARA_AI_ORDER=openai,claude,ollama`. Provider lain yang aktif menyusul di belakang.
+- **Alamat API** (proxy atau gateway): `OPENAI_BASE_URL`, `GEMINI_BASE_URL`, `GROQ_BASE_URL`, `DEEPSEEK_BASE_URL`, `OPENROUTER_BASE_URL`, `OMNIROUTE_URL`, `OLLAMA_URL`.
+- **Model default bisa usang.** Ganti lewat variabel `*_MODEL`, atau pilih dari daftar model akun Anda di `ai:setup`.
+
+Untuk kendali penuh, tulis rantainya sendiri di `zentara.config.mjs`. Bila diisi, pengaturan dari `.env` di atas tidak dipakai:
 
 ```js
 ai: {
   mode: "ask",
   providers: [
-    { type: "anthropic", name: "claude", model: "claude-opus-5" },
-    { type: "openai-compatible", name: "omniroute", baseUrl: "http://localhost:20128/v1" },
+    { type: "openai-compatible", name: "openai", baseUrl: "https://api.openai.com/v1", model: "gpt-4.1", apiKey: process.env.OPENAI_API_KEY },
+    { type: "anthropic", name: "claude" },
     { type: "openai-compatible", name: "ollama", baseUrl: "http://localhost:11434/v1", model: "qwen3-coder" },
   ],
 },
@@ -100,7 +116,7 @@ ai: {
 
 Catatan:
 - Claude dipanggil dengan *server-side fallback* (`fallbacks: "default"`). Kalau model utama menolak permintaan karena kebijakan keamanan, API otomatis mengulanginya di model cadangan.
-- Lewat OmniRoute, kode proyek dikirim ke provider pihak ketiga yang Anda pilih. Output selalu menampilkan provider mana yang dipakai.
+- Kode proyek dikirim ke provider yang Anda pilih. Output selalu menampilkan provider mana yang dipakai.
 
 ## Routing berbasis file
 

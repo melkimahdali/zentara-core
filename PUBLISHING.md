@@ -86,7 +86,7 @@ Dengan cara ini:
    npm stage list create-zentara
    npm stage approve <stage-id>
    ```
-   Perintah `npm stage` butuh npm versi terbaru: `npm install -g npm@latest`. Untuk memeriksa isi paket dulu, gunakan `npm stage download <stage-id>`. Kalau ada yang salah, tolak dengan `npm stage reject <stage-id>`, perbaiki, lalu buat rilis baru.
+   Perintah `npm stage` butuh npm ≥ 11.16. Jalankan `npm install -g npm@11` (npm 12 butuh Node ≥ 24.15). Untuk memeriksa isi paket dulu, gunakan `npm stage download <stage-id>`. Kalau ada yang salah, tolak dengan `npm stage reject <stage-id>`, perbaiki, lalu buat rilis baru.
 
 ## Masalah umum
 
@@ -98,7 +98,9 @@ Dengan cara ini:
 | `cannot publish over the previously published versions` | naikkan versi dulu (`node scripts/version.mjs ...`) |
 | Workflow gagal `404`/`E403` saat stage publish | Trusted Publisher belum diatur untuk paket itu, atau nama repo/file workflow tidak sama persis |
 | `422 ... Unsupported GitHub Actions source repository visibility: "private"` | provenance butuh repo publik. Workflow sekarang otomatis mematikan provenance untuk repo private; jadikan repo publik bila ingin provenance |
-| `npm stage`: perintah tidak dikenal | perbarui npm: `npm install -g npm@latest` |
+| `npm stage`: perintah tidak dikenal | perbarui npm: `npm install -g npm@11` |
+| `EBADENGINE` saat memasang npm 12 | npm 12 butuh Node ≥ 24.15; pakai `npm install -g npm@11` atau perbarui Node |
+| PowerShell: `The '<' operator is reserved` | `<stage-id>` hanya contoh isian; ganti dengan ID dari `npm stage list`, tanpa `<` `>` |
 | Versi tidak muncul di npm setelah rilis | belum disetujui: `npm stage list <paket>` lalu `npm stage approve <stage-id>` |
 | Workflow gagal: tag tidak cocok | tag rilis harus `v` + versi di `package.json`, mis. `v0.6.1` |
 
