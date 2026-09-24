@@ -25,7 +25,18 @@ Zentara Core conventions:
 - Middleware: (ctx, next) => ..., registered in src/app/middleware.ts (export default [...]) or per route with export const middleware = [...]. Built-ins: requestLogger(), cors(), csrf(), session().
 - Render HTML with h(tag, props, ...children) and renderToString(); text is escaped automatically, raw() only for trusted HTML.
 - Import framework APIs from the relative path to src/core/index.js (ESM, always with the .js extension), e.g. from a file in src/app/routes/api/: "../../../core/index.js".
-- Tests use node:test in test/*.test.ts.`;
+- Tests use node:test in test/*.test.ts.
+
+Database (Drizzle ORM):
+- Tables are defined in src/app/db/schema.ts (drizzle-orm/sqlite-core by default). Import \`db\` from src/app/db/index.ts and table objects from schema.ts.
+- Query examples: db.select().from(products).where(eq(products.id, id)); db.query.users.findFirst({ where: eq(users.email, email) }); db.insert(t).values(v).returning(); db.update(t).set(v).where(...).returning(); db.delete(t).where(...); db.transaction(async (tx) => ...). Operators (eq, and, lte, sql, ...) come from "drizzle-orm".
+- After changing schema.ts, call the database tool with action "generate" and then "migrate". Never hand-write migration SQL. Initial data belongs in src/app/db/seed.ts (run with action "seed").
+- Validate params with z.coerce.number() for numeric ids; return 404 via HttpError when a row is missing. For partial updates use a schema without defaults (.partial() keeps defaults).
+
+Auth:
+- Core helpers: hashPassword, verifyPassword, fakeVerify, needsRehash, login(ctx, { id, role }), logout(ctx), currentUser(ctx), requireAuth({ loadUser, roles }), rateLimit({ windowMs, max }).
+- The app already provides src/app/lib/auth.ts with requireUser, requireAdmin, and publicUser(user). Protect a single method with withMiddleware([requireAdmin], handler); protect a whole route file with export const middleware = [requireUser].
+- Never return passwordHash or other secrets in responses; use publicUser(). Put rateLimit on login/register-like endpoints.`;
 
 /** Ringkasan proyek yang ditambahkan ke pesan pertama agar agen langsung punya konteks. */
 export function projectSnapshot(root: string): string {

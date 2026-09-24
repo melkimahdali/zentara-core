@@ -32,7 +32,10 @@ export function defaultMessage(status: number): string {
     case 413: return "Payload Too Large";
     case 403: return "Forbidden";
     case 415: return "Unsupported Media Type";
+    case 401: return "Unauthorized";
+    case 409: return "Conflict";
     case 422: return "Unprocessable Content";
+    case 429: return "Too Many Requests";
     default: return status >= 500 ? "Internal Server Error" : "Error";
   }
 }

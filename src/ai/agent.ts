@@ -31,7 +31,7 @@ export interface AgentResult {
   providersUsed: string[];
 }
 
-const WRITE_TOOLS = new Set(["write_file", "edit_file", "delete_file", "install_package"]);
+const WRITE_TOOLS = new Set(["write_file", "edit_file", "delete_file", "install_package", "database"]);
 
 /** Loop agen: kirim percakapan ke model, jalankan tool yang diminta, ulangi sampai selesai. */
 export class Agent {

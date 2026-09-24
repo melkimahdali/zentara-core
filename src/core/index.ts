@@ -1,10 +1,23 @@
 export { ZenRuntime } from "./runtime.js";
+export {
+  currentUser,
+  fakeVerify,
+  hashPassword,
+  login,
+  logout,
+  needsRehash,
+  requireAuth,
+  verifyPassword,
+  type AuthUser,
+  type RequireAuthOptions,
+} from "./auth.js";
+export { clientIp, rateLimit, type RateLimitOptions } from "./ratelimit.js";
 export { defineConfig, loadConfigFile, resolveConfig, type UserConfig, type ZenConfig } from "./config.js";
 export type { ZenContext, Query } from "./context.js";
 export { Cookies, parseCookieHeader, serializeCookie, type CookieOptions } from "./cookies.js";
 export { HttpError } from "./errors.js";
 export { ZenLogger, type LogLevel } from "./logger.js";
-export { compose, defineMiddleware, requestLogger, type Middleware, type Next } from "./middleware.js";
+export { compose, defineMiddleware, requestLogger, withMiddleware, type Middleware, type Next } from "./middleware.js";
 export { definePlugin, type ZenPlugin } from "./plugin.js";
 export { html, json, redirect, text, ZenResponse, type ResponseInit } from "./response.js";
 export { cors, csrf, type CorsOptions, type CsrfOptions } from "./security.js";

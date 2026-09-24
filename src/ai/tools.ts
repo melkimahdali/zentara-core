@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadConfigFile, resolveConfig } from "../core/config.js";
 import { ZenLogger } from "../core/logger.js";
 import { allowedMethods, ZenRouter } from "../core/router.js";
@@ -15,7 +16,11 @@ export interface ToolContext {
   /** Bila true, aksi yang mengubah sesuatu tidak dieksekusi (hanya dilaporkan). */
   dryRun: boolean;
   runScript: (script: string, args?: string[]) => Promise<CommandResult>;
+  /** Jalankan perintah database Zentara (db:generate/db:migrate/db:seed) di proses terpisah. */
+  runDb: (action: DbAction) => Promise<CommandResult>;
 }
+
+export type DbAction = "generate" | "migrate" | "seed";
 
 export interface CommandResult {
   ok: boolean;
@@ -34,7 +39,7 @@ const MAX_READ_BYTES = 200_000;
 const MAX_OUTPUT_CHARS = 6000;
 const IGNORED_DIRS = new Set(["node_modules", ".git", "dist", ".zentara", "coverage"]);
 /** Tidak boleh ditulis sama sekali oleh AI. */
-const WRITE_DENIED = [/^\.git(\/|$)/, /^node_modules(\/|$)/, /^\.zentara(\/|$)/, /^dist(\/|$)/];
+const WRITE_DENIED = [/^\.git(\/|$)/, /^node_modules(\/|$)/, /^\.zentara(\/|$)/, /^dist(\/|$)/, /\.(db|sqlite3?)(-wal|-shm|-journal)?$/];
 /** Bisa diubah, tapi selalu minta persetujuan (juga di mode otomatis). */
 const CRITICAL_PATHS: { pattern: RegExp; reason: string }[] = [
   { pattern: /^package(-lock)?\.json$/, reason: "mengubah dependency/skrip proyek" },
@@ -44,11 +49,13 @@ const CRITICAL_PATHS: { pattern: RegExp; reason: string }[] = [
   { pattern: /^\.gitignore$/, reason: "mengubah daftar file yang diabaikan git" },
   { pattern: /^src\/core\//, reason: "mengubah inti framework Zentara" },
   { pattern: /^\.env/, reason: "mengubah file environment" },
+  { pattern: /^drizzle\//, reason: "mengubah file migrasi database secara manual" },
 ];
 
-/** File rahasia yang isinya tidak boleh dikirim ke provider AI. */
+/** File rahasia/data yang isinya tidak boleh dikirim ke provider AI (.env, file database). */
 export function isSecretFile(rel: string): boolean {
   const base = rel.split("/").pop() ?? "";
+  if (/\.(db|sqlite3?)(-wal|-shm|-journal)?$/.test(base)) return true;
   return /^\.env(\..+)?$/.test(base) && base !== ".env.example";
 }
 
@@ -104,8 +111,9 @@ async function gate(ctx: ToolContext, action: PendingAction): Promise<void> {
   }
 }
 
-function listFiles(root: string, start: string, limit: number): string[] {
+function listFiles(root: string, start: string, limit: number, allowMissing = false): string[] {
   const out: string[] = [];
+  if (allowMissing && !fs.existsSync(start)) return out;
   const walk = (dir: string) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       if (out.length >= limit) return;
@@ -296,6 +304,47 @@ export const agentTools: AgentTool[] = [
   },
   {
     spec: {
+      name: "database",
+      description:
+        "Kelola database: generate = buat file migrasi dari perubahan src/app/db/schema.ts; migrate = terapkan migrasi ke database; seed = isi data awal. Jangan menulis SQL migrasi secara manual.",
+      inputSchema: {
+        type: "object",
+        properties: { action: { type: "string", enum: ["generate", "migrate", "seed"] } },
+        required: ["action"],
+        additionalProperties: false,
+      },
+    },
+    async run(input, ctx) {
+      const action = str(input, "action") as DbAction;
+      if (!["generate", "migrate", "seed"].includes(action)) throw new ToolError("action harus generate, migrate, atau seed");
+      const critical = action !== "generate";
+      await gate(ctx, {
+        tool: "database",
+        risk: critical ? "critical" : "write",
+        reason: critical ? `${action === "migrate" ? "mengubah struktur" : "menambah data ke"} database (tidak bisa dibatalkan dengan undo)` : undefined,
+        summary: { generate: "Buat file migrasi database", migrate: "Terapkan migrasi ke database", seed: "Isi data awal database" }[action],
+      });
+      if (ctx.dryRun) return `[dry-run] database ${action} tidak dijalankan`;
+
+      // generate menulis/mengubah file di drizzle/ (termasuk meta/_journal.json): foto dulu isinya agar undo tuntas.
+      const migrations = path.join(ctx.root, "drizzle");
+      const snapshot = new Map<string, string>();
+      if (action === "generate") {
+        for (const f of listFiles(ctx.root, migrations, 10_000, true)) snapshot.set(f, fs.readFileSync(path.join(ctx.root, f), "utf8"));
+      }
+      const result = await ctx.runDb(action);
+      if (action === "generate") {
+        for (const f of listFiles(ctx.root, migrations, 10_000, true)) {
+          const before = snapshot.get(f);
+          if (before === undefined) ctx.journal.recordExternal(f, null);
+          else if (before !== fs.readFileSync(path.join(ctx.root, f), "utf8")) ctx.journal.recordExternal(f, before);
+        }
+      }
+      return `${result.ok ? "BERHASIL" : "GAGAL"}: db:${action}\n${truncate(result.output, 3000)}`;
+    },
+  },
+  {
+    spec: {
       name: "install_package",
       description: "Pasang paket npm. Selalu meminta persetujuan pengguna.",
       inputSchema: {
@@ -342,6 +391,27 @@ export function createScriptRunner(root: string, timeoutMs = 5 * 60 * 1000) {
       child.on("close", (code, signal) =>
         resolve({ ok: code === 0, output: signal ? `${output}\n(dihentikan: ${signal})` : output }),
       );
+    });
+  };
+}
+
+/** Jalankan `zentara db:<action>` di proses Node terpisah (modul database aplikasi dimuat segar setiap kali). */
+export function createDbRunner(root: string, timeoutMs = 5 * 60 * 1000) {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const cli = [path.join(here, "..", "cli.js"), path.join(here, "..", "cli.ts")].find((f) => fs.existsSync(f));
+  return (action: DbAction): Promise<CommandResult> => {
+    if (!cli) return Promise.resolve({ ok: false, output: "CLI Zentara tidak ditemukan" });
+    return new Promise((resolve) => {
+      const child = spawn(process.execPath, [...process.execArgv, cli, `db:${action}`], {
+        cwd: root,
+        env: { ...process.env, FORCE_COLOR: "0", NODE_NO_WARNINGS: "1" },
+        timeout: timeoutMs,
+      });
+      let output = "";
+      child.stdout.on("data", (c: Buffer) => (output += c.toString()));
+      child.stderr.on("data", (c: Buffer) => (output += c.toString()));
+      child.on("error", (err) => resolve({ ok: false, output: `${output}\n${err.message}` }));
+      child.on("close", (code) => resolve({ ok: code === 0, output: output.trim() }));
     });
   };
 }

@@ -165,7 +165,14 @@ export function session(options: SessionOptions = {}): Middleware {
     const current = new Session(data, data === undefined);
     (ctx as unknown as Record<symbol, unknown>)[SESSION_SLOT] = current;
 
-    const result = await next();
+    let result: unknown;
+    try {
+      result = await next();
+    } catch (err) {
+      // Perubahan biasa tidak disimpan bila handler gagal, tapi destroy() (logout/sesi dicabut) tetap berlaku.
+      if (current.destroyed && existing && !ctx.res.headersSent) ctx.cookies.delete(cookieName, cookieOptions);
+      throw err;
+    }
 
     if (ctx.res.headersSent) {
       if (current.changed) ctx.logger.warn(`session(): perubahan session di ${ctx.path} tidak tersimpan karena respons sudah terkirim`);

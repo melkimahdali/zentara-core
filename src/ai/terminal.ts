@@ -14,7 +14,7 @@ export interface Output {
 
 function summarizeCall(call: ToolCall): string {
   const input = (call.input ?? {}) as Record<string, unknown>;
-  const main = input.path ?? input.query ?? input.check ?? input.name;
+  const main = input.path ?? input.query ?? input.check ?? input.name ?? input.action;
   return typeof main === "string" ? `${call.name} ${main}` : call.name;
 }
 
@@ -35,7 +35,7 @@ export class TerminalUI implements AgentUI {
 
   toolEnd(call: ToolCall, result: ToolResult): void {
     if (result.isError) this.io.out(c.yellow(`    ✗ ${result.content.split("\n")[0]}`));
-    else if (/^(write_file|edit_file|delete_file|install_package)$/.test(call.name)) {
+    else if (/^(write_file|edit_file|delete_file|install_package|database)$/.test(call.name)) {
       this.io.out(c.green(`    ✓ ${result.content.split("\n")[0]}`));
     }
   }
