@@ -14,6 +14,7 @@ import { c } from "./ai/terminal.js";
 import { startDevtools, type Devtools } from "./dev/devtools.js";
 import { startRepl } from "./repl/repl.js";
 import { banner, colorDepth } from "./brand/index.js";
+import { checkForUpdate } from "./update.js";
 import { ProviderUnavailableError } from "./ai/types.js";
 import { defaultAppDir, loadConfigFile, resolveConfig } from "./core/config.js";
 import type { DbCommandResult } from "./db/commands.js";
@@ -301,6 +302,7 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     cwd: io.cwd,
     io,
     version: version(),
+    checkUpdate: () => checkForUpdate({ current: version() }),
     loadConfig: () => loadAiConfig(io, args.flags),
     serverEnv,
     fallbackDev: { command: process.execPath, args: [fileURLToPath(import.meta.url), "dev"] },
