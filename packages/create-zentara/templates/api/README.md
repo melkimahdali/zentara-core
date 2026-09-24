@@ -54,4 +54,4 @@ Lalu jalankan:
 npm run build && npx zentara db:migrate && npm start
 ```
 
-Dokumentasi lengkap: https://github.com/melkimahdali/zentara-core
+Dokumentasi lengkap: https://melkimahdali.github.io/zentara-core/

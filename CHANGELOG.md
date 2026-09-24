@@ -2,6 +2,17 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.8.6]
+
+Penyelesaian Tahap 7 (brand & dokumentasi).
+
+### Ditambahkan
+- **Situs dokumentasi Zentara Core** (https://melkimahdali.github.io/zentara-core/): 18 halaman berbahasa Indonesia (mulai cepat, CLI interaktif, Zentara AI & OmniRoute, AI di browser, routing, context, middleware, validasi, view, database, auth, session, keamanan, konfigurasi, referensi CLI, deploy, brand) dan beranda. Bergaya brand (logo, teal/emas, mode gelap/terang), dengan sidebar, daftar isi, pencarian (tekan `/`), tombol salin kode, halaman sebelumnya/berikutnya, dan tautan "Perbaiki halaman ini". Sumber Markdown di `docs/`, dibangun dengan `npm run docs:build` memakai brand & highlighter dari paket zentara, dan diterbitkan otomatis ke GitHub Pages (`.github/workflows/docs.yml`).
+- `npm run docs:serve` untuk pratinjau lokal; CI ikut membangun dokumentasi.
+
+### Diubah
+- Tautan "Dokumentasi" di halaman sambutan, CLI (*Buka dokumentasi*), README, template, dan `homepage` paket npm mengarah ke situs dokumentasi.
+
 ## [0.8.5]
 
 ### Diubah

@@ -345,12 +345,12 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     const choice = await select(keys, "Mau mulai dari mana?", [
       { label: "Buat proyek baru", value: "create", hint: "npm create zentara: template api (login + database) atau minimal" },
       { label: "Chat di folder ini", value: "chat", hint: "Zentara AI bekerja di folder saat ini" },
-      { label: "Buka dokumentasi", value: "docs", hint: "panduan Zentara Core di GitHub" },
+      { label: "Buka dokumentasi", value: "docs", hint: "situs dokumentasi Zentara Core" },
       { label: "Keluar", value: "exit", hint: "" },
     ], "chat");
     if (choice === "exit") return 0;
     if (choice === "docs") {
-      openBrowser("https://github.com/melkimahdali/zentara-core/blob/main/packages/zentara/README.md");
+      openBrowser("https://melkimahdali.github.io/zentara-core/");
       io.out(c.dim("  Membuka dokumentasi di browser..."));
     }
     if (choice === "create") return createProject();

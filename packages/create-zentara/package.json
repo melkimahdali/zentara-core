@@ -1,6 +1,6 @@
 {
   "name": "create-zentara",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "Buat proyek Zentara baru: npm create zentara@latest",
   "keywords": [
     "zentara",
@@ -10,7 +10,7 @@
   ],
   "license": "MIT",
   "author": "melkimahdali",
-  "homepage": "https://github.com/melkimahdali/zentara-core#readme",
+  "homepage": "https://melkimahdali.github.io/zentara-core/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/melkimahdali/zentara-core.git",
