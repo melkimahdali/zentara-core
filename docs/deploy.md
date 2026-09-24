@@ -1,0 +1,30 @@
+---
+title: Build & deploy
+order: 3
+group: Referensi
+description: Menjalankan aplikasi Zentara di produksi.
+---
+
+# Build & deploy
+
+```bash
+npm run build     # zentara build: TypeScript -> dist/
+npm start         # zentara start: jalankan dist/app dengan NODE_ENV=production
+```
+
+Hal yang perlu disiapkan di server:
+
+- **Node.js 22+**.
+- **`.env` produksi**: `NODE_ENV=production`, `PORT`, `SESSION_SECRET` (minimal 32 karakter), `DATABASE_URL`, dan `SEED_ADMIN_PASSWORD` bila memakai `db:seed`.
+- **Migrasi database**: `npx zentara db:migrate` sebelum aplikasi dijalankan.
+- **Halaman error**: di produksi pengunjung hanya melihat halaman status sederhana. Pastikan `ZENTARA_DEBUG` tidak diaktifkan.
+
+Contoh dengan PM2:
+
+```bash
+npm ci && npm run build
+npx zentara db:migrate
+pm2 start npm --name toko -- start
+```
+
+Adapter deploy (Docker, Vercel, Cloudflare, dan lainnya) ada di peta jalan Tahap 13.

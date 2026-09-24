@@ -90,8 +90,8 @@ ${chat}</div>
 <div class="zx-grid zw-cards">${routes}
 <section class="zx-card zx-pad"><h2>Perintah penting</h2><div class="zw-cmds"><p>Chat dengan AI di terminal</p>${cmd("npx zentara")}<p>Atur provider AI (Claude, OpenAI, Gemini, ...)</p>${cmd("npx zentara ai:setup")}<p>Batalkan perubahan AI terakhir</p>${cmd("npx zentara undo")}</div></section>
 <section class="zx-card zx-pad"><h2>Pelajari</h2><div class="zw-links">
-<a href="https://github.com/melkimahdali/zentara-core#readme" target="_blank" rel="noopener">Dokumentasi <span>README →</span></a>
-<a href="https://github.com/melkimahdali/zentara-core/blob/main/packages/zentara/README.md" target="_blank" rel="noopener">Panduan framework <span>routing, auth, DB →</span></a>
+<a href="https://melkimahdali.github.io/zentara-core/" target="_blank" rel="noopener">Dokumentasi <span>situs resmi →</span></a>
+<a href="https://melkimahdali.github.io/zentara-core/mulai-cepat.html" target="_blank" rel="noopener">Mulai cepat <span>panduan →</span></a>
 <a href="https://www.npmjs.com/package/zentara" target="_blank" rel="noopener">Paket npm <span>zentara →</span></a>
 <a href="https://github.com/melkimahdali/zentara-core/issues" target="_blank" rel="noopener">Laporkan masalah <span>GitHub →</span></a></div></section></div>
 <p class="zx-foot">Ganti halaman ini di <code>src/app/routes/index.ts</code> · Zentara Core — Rooted here. Built for what&#39;s next.</p></div>`;

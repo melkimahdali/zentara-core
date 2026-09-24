@@ -19,6 +19,10 @@ Fitur utama:
 - **Halaman error lengkap** saat pengembangan: stack trace dengan potongan kode, detail request, tombol "Tanya Zentara AI".
 - Provider AI: **OmniRoute (default, gratis)**, Claude, OpenAI, Gemini, Groq, DeepSeek, OpenRouter, Ollama, dengan fallback otomatis bila kredit habis.
 
+## Dokumentasi
+
+📖 **https://melkimahdali.github.io/zentara-core/**: mulai cepat, Zentara AI & OmniRoute, routing, database, auth, referensi CLI. Sumbernya ada di [`docs/`](docs) (Markdown); pratinjau lokal: `npm run build && npm run docs:build && npm run docs:serve`.
+
 ## Brand
 
 Logo, favicon, versi terminal (ANSI/ASCII), dan pedoman warna ada di [`assets/brand`](assets/brand). Warna utama: Zentara Teal `#2ED3B7`, Heritage Gold `#C89B52`, Core Obsidian `#0D1719`, Pearl White `#F2F4F0`, Muted Slate `#829490`. Aset kecil yang dipakai framework dibuat dari master logo dengan `scripts/brand/generate.py`. Banner README ada di `assets/zentara-banner.webp`; gambar pratinjau sosial (1280×640) di `assets/brand/social/social-preview.jpg`.
@@ -27,7 +31,7 @@ Logo, favicon, versi terminal (ANSI/ASCII), dan pedoman warna ada di [`assets/br
 
 | Paket | Keterangan |
 |---|---|
-| [`packages/zentara`](packages/zentara) | framework + CLI `zentara`. **Dokumentasi lengkap ada di sini.** |
+| [`packages/zentara`](packages/zentara) | framework + CLI `zentara` (README paket npm) |
 | [`packages/create-zentara`](packages/create-zentara) | `npm create zentara` beserta template `api` dan `minimal` |
 
 ## Pengembangan framework

@@ -15,11 +15,16 @@
     "test": "npm test -w zentara -w create-zentara && node --test scripts/release-approve.test.mjs",
     "e2e": "node scripts/e2e.mjs",
     "ai-smoke": "node scripts/ai-smoke.mjs",
-    "release:approve": "node scripts/release-approve.mjs"
+    "release:approve": "node scripts/release-approve.mjs",
+    "docs:build": "node scripts/docs-build.mjs",
+    "docs:serve": "node scripts/docs-serve.mjs"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.0"
     }
+  },
+  "devDependencies": {
+    "marked": "^16.4.2"
   }
 }
