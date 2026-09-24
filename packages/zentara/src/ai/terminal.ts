@@ -38,6 +38,7 @@ const TOOL_NAMES: Record<string, string> = {
   edit_file: "Ubah",
   delete_file: "Hapus",
   run_check: "Cek",
+  run_command: "Jalankan",
   database: "Database",
   install_package: "Pasang",
   dev_server: "Server",
@@ -45,7 +46,7 @@ const TOOL_NAMES: Record<string, string> = {
 
 function mainArg(call: ToolCall): string | undefined {
   const input = (call.input ?? {}) as Record<string, unknown>;
-  const main = input.path ?? input.query ?? input.check ?? input.name ?? input.action;
+  const main = input.path ?? input.query ?? input.check ?? input.command ?? input.name ?? input.action;
   return typeof main === "string" ? main : undefined;
 }
 
@@ -77,37 +78,44 @@ export function toolResultSummary(call: ToolCall, result: ToolResult): string {
   }
 }
 
-/** Markdown sederhana untuk terminal: judul, tebal, kode, daftar, blok kode. */
-export function renderMarkdown(text: string): string {
-  const out: string[] = [];
-  let inCode = false;
-  for (const line of text.split("\n")) {
+/** Perender Markdown per baris (untuk streaming): mengingat apakah sedang di dalam blok kode. */
+export class MarkdownLines {
+  private inCode = false;
+
+  /** Baris siap cetak, atau undefined untuk baris pembatas blok kode (```). */
+  render(line: string): string | undefined {
     if (/^\s*```/.test(line)) {
-      inCode = !inCode;
-      continue;
+      this.inCode = !this.inCode;
+      return undefined;
     }
-    if (inCode) {
-      out.push(c.gray("│ ") + c.cyan(line));
-      continue;
-    }
+    if (this.inCode) return c.gray("│ ") + c.cyan(line);
     let l = line
       .replace(/\*\*([^*]+)\*\*/g, (_, t: string) => c.bold(t))
       .replace(/`([^`]+)`/g, (_, t: string) => c.cyan(t));
     const heading = /^#{1,6}\s+(.*)$/.exec(l);
     if (heading) l = c.bold(heading[1]!);
-    l = l.replace(/^(\s*)[-*]\s+/, "$1• ");
-    out.push(l);
+    return l.replace(/^(\s*)[-*]\s+/, "$1• ");
   }
-  return out.join("\n");
+}
+
+/** Markdown sederhana untuk terminal: judul, tebal, kode, daftar, blok kode. */
+export function renderMarkdown(text: string): string {
+  const md = new MarkdownLines();
+  return text
+    .split("\n")
+    .map((line) => md.render(line))
+    .filter((l): l is string => l !== undefined)
+    .join("\n");
 }
 
 /** Pratinjau perubahan berwarna: diff (+/-) atau isi file baru dengan nomor baris. */
 export function formatPreview(action: PendingAction, maxLines = 40): string[] {
   if (!action.preview) return [];
   const lines = action.preview.split("\n");
-  const isDiff = action.tool === "edit_file";
+  const kind = action.previewKind ?? (action.tool === "edit_file" ? "diff" : "file");
   const shown = lines.slice(0, maxLines).map((l, i) => {
-    if (isDiff) return l.startsWith("+ ") ? c.green(l) : l.startsWith("- ") ? c.red(l) : c.dim(l);
+    if (kind === "diff") return l.startsWith("@@") ? c.cyan(l) : l.startsWith("+") ? c.green(l) : l.startsWith("-") ? c.red(l) : c.dim(l);
+    if (kind === "command") return c.bold(l);
     if (l.startsWith("… (+")) return c.dim(l);
     return `${c.gray(String(i + 1).padStart(3))} ${action.tool === "write_file" ? c.green(l) : l}`;
   });
@@ -115,8 +123,11 @@ export function formatPreview(action: PendingAction, maxLines = 40): string[] {
   return shown;
 }
 
-/** Tampilan agen di terminal (gaya ⏺ / ⎿). */
+/** Tampilan agen di terminal (gaya ⏺ / ⎿). Jawaban AI dicetak bertahap per baris saat dialirkan. */
 export class TerminalUI implements AgentUI {
+  /** Jawaban yang sedang dialirkan: sisa baris yang belum lengkap, dan apakah baris pertama sudah dicetak. */
+  private stream: { pending: string; started: boolean; md: MarkdownLines; streamed: boolean } | undefined;
+
   constructor(
     private readonly io: Output,
     private readonly verbose = false,
@@ -125,13 +136,48 @@ export class TerminalUI implements AgentUI {
   ) {}
 
   thinking(provider: string): void {
+    this.stream = undefined;
     if (this.verbose) {
       this.beforePrint();
       this.io.out(c.dim(`… ${provider} berpikir`));
     }
   }
 
+  assistantDelta(delta: string): void {
+    const s = (this.stream ??= { pending: "", started: false, md: new MarkdownLines(), streamed: false });
+    s.streamed = true;
+    s.pending += delta;
+    let nl: number;
+    while ((nl = s.pending.indexOf("\n")) !== -1) {
+      this.printStreamLine(s.pending.slice(0, nl));
+      s.pending = s.pending.slice(nl + 1);
+    }
+  }
+
+  private printStreamLine(raw: string): void {
+    const s = this.stream!;
+    // Lewati baris kosong di awal jawaban (model sering memulai dengan baris baru).
+    if (!s.started && raw.trim() === "") return;
+    const line = s.md.render(raw);
+    if (line === undefined) return;
+    this.beforePrint();
+    if (!s.started) {
+      s.started = true;
+      this.io.out(`\n${accent("⏺")} ${line}`);
+    } else this.io.out(`  ${line}`);
+  }
+
   assistant(text: string, provider: string): void {
+    const s = this.stream;
+    this.stream = undefined;
+    if (s?.streamed) {
+      // Sudah tampil saat dialirkan: cetak sisa baris terakhir saja.
+      this.stream = s;
+      if (s.pending.trim()) this.printStreamLine(s.pending);
+      this.stream = undefined;
+      if (this.verbose) this.io.out(c.dim(`  (${provider})`));
+      return;
+    }
     this.beforePrint();
     const body = renderMarkdown(text).split("\n");
     this.io.out(`\n${accent("⏺")} ${body[0]}${this.verbose ? c.dim(`  (${provider})`) : ""}`);
@@ -155,6 +201,8 @@ export class TerminalUI implements AgentUI {
   }
 
   fallback(from: string, reason: string, to: string | undefined): void {
+    // Jawaban yang terputus di tengah jalan akan diulang oleh provider berikutnya.
+    this.stream = undefined;
     this.beforePrint();
     this.io.out(c.yellow(`  ✗ ${from} tidak tersedia: ${reason}`));
     if (to) this.io.out(c.yellow(`  → pindah ke ${to}...`));

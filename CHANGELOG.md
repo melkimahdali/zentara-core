@@ -2,9 +2,30 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
-## [Belum dirilis]
+## [0.9.0]
+
+Tahap 8: arsitektur & keamanan Zentara AI.
+
+### Ditambahkan
+- **Jawaban AI mengalir (streaming)** di CLI interaktif, perintah `zentara "..."`, dan chat di browser. Didukung Claude (SSE resmi) dan semua server OpenAI-compatible (OmniRoute, OpenAI, Gemini, Groq, DeepSeek, OpenRouter, Ollama). Server yang tidak mendukung streaming dideteksi otomatis, lalu dipakai tanpa streaming. Antarmuka `AgentUI` mendapat event `assistantDelta`, sehingga tampilan lain bisa memakai mesin agen yang sama.
+- **Percakapan tersimpan**:
+  - otomatis disimpan di `.zentara/sessions/` (30 terbaru, izin baca pemilik saja);
+  - `/resume` memilih percakapan untuk dilanjutkan;
+  - `zentara --continue` langsung melanjutkan percakapan terakhir.
+- **`/compact`** meringkas percakapan menjadi catatan singkat agar hemat token. Peringkasan juga berjalan otomatis saat percakapan melewati `ai.compactAt` (default ±60 ribu token), sehingga error 429 (batas token per menit) lebih jarang terjadi.
+- **Tool `run_command`**: AI bisa menjalankan satu perintah terminal di folder proyek.
+  - Perintah baca-saja (`git status/diff/log/show`, `ls`, `npm ls/outdated/view`, `npx tsc --noEmit`) langsung jalan.
+  - Awalan di `ai.allowedCommands` ditanyakan seperti perubahan biasa.
+  - Perintah lain adalah aksi krusial yang selalu ditanyakan.
+  - Perintah dijalankan tanpa shell, jadi pipa, `&&`, pengalihan, dan `$VAR`/`%VAR%` ditolak.
+  - Selalu ditolak: perintah admin, shell bersarang, kredensial (`npm publish`, `git push`, `git config`), argumen yang menyebut `.env`/file database, path di luar proyek, dan server/watch.
+- **Sensor rahasia**: nilai variabel rahasia (dari environment dan `.env`) disembunyikan dari output perintah, `typecheck`/`test`, dan database sebelum dikirim ke provider AI.
+- **Diff sebenarnya** saat meminta persetujuan: hanya baris yang berubah beserta 3 baris konteks dan nomor baris (format unified `@@ -a,b +c,d @@`). Berlaku di terminal dan browser. Menimpa file yang sudah ada kini juga ditampilkan sebagai diff.
+- Opsi `zentara.config`: `ai.allowedCommands` dan `ai.compactAt`.
 
 ### Diubah
+- `write_file` tidak lagi boleh menimpa file `.env` yang sudah ada (sama seperti `edit_file`), dan tidak meminta persetujuan bila isinya tidak berubah.
+- Permintaan tanpa tools (mis. meringkas) tidak lagi mengirim daftar `tools` kosong, yang ditolak sebagian server.
 - **Lisensi berganti dari MIT ke Business Source License 1.1** (`BUSL-1.1`) mulai versi 0.9.0. Zentara Core tetap gratis untuk membangun dan menjalankan aplikasi sendiri (termasuk produksi dan komersial); yang dilarang adalah menawarkannya sebagai framework, generator proyek, atau layanan pesaing. Setiap versi otomatis menjadi Apache 2.0 empat tahun setelah terbit. Versi yang sudah terbit (≤ 0.8.6) tetap berlisensi MIT.
 
 ## [0.8.6]

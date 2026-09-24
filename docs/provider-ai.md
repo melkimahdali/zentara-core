@@ -72,3 +72,4 @@ ai: {
 Catatan:
 - Claude dipanggil dengan *server-side fallback* (`fallbacks: "default"`). Kalau model utama menolak permintaan karena kebijakan keamanan, API otomatis mengulanginya di model cadangan.
 - Kode proyek dikirim ke provider yang Anda pilih. Output selalu menampilkan provider mana yang dipakai.
+- Jawaban dialirkan (*streaming*) di semua provider. Server OpenAI-compatible yang tidak mendukung streaming dideteksi otomatis, lalu dipakai tanpa streaming.

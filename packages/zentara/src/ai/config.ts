@@ -25,12 +25,21 @@ export interface AiUserConfig {
   mode?: ApprovalMode;
   /** Batas langkah (panggilan model) per perintah. Default 40. */
   maxSteps?: number;
+  /**
+   * Awalan perintah terminal yang boleh dijalankan AI tanpa diperlakukan sebagai aksi krusial,
+   * mis. ["npm run lint", "npx eslint"]. Tetap ditanyakan di mode "ask". Perintah terlarang tetap ditolak.
+   */
+  allowedCommands?: string[];
+  /** Ringkas percakapan otomatis bila perkiraan panjangnya melewati jumlah token ini. Default 60000; 0 = mati. */
+  compactAt?: number;
 }
 
 export interface AiConfig {
   providers: ProviderConfig[];
   mode: ApprovalMode;
   maxSteps: number;
+  allowedCommands: string[];
+  compactAt: number;
 }
 
 /**
@@ -72,6 +81,13 @@ export function resolveAiConfig(user: AiUserConfig | undefined, env: NodeJS.Proc
   const maxSteps = user?.maxSteps ?? 40;
   if (!Number.isInteger(maxSteps) || maxSteps < 1) throw new Error(`ai.maxSteps tidak valid: ${maxSteps}`);
 
+  const allowedCommands = user?.allowedCommands ?? [];
+  if (!Array.isArray(allowedCommands) || allowedCommands.some((c) => typeof c !== "string" || !c.trim())) {
+    throw new Error("ai.allowedCommands harus berupa daftar string, mis. [\"npm run lint\"]");
+  }
+  const compactAt = user?.compactAt ?? 60_000;
+  if (!Number.isInteger(compactAt) || compactAt < 0) throw new Error(`ai.compactAt tidak valid: ${compactAt}`);
+
   const providers = user?.providers ?? defaultProviders(env);
   const names = new Set<string>();
   for (const p of providers) {
@@ -85,7 +101,7 @@ export function resolveAiConfig(user: AiUserConfig | undefined, env: NodeJS.Proc
       throw new Error(`Provider ${name}: type tidak dikenal "${(p as { type: string }).type}"`);
     }
   }
-  return { providers, mode, maxSteps };
+  return { providers, mode, maxSteps, allowedCommands, compactAt };
 }
 
 export function createProviders(configs: ProviderConfig[]): ModelProvider[] {

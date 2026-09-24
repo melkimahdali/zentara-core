@@ -19,6 +19,7 @@ import { spawn } from "node:child_process";
 import { platformCommand } from "../process.js";
 import { cursorRow, Keys, select, Spinner, type Choice } from "./widgets.js";
 import { menuPrompts } from "./prompts.js";
+import { listSessions, loadSession } from "../ai/sessions.js";
 import type { SetupPrompts } from "../ai/setup.js";
 
 export interface ReplOptions {
@@ -39,6 +40,8 @@ export interface ReplOptions {
   /** Wizard `ai:setup` (dipanggil dari /setup). */
   runSetup: (prompts: SetupPrompts, preset?: string) => Promise<number>;
   dryRun?: boolean;
+  /** Lanjutkan percakapan terakhir yang tersimpan (flag --continue). */
+  continueLast?: boolean;
 }
 
 const COMMANDS: [string, string][] = [
@@ -48,6 +51,8 @@ const COMMANDS: [string, string][] = [
   ["/logs", "Lihat log server dev terakhir"],
   ["/open", "Buka aplikasi di browser"],
   ["/undo", "Batalkan perubahan AI terakhir"],
+  ["/resume", "Lanjutkan percakapan sebelumnya (tersimpan otomatis)"],
+  ["/compact", "Ringkas percakapan agar hemat token"],
   ["/omniroute", "OmniRoute (AI gratis): /omniroute (status), /omniroute install, start, stop"],
   ["/status", "Cek provider AI"],
   ["/setup", "Atur akses AI: provider, API key, model (/setup openai, /setup omniroute, ...)"],
@@ -215,7 +220,13 @@ export async function startRepl(options: ReplOptions): Promise<number> {
       super(io, false, () => spinner.clear());
     }
     override thinking(): void {
+      super.thinking("");
       spinnerLabel = "Berpikir";
+      spinner.start(spinnerLabel);
+    }
+    override assistantDelta(delta: string): void {
+      super.assistantDelta(delta);
+      spinnerLabel = "Menulis";
       spinner.start(spinnerLabel);
     }
     override toolStart(call: ToolCall): void {
@@ -247,7 +258,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
   };
 
   const newSession = (cfg: AiConfig): AiSession =>
-    createAiSession({ root: cwd, config: cfg, ui: new ReplUI(), prompter, dryRun: options.dryRun, extraTools: [devServerTool] });
+    createAiSession({ root: cwd, config: cfg, ui: new ReplUI(), prompter, dryRun: options.dryRun, extraTools: [devServerTool], persist: true });
   let session = newSession(config);
 
   /** Wizard ai:setup di dalam CLI, lalu muat ulang config & mulai percakapan baru. */
@@ -447,6 +458,14 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     }
   }
 
+  // ── Lanjutkan percakapan terakhir (zentara --continue) ─────────────────
+  if (options.continueLast) {
+    const latest = listSessions(cwd)[0];
+    io.out("");
+    if (latest) resumeSession(latest.id);
+    else io.out(c.dim("  Belum ada percakapan tersimpan; memulai percakapan baru."));
+  }
+
   // ── Input ──────────────────────────────────────────────────────────────
   const completer = (line: string): [string[], string] => {
     if (!line.startsWith("/")) return [[], line];
@@ -573,6 +592,31 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     if (result.changedFiles.length && devServer.url) io.out(c.dim(`  Lihat hasilnya: ${devServer.url}`));
   }
 
+  /** Waktu relatif singkat untuk daftar sesi, mis. "5 menit lalu". */
+  function ago(iso: string): string {
+    const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+    if (minutes < 1) return "baru saja";
+    if (minutes < 60) return `${minutes} menit lalu`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `${hours} jam lalu`;
+    return `${Math.round(hours / 24)} hari lalu`;
+  }
+
+  /** Lanjutkan sesi tersimpan dan tampilkan potongan percakapan terakhir. */
+  function resumeSession(id: string): void {
+    const saved = loadSession(cwd, id);
+    if (!saved || !session.resume(id)) {
+      io.out(c.yellow("  Percakapan tidak ditemukan."));
+      return;
+    }
+    io.out(`  ${accent("↺")} Melanjutkan: ${c.bold(saved.title.slice(0, 80))} ${c.dim(`(${ago(saved.updatedAt)})`)}`);
+    const lastUser = [...saved.messages].reverse().find((m) => m.role === "user" && !m.text.startsWith("["));
+    const lastAi = [...saved.messages].reverse().find((m) => m.role === "assistant" && m.text.trim());
+    const clip = (t: string) => t.replace(/<project>[\s\S]*?<\/project>\s*/, "").replace(/\s+/g, " ").trim().slice(0, 160);
+    if (lastUser?.role === "user") io.out(c.dim(`    ❯ ${clip(lastUser.text)}`));
+    if (lastAi?.role === "assistant") io.out(c.dim(`    ⏺ ${clip(lastAi.text)}`));
+  }
+
   async function confirm(question: string): Promise<boolean> {
     return select(keys, question, [{ label: "Ya", value: true }, { label: "Tidak", value: false }], false);
   }
@@ -591,6 +635,40 @@ export async function startRepl(options: ReplOptions): Promise<number> {
       case "quit":
       case "keluar":
         return false;
+      case "resume": {
+        const sessions = listSessions(cwd).filter((s) => s.id !== session.id);
+        if (sessions.length === 0) {
+          io.out("  Belum ada percakapan tersimpan.");
+          return true;
+        }
+        const choice = await select(
+          keys,
+          "Lanjutkan percakapan",
+          sessions.slice(0, 15).map((s) => ({ label: s.title.slice(0, 60) || "(tanpa judul)", value: s.id, hint: `${ago(s.updatedAt)} · ${s.turns} permintaan` })),
+          "",
+        );
+        if (choice) resumeSession(choice);
+        return true;
+      }
+      case "compact": {
+        spinnerLabel = "Meringkas percakapan";
+        spinner.start(spinnerLabel);
+        const controller = new AbortController();
+        const release = keys.push((_str, key) => {
+          if (key.name === "escape" || (key.ctrl && key.name === "c")) controller.abort();
+        });
+        try {
+          const res = await session.compact({ signal: controller.signal });
+          spinner.stop();
+          io.out(res ? `  ${c.green("✓")} Percakapan diringkas ${c.dim(`(~${res.before} → ~${res.after} token)`)}` : "  Percakapan masih pendek, tidak perlu diringkas.");
+        } catch (err) {
+          spinner.stop();
+          io.out(controller.signal.aborted ? c.yellow("  Dibatalkan.") : c.red(`  ✗ Gagal meringkas: ${(err as Error).message}`));
+        } finally {
+          release();
+        }
+        return true;
+      }
       case "clear":
         session.reset();
         out.write("\x1b[2J\x1b[H");

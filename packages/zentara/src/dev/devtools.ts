@@ -96,11 +96,12 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
 
   const ui: SessionUI = {
     thinking: () => emit({ type: "thinking" }),
+    assistantDelta: (text) => emit({ type: "delta", text }),
     assistant: (text) => emit({ type: "assistant", text }),
     toolStart: (call) => emit({ type: "tool", phase: "start", id: call.id, label: toolLabel(call) }),
     toolEnd: (call: ToolCall, result: ToolResult) => {
       const first = result.content.split("\n")[0] ?? "";
-      const writes = /^(write_file|edit_file|delete_file|install_package|database)$/.test(call.name);
+      const writes = /^(write_file|edit_file|delete_file|install_package|database|run_command)$/.test(call.name);
       emit({ type: "tool", phase: "end", id: call.id, ok: !result.isError, detail: result.isError || writes ? first.slice(0, 200) : "" });
       if (writes && !result.isError) log(c.dim(`  [AI browser] ${first}`));
     },

@@ -56,6 +56,11 @@ export interface CompletionRequest {
   tools: ToolSpec[];
   /** Dihentikan pengguna (Esc/Ctrl+C di terminal, tombol Berhenti di browser). */
   signal?: AbortSignal;
+  /**
+   * Bila diisi, provider mengalirkan (streaming) jawaban dan memanggil fungsi ini untuk setiap potongan
+   * teks yang baru diterima. Hasil akhir tetap dikembalikan utuh oleh complete().
+   */
+  onText?: (delta: string) => void;
 }
 
 export interface ModelProvider {

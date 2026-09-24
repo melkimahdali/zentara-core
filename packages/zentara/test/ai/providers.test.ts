@@ -259,3 +259,111 @@ describe("OpenAI-compatible: model baru & rate limit", () => {
     await quota.close();
   });
 });
+
+/** Server palsu yang menjawab dengan Server-Sent Events (streaming). */
+async function sseServer(events: (body: any) => { status?: number; chunks: string[] }) {
+  const requests: any[] = [];
+  const server = http.createServer((req, res) => {
+    let raw = "";
+    req.on("data", (c) => (raw += c));
+    req.on("end", async () => {
+      const body = raw ? JSON.parse(raw) : undefined;
+      requests.push(body);
+      const { status = 200, chunks } = events(body);
+      if (status !== 200) return res.writeHead(status, { "Content-Type": "application/json" }).end(chunks.join(""));
+      res.writeHead(200, { "Content-Type": "text/event-stream" });
+      for (const chunk of chunks) {
+        res.write(chunk);
+        await new Promise((r) => setTimeout(r, 2));
+      }
+      res.end();
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  return { base, requests, close: () => new Promise<void>((r) => server.close(() => r())) };
+}
+
+const data = (obj: unknown) => `data: ${JSON.stringify(obj)}\n\n`;
+
+describe("streaming", () => {
+  it("OpenAI-compatible: teks dialirkan per potongan dan tool call dirakit dari delta", async () => {
+    const server = await sseServer(() => ({
+      chunks: [
+        data({ model: "m", choices: [{ delta: { content: "Saya " } }] }),
+        // Satu event bisa terpotong di tengah jalan oleh jaringan.
+        data({ choices: [{ delta: { content: "baca dulu." } }] }).slice(0, 20),
+        data({ choices: [{ delta: { content: "baca dulu." } }] }).slice(20),
+        data({ choices: [{ delta: { tool_calls: [{ index: 0, id: "c1", function: { name: "read_file", arguments: '{"pa' } }] } }] }),
+        data({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: 'th":"a.ts"}' } }] }, finish_reason: "tool_calls" }] }),
+        "data: [DONE]\n\n",
+      ],
+    }));
+    const p = new OpenAICompatibleProvider({ name: "local", baseUrl: `${server.base}/v1`, model: "m" });
+    const deltas: string[] = [];
+    const turn = await p.complete({ system: "s", messages: history, tools, onText: (d) => deltas.push(d) });
+    assert.deepEqual(deltas, ["Saya ", "baca dulu."]);
+    assert.equal(turn.text, "Saya baca dulu.");
+    assert.deepEqual(turn.toolCalls, [{ id: "c1", name: "read_file", input: { path: "a.ts" } }]);
+    assert.equal(turn.stop, "tool_use");
+    assert.equal(server.requests[0].stream, true);
+    await server.close();
+  });
+
+  it("OpenAI-compatible: tool call tanpa index dipisah lewat id", async () => {
+    const server = await sseServer(() => ({
+      chunks: [
+        data({ choices: [{ delta: { tool_calls: [{ id: "a", function: { name: "read_file", arguments: '{"path":"a.ts"}' } }] } }] }),
+        data({ choices: [{ delta: { tool_calls: [{ id: "b", function: { name: "read_file", arguments: '{"path":"b.ts"}' } }] } }] }),
+        data({ choices: [{ delta: {}, finish_reason: "tool_calls" }] }),
+      ],
+    }));
+    const p = new OpenAICompatibleProvider({ name: "gemini", baseUrl: `${server.base}/v1`, model: "m" });
+    const turn = await p.complete({ system: "s", messages: history, tools, onText: () => {} });
+    assert.deepEqual(turn.toolCalls.map((c) => [c.id, (c.input as { path: string }).path]), [["a", "a.ts"], ["b", "b.ts"]]);
+    await server.close();
+  });
+
+  it("OpenAI-compatible: server yang menolak stream -> diulang tanpa stream dan diingat", async () => {
+    const json = await fakeServer(({ body }) =>
+      body.stream ? { status: 400, body: { error: { message: "stream is not supported" } } } : { status: 200, body: { choices: [{ message: { content: "utuh" }, finish_reason: "stop" }] } },
+    );
+    const p = new OpenAICompatibleProvider({ name: "local", baseUrl: `${json.base}/v1`, model: "m" });
+    const deltas: string[] = [];
+    assert.equal((await p.complete({ system: "s", messages: history, tools, onText: (d) => deltas.push(d) })).text, "utuh");
+    assert.equal((await p.complete({ system: "s", messages: history, tools, onText: (d) => deltas.push(d) })).text, "utuh");
+    assert.deepEqual(json.requests.map((r) => Boolean(r.body.stream)), [true, false, false]);
+    await json.close();
+  });
+
+  it("OpenAI-compatible: tanpa tools tidak mengirim daftar tools kosong", async () => {
+    const json = await fakeServer(() => ({ status: 200, body: { choices: [{ message: { content: "ringkas" }, finish_reason: "stop" }] } }));
+    const p = new OpenAICompatibleProvider({ name: "local", baseUrl: `${json.base}/v1`, model: "m" });
+    await p.complete({ system: "s", messages: history, tools: [] });
+    assert.equal("tools" in json.requests[0]!.body, false);
+    await json.close();
+  });
+
+  it("Claude: teks dialirkan lewat SSE dan hasil akhir tetap utuh", async () => {
+    const ev = (type: string, obj: object) => `event: ${type}\ndata: ${JSON.stringify({ type, ...obj })}\n\n`;
+    const server = await sseServer(() => ({
+      chunks: [
+        ev("message_start", { message: { id: "m1", type: "message", role: "assistant", model: "claude-opus-5", content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 5, output_tokens: 0 } } }),
+        ev("content_block_start", { index: 0, content_block: { type: "text", text: "" } }),
+        ev("content_block_delta", { index: 0, delta: { type: "text_delta", text: "Halo " } }),
+        ev("content_block_delta", { index: 0, delta: { type: "text_delta", text: "dunia" } }),
+        ev("content_block_stop", { index: 0 }),
+        ev("message_delta", { delta: { stop_reason: "end_turn", stop_sequence: null }, usage: { output_tokens: 3 } }),
+        ev("message_stop", {}),
+      ],
+    }));
+    const p = new AnthropicProvider({ apiKey: "k", baseURL: server.base, maxRetries: 0 });
+    const deltas: string[] = [];
+    const turn = await p.complete({ system: "s", messages: history, tools, onText: (d) => deltas.push(d) });
+    assert.deepEqual(deltas, ["Halo ", "dunia"]);
+    assert.equal(turn.text, "Halo dunia");
+    assert.equal(turn.stop, "end");
+    assert.equal(server.requests[0].stream, true);
+    await server.close();
+  });
+});

@@ -128,20 +128,28 @@ export class AnthropicProvider implements ModelProvider {
 
   async complete(request: CompletionRequest): Promise<ModelTurn> {
     let response: Anthropic.Beta.BetaMessage;
+    const params = {
+      model: this.model,
+      max_tokens: this.options.maxTokens ?? 16000,
+      system: request.system,
+      ...(request.tools.length ? { tools: request.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema })) } : {}),
+      messages: this.toMessages(request.messages),
+      output_config: { effort: this.options.effort ?? "high" },
+      // Riwayat percakapan dikirim ulang di setiap langkah; cache membuat langkah berikutnya jauh lebih murah.
+      cache_control: { type: "ephemeral" },
+      // Bila model utama menolak karena kebijakan keamanan, API mengulang otomatis di model cadangan.
+      betas: [FALLBACK_BETA],
+      fallbacks: "default",
+    } satisfies Anthropic.Beta.MessageCreateParamsNonStreaming;
     try {
-      response = await this.getClient().beta.messages.create({
-        model: this.model,
-        max_tokens: this.options.maxTokens ?? 16000,
-        system: request.system,
-        tools: request.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema })),
-        messages: this.toMessages(request.messages),
-        output_config: { effort: this.options.effort ?? "high" },
-        // Riwayat percakapan dikirim ulang di setiap langkah; cache membuat langkah berikutnya jauh lebih murah.
-        cache_control: { type: "ephemeral" },
-        // Bila model utama menolak karena kebijakan keamanan, API mengulang otomatis di model cadangan.
-        betas: [FALLBACK_BETA],
-        fallbacks: "default",
-      }, { signal: request.signal });
+      if (request.onText) {
+        const onText = request.onText;
+        const stream = this.getClient().beta.messages.stream(params, { signal: request.signal });
+        stream.on("text", (delta) => onText(delta));
+        response = await stream.finalMessage();
+      } else {
+        response = await this.getClient().beta.messages.create(params, { signal: request.signal });
+      }
     } catch (err) {
       if (request.signal?.aborted) throw new AbortedError();
       const reason = unavailableReason(err, Boolean(this.options.apiKey));

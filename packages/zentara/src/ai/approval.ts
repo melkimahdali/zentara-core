@@ -9,6 +9,8 @@ export interface PendingAction {
   summary: string;
   /** Pratinjau isi/diff yang ditampilkan saat meminta persetujuan. */
   preview?: string;
+  /** "diff" = format unified (@@, +, -), "file" = isi file baru, "command" = perintah shell. */
+  previewKind?: "diff" | "file" | "command";
   /** Alasan aksi dianggap krusial. */
   reason?: string;
 }

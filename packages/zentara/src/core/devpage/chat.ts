@@ -30,7 +30,7 @@ export const CHAT_CSS = `
 .zc-approval .t{font-weight:600;font-size:14px}
 .zc-approval .r{font-size:12.5px;color:var(--danger);margin-top:2px}
 .zc-approval pre{max-height:260px;overflow:auto;background:var(--code-bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:12px;line-height:1.5}
-.zc-approval .add{color:var(--ok)}.zc-approval .del{color:var(--danger)}
+.zc-approval .add{color:var(--ok)}.zc-approval .del{color:var(--danger)}.zc-approval .hunk{color:var(--accent,#2ED3B7);opacity:.8}
 .zc-approval .acts{display:flex;gap:8px;flex-wrap:wrap}
 .zc-approval .res{font-size:12.5px;color:var(--muted)}
 .zc-done{margin-left:32px;display:flex;flex-direction:column;gap:8px;font-size:13px}
@@ -86,7 +86,7 @@ export const CHAT_JS = String.raw`
   }
   function diff(preview){
     return String(preview).split("\n").map(function(l){
-      var cls = /^\+ /.test(l) ? "add" : /^- /.test(l) ? "del" : "";
+      var cls = /^@@/.test(l) ? "hunk" : /^\+/.test(l) ? "add" : /^-/.test(l) ? "del" : "";
       return cls ? '<span class="' + cls + '">' + esc(l) + "</span>" : esc(l);
     }).join("\n");
   }
@@ -145,11 +145,22 @@ export const CHAT_JS = String.raw`
       meta.querySelector(".st").innerHTML = "Tidak terhubung ke Zentara AI. Jalankan server dengan <code>npx zentara dev</code> atau <code>npx zentara</code>.";
     });
 
+    var live = null, liveText = "";
     function handle(ev){
-      if (ev.type === "thinking") { setTyping(true); return; }
+      if (ev.type === "thinking") { live = null; setTyping(true); return; }
+      if (ev.type === "delta") {
+        if (!live) { liveText = ""; setTyping(false); live = add(el("div", "zc-msg zc-ai", LOGO + '<div class="zc-body"></div>')); setTyping(true); }
+        liveText += ev.text;
+        live.querySelector(".zc-body").innerHTML = md(liveText);
+        scroll();
+        return;
+      }
       setTyping(false);
-      if (ev.type === "assistant") add(el("div", "zc-msg zc-ai", LOGO + '<div class="zc-body">' + md(ev.text) + "</div>"));
-      else if (ev.type === "tool" && ev.phase === "start") { steps[ev.id] = add(el("div", "zc-step run", '<span class="ic">◌</span><span>' + esc(ev.label) + "</span>")); setTyping(true); }
+      if (ev.type === "assistant") {
+        if (live) { live.querySelector(".zc-body").innerHTML = md(ev.text); live = null; save(); }
+        else add(el("div", "zc-msg zc-ai", LOGO + '<div class="zc-body">' + md(ev.text) + "</div>"));
+      }
+      else if (ev.type === "tool" && ev.phase === "start") { live = null; steps[ev.id] = add(el("div", "zc-step run", '<span class="ic">◌</span><span>' + esc(ev.label) + "</span>")); setTyping(true); }
       else if (ev.type === "tool" && ev.phase === "end") {
         var s = steps[ev.id]; if (!s) return;
         s.className = "zc-step " + (ev.ok ? "ok" : "err"); s.querySelector(".ic").textContent = ev.ok ? "✓" : "✗";
