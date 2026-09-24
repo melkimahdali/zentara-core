@@ -75,7 +75,7 @@ try {
   const zentara = pack(path.join(ROOT, "packages", "zentara"));
   check(zentara.files.includes("dist/cli.js") && zentara.files.includes("dist/core/index.d.ts"), "paket zentara berisi dist + tipe");
   check(!zentara.files.some((f) => /^(src|test)\/|\.env$|\.db$/.test(f)), "paket zentara tanpa source/test/.env/database");
-  check(zentara.files.includes("LICENSE") && zentara.files.includes("README.md"), "paket zentara berisi LICENSE & README");
+  check(zentara.files.includes("README.md") && !zentara.files.includes("LICENSE"), "paket zentara berisi README, tanpa berkas lisensi");
 
   const create = pack(path.join(ROOT, "packages", "create-zentara"));
   check(create.files.includes("templates/api/_gitignore"), "template membawa _gitignore");

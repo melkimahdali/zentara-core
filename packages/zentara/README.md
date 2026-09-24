@@ -478,6 +478,6 @@ test/                 test (node:test)
 zentara.config.mjs    konfigurasi
 ```
 
-## Lisensi
+## Hak cipta
 
-MIT
+Hak cipta © 2026 melkimahdali. Semua hak dilindungi.

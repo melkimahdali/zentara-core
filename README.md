@@ -47,4 +47,4 @@ npm run e2e          # simulasi publish: npm pack, buat proyek dari tarball, ins
 - Cara merilis ke npm: [`PUBLISHING.md`](PUBLISHING.md).
 - Riwayat perubahan: [`CHANGELOG.md`](CHANGELOG.md).
 
-Lisensi [MIT](LICENSE).
+Hak cipta © 2026 melkimahdali. Semua hak dilindungi.

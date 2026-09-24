@@ -2,6 +2,11 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [Belum dirilis]
+
+### Diubah
+- **Lisensi MIT dicabut.** Berkas `LICENSE` dihapus dan field `license` di kedua paket menjadi `UNLICENSED`: Zentara Core kini berhak cipta penuh milik melkimahdali (semua hak dilindungi). Versi yang sudah terbit sebelumnya (≤ 0.8.6) tetap berlisensi MIT.
+
 ## [0.8.6]
 
 Penyelesaian Tahap 7 (brand & dokumentasi).

@@ -12,7 +12,7 @@
     "drizzle",
     "claude"
   ],
-  "license": "MIT",
+  "license": "UNLICENSED",
   "author": "melkimahdali",
   "homepage": "https://melkimahdali.github.io/zentara-core/",
   "repository": {
@@ -45,8 +45,7 @@
   },
   "files": [
     "dist",
-    "README.md",
-    "LICENSE"
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
