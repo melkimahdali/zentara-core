@@ -54,5 +54,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # Ubuntu memakai npm terbaru (sama dengan workflow Release), Windows memakai npm bawaan Node.
+      - name: npm terbaru (Ubuntu)
+        if: runner.os == 'Linux'
+        run: npm install -g npm@latest && npm --version
       - run: npm ci
       - run: npm run e2e
