@@ -32,21 +32,26 @@ describe("brand Zentara Core", () => {
 
   it("logo terminal: tanpa warna tidak ada kode ANSI, dengan truecolor memakai warna brand", () => {
     const plain = terminalLogo("none");
-    assert.ok(plain.length >= 6 && plain.length <= 12);
+    assert.ok(plain.length >= 12 && plain.length <= 20);
     assert.ok(plain.every((l) => !l.includes("\x1b")));
-    assert.ok(Math.max(...plain.map(visibleWidth)) <= 24);
+    assert.ok(Math.max(...plain.map(visibleWidth)) <= 48);
     assert.match(terminalLogo("truecolor").join(""), /38;2;\d+;\d+;\d+/);
   });
 
-  it("banner: logo + teks di terminal lebar, teks saja di terminal sedang, satu baris di terminal sempit", () => {
-    const wide = banner({ version: "0.8.0", columns: 100, depth: "none" }).map(strip);
+  it("banner: logo + teks berdampingan, logo di atas teks, teks saja, atau satu baris sesuai lebar terminal", () => {
+    const wide = banner({ version: "0.8.0", columns: 120, depth: "none" }).map(strip);
     assert.ok(wide.some((l) => /▀|▄|█/.test(l) && l.includes("Zentara Core")));
     assert.ok(wide.some((l) => l.includes("Rooted here. Built for what's next.")));
-    assert.ok(wide.every((l) => l.length <= 100));
+    assert.ok(wide.every((l) => l.length <= 120));
 
-    const medium = banner({ version: "0.8.0", columns: 60, depth: "none" });
-    assert.ok(medium.every((l) => !/▀|▄|█/.test(l)));
-    assert.ok(medium.some((l) => l.includes("AI-driven TypeScript web framework from Indonesia")));
+    const medium = banner({ version: "0.8.0", columns: 80, depth: "none" }).map(strip);
+    assert.ok(medium.some((l) => /▀|▄|█/.test(l)));
+    assert.ok(medium.every((l) => l.length <= 80));
+    assert.ok(!medium.some((l) => /▀|▄|█/.test(l) && l.includes("Zentara")), "teks di bawah logo");
+
+    const small = banner({ version: "0.8.0", columns: 46, depth: "none" });
+    assert.ok(small.every((l) => !/▀|▄|█/.test(l)));
+    assert.ok(small.some((l) => l.includes("AI-driven TypeScript web framework from Indonesia")));
 
     assert.deepEqual(banner({ version: "0.8.0", columns: 30, depth: "none" }), ["Z> Zentara Core v0.8.0"]);
   });

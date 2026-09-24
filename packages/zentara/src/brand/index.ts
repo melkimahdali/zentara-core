@@ -53,10 +53,9 @@ export function brandPaint(hex: string, depth: ColorDepth, basicCode = "36"): (s
 }
 
 /**
- * Logo Z untuk terminal (9 baris × 24 kolom, karakter half-block ▀▄): versi flat dari master logo
- * sesuai pedoman brand (motif dihapus pada ukuran mikro, warna tanpa gradasi). Latar transparan,
- * jadi rapi di terminal gelap maupun terang. Tanpa warna: siluet satu warna, garis tetap terbaca
- * lewat celahnya.
+ * Logo Z untuk terminal (18 baris × 48 kolom, karakter half-block ▀▄): logo asli lengkap dengan
+ * motif Nusantara, diposterisasi ke warna brand flat (teal/emas) tanpa gradasi. Latar transparan,
+ * jadi rapi di terminal gelap maupun terang. Tanpa warna: siluet satu warna.
  */
 export function terminalLogo(depth: ColorDepth): string[] {
   const color = (cell: string): string | undefined => {
@@ -121,7 +120,9 @@ export function banner(options: BannerOptions): string[] {
   if (columns < 44) return [`${teal("Z>")} ${bold("Zentara")} ${teal("Core")} ${slate(`v${options.version}`)}`];
   const logo = terminalLogo(depth);
   const logoWidth = Math.max(...logo.map(visibleWidth));
-  if (columns < logoWidth + 4 + 40) return ["", ...text.map((l) => `  ${l}`)];
+  if (columns < logoWidth + 4) return ["", ...text.map((l) => `  ${l}`)];
+  // Terminal sedang: logo di atas, teks di bawahnya.
+  if (columns < logoWidth + 4 + 48) return [...logo.map((l) => `  ${l}`), "", ...text.map((l) => `  ${l}`)];
 
   const top = Math.max(0, Math.floor((logo.length - text.length) / 2));
   const rows = Math.max(logo.length, top + text.length);

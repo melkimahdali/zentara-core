@@ -15,7 +15,7 @@
     "test": "node --import tsx --test \"test/**/*.test.ts\""
   },
   "dependencies": {
-    "zentara": "^0.8.1"
+    "zentara": "^0.8.2"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",

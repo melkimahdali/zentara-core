@@ -2,6 +2,12 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.8.2]
+
+### Diubah
+- Logo di banner CLI kembali memakai **logo asli lengkap dengan motif Nusantara**, kini diposterisasi ke warna brand flat (Zentara Teal / Heritage Gold) per sel, tanpa gradasi dan tanpa latar gelap, 48 kolom. Garis emas tebal dan motif terbaca jelas di terminal gelap maupun terang.
+- Terminal sedang (±60–100 kolom): logo di atas, teks di bawahnya; terminal sempit tetap satu baris.
+
 ## [0.8.1]
 
 ### Diperbaiki
