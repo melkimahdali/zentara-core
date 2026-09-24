@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { FAVICON_PNG, LOGO_PIXELS, LOGO_WEBP } from "../src/brand/assets.js";
+import { FAVICON_PNG, LOGO_TERMINAL, LOGO_WEBP } from "../src/brand/assets.js";
 import { banner, BRAND, colorDepth, terminalLogo, to256, visibleWidth } from "../src/brand/index.js";
 
 const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
@@ -15,7 +15,7 @@ describe("brand Zentara Core", () => {
     assert.match(LOGO_WEBP, /^data:image\/webp;base64,/);
     assert.match(FAVICON_PNG, /^data:image\/png;base64,/);
     assert.ok(LOGO_WEBP.length < 20_000);
-    assert.equal(LOGO_PIXELS.length, 32);
+    assert.ok(LOGO_TERMINAL.length >= 12 && LOGO_TERMINAL.every((r) => /^[TG.]+$/.test(r) && r.length === LOGO_TERMINAL[0]!.length));
   });
 
   it("colorDepth menghormati NO_COLOR dan non-TTY", () => {
@@ -32,9 +32,9 @@ describe("brand Zentara Core", () => {
 
   it("logo terminal: tanpa warna tidak ada kode ANSI, dengan truecolor memakai warna brand", () => {
     const plain = terminalLogo("none");
-    assert.ok(plain.length >= 10 && plain.length <= 16);
+    assert.ok(plain.length >= 6 && plain.length <= 12);
     assert.ok(plain.every((l) => !l.includes("\x1b")));
-    assert.ok(Math.max(...plain.map(visibleWidth)) <= 32);
+    assert.ok(Math.max(...plain.map(visibleWidth)) <= 24);
     assert.match(terminalLogo("truecolor").join(""), /38;2;\d+;\d+;\d+/);
   });
 

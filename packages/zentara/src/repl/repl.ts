@@ -8,7 +8,7 @@ import type { ApprovalAnswer, PendingAction, Prompter } from "../ai/approval.js"
 import { createProviders, type AiConfig } from "../ai/config.js";
 import { latestJournal, undoLatest } from "../ai/journal.js";
 import { createAiSession, type AiSession } from "../ai/session.js";
-import { accent, c, printApprovalHeader, TerminalUI, type Output } from "../ai/terminal.js";
+import { accent, c, gold, printApprovalHeader, TerminalUI, type Output } from "../ai/terminal.js";
 import { ToolError, type AgentTool } from "../ai/tools.js";
 import { ProviderUnavailableError, type ToolCall, type ToolResult } from "../ai/types.js";
 import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
@@ -20,6 +20,8 @@ export interface ReplOptions {
   cwd: string;
   io: Output;
   version: string;
+  /** Cek versi baru (default: registry npm). Hasilnya ditampilkan di bawah banner. */
+  checkUpdate?: () => Promise<string | undefined>;
   loadConfig: () => Promise<AiConfig>;
   /** Environment untuk server dev, disalin sebelum .env dimuat ke proses ini. */
   serverEnv: NodeJS.ProcessEnv;
@@ -255,6 +257,11 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     ],
   })) io.out(line);
   io.out("");
+  const newer = await Promise.race([options.checkUpdate?.() ?? Promise.resolve(undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), 1500).unref())]);
+  if (newer) {
+    io.out(`  ${gold("★")} Versi baru ${c.bold(`v${newer}`)} tersedia (Anda memakai v${options.version}). Perbarui: ${accent("npm install zentara@latest")}`);
+    io.out(c.dim("    Bila npm bilang versi tidak ditemukan, cache npm Anda tertinggal: npm cache clean --force lalu ulangi."));
+  }
   io.out(c.dim("  Tulis permintaan dalam bahasa biasa · /help perintah · Esc hentikan AI · Ctrl+C 2x keluar"));
   if (options.dryRun) io.out(c.yellow("  Mode dry-run: tidak ada file yang diubah."));
 
@@ -286,7 +293,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
   };
 
   function readInput(): Promise<string | null> {
-    out.write(`\n  ${status || statusLine()}\n${c.gray("─".repeat(width()))}\n`);
+    out.write(`\n  ${status || statusLine()}\n${c.gray("─".repeat(Math.max(20, (process.stdout.columns ?? 80) - 1)))}\n`);
     status = "";
     const rl = readline.createInterface({ input: process.stdin, output: out, terminal: true, history: [...history], historySize: 200, completer, removeHistoryDuplicates: true });
     activeRl = rl;

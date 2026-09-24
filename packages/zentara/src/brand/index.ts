@@ -1,4 +1,4 @@
-import { LOGO_PIXELS } from "./assets.js";
+import { LOGO_TERMINAL } from "./assets.js";
 
 /** Token warna Zentara Core (Brand Identity Guidelines, Concept C · Nusantara Tech). */
 export const BRAND = {
@@ -52,42 +52,39 @@ export function brandPaint(hex: string, depth: ColorDepth, basicCode = "36"): (s
   return (s) => `\x1b[${code}m${s}\x1b[0m`;
 }
 
-const PIXELS: (RGB | undefined)[][] = LOGO_PIXELS.map((row) => row.split(" ").map((p) => (p === "." ? undefined : hexToRgb(p))));
-
 /**
- * Logo Z untuk terminal (16 baris × 32 kolom, karakter half-block ▀▄), dikonversi dari master logo.
- * Latar transparan, jadi rapi di terminal gelap maupun terang. Tanpa warna: siluet satu warna,
- * celah garis emas tetap terlihat.
+ * Logo Z untuk terminal (9 baris × 24 kolom, karakter half-block ▀▄): versi flat dari master logo
+ * sesuai pedoman brand (motif dihapus pada ukuran mikro, warna tanpa gradasi). Latar transparan,
+ * jadi rapi di terminal gelap maupun terang. Tanpa warna: siluet satu warna, garis tetap terbaca
+ * lewat celahnya.
  */
 export function terminalLogo(depth: ColorDepth): string[] {
+  const color = (cell: string): string | undefined => {
+    if (cell === ".") return undefined;
+    const gold = cell === "G";
+    if (depth === "basic") return gold ? "33" : "36";
+    return gold ? hexToRgb(BRAND.gold).join(";") : hexToRgb(BRAND.teal).join(";");
+  };
+  const fgCode = (cell: string) => (depth === "basic" ? color(cell)! : depth === "truecolor" ? `38;2;${color(cell)}` : `38;5;${to256(hexToRgb(cell === "G" ? BRAND.gold : BRAND.teal))}`);
+  const bgCode = (cell: string) =>
+    depth === "basic" ? String(Number(color(cell)) + 10) : depth === "truecolor" ? `48;2;${color(cell)}` : `48;5;${to256(hexToRgb(cell === "G" ? BRAND.gold : BRAND.teal))}`;
+
   const lines: string[] = [];
-  const luminance = (p: RGB) => 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2];
-  for (let y = 0; y < PIXELS.length; y += 2) {
+  for (let y = 0; y < LOGO_TERMINAL.length; y += 2) {
+    const top = LOGO_TERMINAL[y]!;
+    const bottom = LOGO_TERMINAL[y + 1] ?? ".".repeat(top.length);
     let line = "";
-    for (let x = 0; x < PIXELS[y]!.length; x++) {
-      const top = PIXELS[y]![x];
-      const bottom = PIXELS[y + 1]?.[x];
-      if (depth === "none" || depth === "basic") {
-        // Piksel gelap (garis pemisah) dianggap kosong agar bentuknya tetap terbaca dalam satu warna.
-        const on = (p: RGB | undefined) => p !== undefined && luminance(p) > 55;
-        const t = on(top);
-        const b = on(bottom);
-        const ch = t && b ? "█" : t ? "▀" : b ? "▄" : " ";
-        // 16 warna: emas (merah > hijau) jadi kuning, selebihnya cyan.
-        const sample = t ? top! : bottom;
-        line += depth === "basic" && sample ? `\x1b[${sample[0] > sample[1] ? "33" : "36"}m${ch}\x1b[0m` : ch;
-        continue;
-      }
-      if (top && bottom) line += `\x1b[${fg(top, depth)};${bg(bottom, depth)}m▀\x1b[0m`;
-      else if (top) line += `\x1b[${fg(top, depth)}m▀\x1b[0m`;
-      else if (bottom) line += `\x1b[${fg(bottom, depth)}m▄\x1b[0m`;
-      else line += " ";
+    for (let x = 0; x < top.length; x++) {
+      const t = top[x]!;
+      const b = bottom[x]!;
+      if (t === "." && b === ".") line += " ";
+      else if (depth === "none") line += t !== "." && b !== "." ? "█" : t !== "." ? "▀" : "▄";
+      else if (t !== "." && b !== ".") line += t === b ? `\x1b[${fgCode(t)}m█\x1b[0m` : `\x1b[${fgCode(t)};${bgCode(b)}m▀\x1b[0m`;
+      else if (t !== ".") line += `\x1b[${fgCode(t)}m▀\x1b[0m`;
+      else line += `\x1b[${fgCode(b)}m▄\x1b[0m`;
     }
     lines.push(line.replace(/ +$/, ""));
   }
-  // Buang baris kosong di atas/bawah.
-  while (lines.length && lines[0]!.trim() === "") lines.shift();
-  while (lines.length && lines.at(-1)!.trim() === "") lines.pop();
   return lines;
 }
 

@@ -2,6 +2,15 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.8.1]
+
+### Diperbaiki
+- Logo di banner CLI tampak kotor/berbintik (gradasi & motif Nusantara pecah pada ukuran terminal). Kini memakai versi flat sesuai pedoman brand untuk ukuran mikro: siluet Z asli, Zentara Teal + garis Heritage Gold yang dikunci ke grid sel (tanpa motif, tanpa gradasi), 24 kolom × 9 baris.
+- Garis pemisah input CLI selebar terminal.
+
+### Ditambahkan
+- CLI interaktif memberi tahu bila ada versi `zentara` yang lebih baru, dicek langsung ke registry npm (tidak terpengaruh cache npm lokal), paling sering sekali sehari. Matikan dengan `ZENTARA_NO_UPDATE_CHECK=1` (otomatis mati di CI).
+
 ## [0.8.0]
 
 ### Ditambahkan
