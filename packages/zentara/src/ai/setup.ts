@@ -83,9 +83,35 @@ export async function askSecret(rl: readline.Interface, question: string, output
   }
 }
 
+/** Cara wizard bertanya: menu panah (CLI interaktif) atau ketikan (readline). */
+export interface SetupPrompts {
+  choose<T>(question: string, choices: { label: string; value: T; hint?: string }[], fallback: T): Promise<T>;
+  ask(question: string): Promise<string>;
+  secret(question: string): Promise<string>;
+  confirm(question: string, defaultYes?: boolean): Promise<boolean>;
+}
+
+/** Pertanyaan lewat ketikan (terminal tanpa dukungan menu, atau tes). */
+export function readlinePrompts(rl: readline.Interface, io: Output): SetupPrompts {
+  return {
+    async choose(question, choices, fallback) {
+      io.out(c.bold(question));
+      choices.forEach((ch, i) => io.out(`  ${String(i + 1).padStart(2)}. ${ch.label}${ch.hint ? c.dim(`  ${ch.hint}`) : ""}`));
+      const answer = (await rl.question(`Nomor ${c.dim("(Enter = 1)")}: `)).trim() || "1";
+      return choices[Number(answer) - 1]?.value ?? fallback;
+    },
+    ask: async (question) => (await rl.question(question)).trim(),
+    secret: (question) => askSecret(rl, question),
+    async confirm(question, defaultYes = true) {
+      const a = (await rl.question(`${question} ${c.dim(defaultYes ? "(Y/n)" : "(y/N)")}: `)).trim().toLowerCase();
+      return a === "" ? defaultYes : a.startsWith("y");
+    },
+  };
+}
+
 export interface SetupOptions {
   root: string;
-  rl: readline.Interface;
+  prompts: SetupPrompts;
   io: Output;
   env?: NodeJS.ProcessEnv;
   /** Nama preset yang dipilih langsung (mis. dari `zentara ai:setup openai`). */
@@ -96,7 +122,7 @@ export interface SetupOptions {
 
 /** Wizard interaktif: pilih provider, isi API key & model, tes koneksi, simpan ke .env. */
 export async function interactiveSetup(options: SetupOptions): Promise<number> {
-  const { root, rl, io } = options;
+  const { root, prompts, io } = options;
   const env = options.env ?? process.env;
   const envFile = path.join(root, ".env");
 
@@ -106,15 +132,17 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
     return 1;
   }
   if (!preset) {
-    io.out(c.bold("Pilih provider AI:"));
-    PRESETS.forEach((p, i) => {
-      const configured = p.keyEnv && !p.local ? (env[p.keyEnv] ? c.green(" ✓ sudah diatur") : "") : c.dim(" (lokal)");
-      io.out(`  ${String(i + 1).padStart(2)}. ${p.label}${configured}`);
-    });
-    const answer = (await rl.question(`Nomor ${c.dim("(Enter = 1, OmniRoute gratis)")}: `)).trim() || "1";
-    preset = PRESETS[Number(answer) - 1] ?? findPreset(answer.toLowerCase());
+    preset = await prompts.choose<ProviderPreset | undefined>(
+      "Pilih provider AI",
+      PRESETS.map((p) => ({
+        label: p.label.replace(/ \(.*\)$/, ""),
+        value: p,
+        hint: [p.label.match(/\((.*)\)$/)?.[1], p.keyEnv && !p.local && env[p.keyEnv] ? "✓ sudah diatur" : p.local ? "lokal" : ""].filter(Boolean).join(" · "),
+      })),
+      undefined,
+    );
     if (!preset) {
-      io.err("Pilihan tidak valid.");
+      io.out("Dibatalkan.");
       return 1;
     }
   }
@@ -126,7 +154,7 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
   let apiKey = preset.keyEnv ? env[preset.keyEnv] : undefined;
   if (preset.local) {
     const current = presetBaseUrl(preset, env)!;
-    const url = (await rl.question(`Alamat server ${c.dim(`(${current})`)}: `)).trim() || current;
+    const url = (await prompts.ask(`Alamat server ${c.dim(`(Enter = ${current})`)}: `)) || current;
     if (!/^https?:\/\//.test(url)) {
       io.err("Alamat harus diawali http:// atau https://");
       return 1;
@@ -134,7 +162,7 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
     if (url !== preset.baseUrl || env[preset.urlEnv!]) updates[preset.urlEnv!] = url;
     if (preset.keyEnv) {
       const hint = apiKey ? "Enter = pakai yang sudah ada" : "opsional, Enter = lewati";
-      const typed = await askSecret(rl, `API key ${c.dim(`(${hint})`)}: `);
+      const typed = await prompts.secret(`API key ${c.dim(`(${hint})`)}: `);
       if (typed) {
         apiKey = typed;
         updates[preset.keyEnv] = typed;
@@ -142,7 +170,7 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
     }
   } else if (preset.keyEnv) {
     const hint = apiKey ? c.dim(" (Enter = pakai yang sudah ada)") : "";
-    const typed = await askSecret(rl, `API key${hint}: `);
+    const typed = await prompts.secret(`API key${hint}: `);
     if (typed) apiKey = typed;
     if (!apiKey) {
       io.err("API key wajib diisi.");
@@ -158,7 +186,7 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
   let tempServer: BackgroundProcess | undefined;
   if (preset.name === "omniroute" && baseUrl && /^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(baseUrl) && !(await isServerUp(`${baseUrl.replace(/\/+$/, "")}/models`))) {
     // OmniRoute (default, gratis): pasang & nyalakan langsung dari sini bila belum ada.
-    const ready = await prepareOmniRoute(rl, io, `${baseUrl.replace(/\/+$/, "")}/models`);
+    const ready = await prepareOmniRoute(prompts, io, `${baseUrl.replace(/\/+$/, "")}/models`);
     if (ready === false) return 1;
     tempServer = ready === true ? undefined : ready;
   }
@@ -198,16 +226,28 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
     const models = modelInfo.map((m) => m.id);
     const currentModel = env[preset.modelEnv] || preset.defaultModel || suggestModels(modelInfo)[0] || models[0];
     const suggestions = suggestModels(modelInfo, currentModel);
-    if (suggestions.length) io.out(`Model tersedia: ${suggestions.join(", ")}${models.length > suggestions.length ? ", ..." : ""}`);
-    const model = (await rl.question(`Model ${currentModel ? c.dim(`(${currentModel})`) : ""}: `)).trim() || currentModel;
+    let model: string | undefined;
+    if (suggestions.length) {
+      const OTHER = "\u0000lain";
+      const picked = await prompts.choose(
+        `Pilih model${models.length > suggestions.length ? c.dim(` (${suggestions.length} terbaru dari ${models.length})`) : ""}`,
+        [
+          ...suggestions.map((m) => ({ label: m, value: m, hint: m === currentModel ? "saat ini" : "" })),
+          { label: "Model lain…", value: OTHER, hint: "ketik nama model sendiri" },
+        ],
+        currentModel ?? OTHER,
+      );
+      model = picked === OTHER ? (await prompts.ask(`Nama model: `)) || currentModel : picked;
+    } else {
+      model = (await prompts.ask(`Model ${currentModel ? c.dim(`(Enter = ${currentModel})`) : ""}: `)) || currentModel;
+    }
     if (!model) {
       io.err("Model wajib diisi.");
       return 1;
     }
     if (models.length && !models.includes(model)) {
       io.out(c.yellow(`⚠ Model "${model}" tidak ada di daftar model akun ini.`));
-      const go = (await rl.question("Tetap simpan? (y/N): ")).trim().toLowerCase();
-      if (!go.startsWith("y")) return 1;
+      if (!(await prompts.confirm("Tetap simpan?", false))) return 1;
     }
     updates[preset.modelEnv] = model;
 
@@ -226,8 +266,7 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
     }
 
     // 5. Urutan: jadikan utama?
-    const primary = (await rl.question("Jadikan provider utama (dicoba paling awal)? (Y/n): ")).trim().toLowerCase();
-    if (primary === "" || primary.startsWith("y")) {
+    if (await prompts.confirm("Jadikan provider utama (dicoba paling awal)?")) {
       const rest = (env.ZENTARA_AI_ORDER ?? "").split(",").map((s) => s.trim()).filter((s) => s && s !== preset!.name);
       updates.ZENTARA_AI_ORDER = [preset.name, ...rest].join(",");
     }
@@ -249,11 +288,8 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
  * sementara untuk tes koneksi. Mengembalikan proses yang dinyalakan (untuk dihentikan setelahnya),
  * true bila sudah berjalan, atau false bila pengguna menolak/gagal.
  */
-async function prepareOmniRoute(rl: readline.Interface, io: Output, modelsUrl: string): Promise<BackgroundProcess | boolean> {
-  const yes = async (q: string) => {
-    const a = (await rl.question(`${q} ${c.dim("(Y/n)")}: `)).trim().toLowerCase();
-    return a === "" || a.startsWith("y");
-  };
+async function prepareOmniRoute(prompts: SetupPrompts, io: Output, modelsUrl: string): Promise<BackgroundProcess | boolean> {
+  const yes = (q: string) => prompts.confirm(q);
   if (!omnirouteInstalled()) {
     io.out(`OmniRoute belum terpasang. OmniRoute gratis dan tidak butuh API key ${c.dim(`(${OMNIROUTE.repo})`)}.`);
     if (!nodeSupportsOmniRoute()) {

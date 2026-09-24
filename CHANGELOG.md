@@ -2,6 +2,12 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.8.5]
+
+### Diubah
+- **CLI makin mirip Claude Code:** layar dibersihkan saat dibuka, info (versi, AI & mode, folder) sejajar atas di samping logo, dan **kolom input menempel di bagian bawah jendela** dengan baris mode di bawahnya.
+- **Wizard `ai:setup` memakai menu panah** (↑/↓ + Enter), di CLI interaktif maupun `zentara ai:setup`: pilih provider, **pilih model dari daftar** (terbaru di atas, plus *Model lain…* untuk mengetik sendiri), dan pertanyaan Ya/Tidak. Hanya API key, alamat server, dan nama model lain yang diketik. Terminal non-interaktif tetap memakai ketikan.
+
 ## [0.8.4]
 
 ### Ditambahkan

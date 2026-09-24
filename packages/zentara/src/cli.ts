@@ -13,6 +13,7 @@ import { createTerminalSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
 import { startDevtools, type Devtools } from "./dev/devtools.js";
 import { startRepl } from "./repl/repl.js";
+import { menuPrompts } from "./repl/prompts.js";
 import { banner, colorDepth } from "./brand/index.js";
 import { checkForUpdate } from "./update.js";
 import { ProviderUnavailableError } from "./ai/types.js";
@@ -309,9 +310,9 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     appPort,
     offerDevServer: args.flags["no-dev"] !== true,
     dryRun: args.flags["dry-run"] === true,
-    runSetup: async (rl, preset) => {
+    runSetup: async (prompts, preset) => {
       const user = (await loadConfigFile(io.cwd)) as { ai?: AiUserConfig };
-      return interactiveSetup({ root: io.cwd, rl, io, preset, configProviders: user.ai?.providers });
+      return interactiveSetup({ root: io.cwd, prompts, io, preset, configProviders: user.ai?.providers });
     },
   });
 }
@@ -339,12 +340,7 @@ async function aiSetup(args: ParsedArgs, io: CliIO): Promise<number> {
   loadDotEnv(io.cwd);
   const user = (await loadConfigFile(io.cwd)) as { ai?: AiUserConfig };
   if (io.interactive) {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    try {
-      return await interactiveSetup({ root: io.cwd, rl, io, preset: args.positional[1], configProviders: user.ai?.providers });
-    } finally {
-      rl.close();
-    }
+    return interactiveSetup({ root: io.cwd, prompts: menuPrompts(), io, preset: args.positional[1], configProviders: user.ai?.providers });
   }
 
   // Tanpa terminal interaktif: tampilkan panduan.
