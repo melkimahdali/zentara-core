@@ -9,6 +9,8 @@ import { platformCommand } from "../process.js";
 import type { ApprovalPolicy, PendingAction, Risk } from "./approval.js";
 import type { Journal } from "./journal.js";
 import type { ToolSpec } from "./types.js";
+import { unifiedDiff } from "./diff.js";
+import { classifyCommand, CommandRejected, parseCommand, redactSecrets, secretValues } from "./command.js";
 
 export interface ToolContext {
   root: string;
@@ -21,6 +23,10 @@ export interface ToolContext {
   runDb: (action: DbAction) => Promise<CommandResult>;
   /** Sinyal berhenti untuk tugas yang sedang berjalan (diisi oleh agen). */
   signal?: AbortSignal;
+  /** Jalankan perintah terminal (argv, tanpa shell). Tanpa ini tool run_command tidak tersedia. */
+  runCommand?: (argv: string[], options?: { timeoutMs?: number; signal?: AbortSignal }) => Promise<CommandResult>;
+  /** Awalan perintah yang diizinkan pengguna (ai.allowedCommands). */
+  allowedCommands?: string[];
 }
 
 export type DbAction = "generate" | "migrate" | "seed";
@@ -33,6 +39,8 @@ export interface CommandResult {
 export interface AgentTool {
   spec: ToolSpec;
   run(input: Record<string, unknown>, ctx: ToolContext): Promise<string>;
+  /** true bila pemanggilan ini bisa mengubah proyek (memicu verifikasi typecheck & test di akhir). */
+  mutates?: (input: Record<string, unknown>, ctx: ToolContext) => boolean;
 }
 
 /** Error yang pesannya aman dan berguna untuk dikembalikan ke model sebagai tool_result. */
@@ -226,12 +234,15 @@ export const agentTools: AgentTool[] = [
       if (exists && !fs.statSync(abs).isFile()) throw new ToolError(`${rel} adalah folder`);
       const { risk, reason } = writeRisk(rel);
       const lines = content.split("\n").length;
+      if (exists && isSecretFile(rel)) throw new ToolError(`${rel} berisi rahasia dan tidak boleh ditimpa AI`);
+      const old = exists ? fs.readFileSync(abs, "utf8") : undefined;
+      if (old === content) return `Tidak ada perubahan: ${rel}`;
       await gate(ctx, {
         tool: "write_file",
         risk,
         reason,
         summary: `${exists ? "Timpa" : "Buat"} ${rel} (${lines} baris)`,
-        preview: preview(content),
+        ...(old === undefined ? { preview: preview(content), previewKind: "file" as const } : { preview: preview(unifiedDiff(old, content), 80), previewKind: "diff" as const }),
       });
       if (ctx.dryRun) return `[dry-run] ${rel} tidak ditulis`;
       ctx.journal.record(rel);
@@ -263,11 +274,11 @@ export const agentTools: AgentTool[] = [
       if (count === 0) throw new ToolError("old_text tidak ditemukan; baca ulang file dan salin teksnya persis");
       if (count > 1) throw new ToolError(`old_text muncul ${count} kali; tambahkan konteks agar unik`);
       const { risk, reason } = writeRisk(rel);
-      const diff = [...oldText.split("\n").map((l) => `- ${l}`), ...newText.split("\n").map((l) => `+ ${l}`)].join("\n");
-      await gate(ctx, { tool: "edit_file", risk, reason, summary: `Ubah ${rel}`, preview: preview(diff, 60) });
+      const updated = current.replace(oldText, () => newText);
+      await gate(ctx, { tool: "edit_file", risk, reason, summary: `Ubah ${rel}`, preview: preview(unifiedDiff(current, updated), 80), previewKind: "diff" });
       if (ctx.dryRun) return `[dry-run] ${rel} tidak diubah`;
       ctx.journal.record(rel);
-      fs.writeFileSync(abs, current.replace(oldText, () => newText));
+      fs.writeFileSync(abs, updated);
       return `Diubah: ${rel}`;
     },
   },
@@ -303,7 +314,56 @@ export const agentTools: AgentTool[] = [
       const check = str(input, "check")!;
       if (!["typecheck", "test", "build"].includes(check)) throw new ToolError("check harus typecheck, test, atau build");
       const result = await ctx.runScript(check, [], ctx.signal);
-      return `${result.ok ? "BERHASIL" : "GAGAL"}: npm run ${check}\n${truncate(result.output)}`;
+      return `${result.ok ? "BERHASIL" : "GAGAL"}: npm run ${check}\n${truncate(redactSecrets(result.output, secretValues(ctx.root)))}`;
+    },
+  },
+  {
+    spec: {
+      name: "run_command",
+      description:
+        "Jalankan SATU perintah terminal di folder proyek, tanpa operator shell (|, &&, ;, >, <, $, %). Perintah baca-saja (git status/diff/log/show, ls, npm ls/outdated/view, npx tsc --noEmit) langsung jalan; perintah lain meminta persetujuan pengguna. Untuk typecheck/test/build pakai run_check, untuk memasang paket pakai install_package, untuk database pakai database, untuk server dev pakai dev_server. Perintah yang terus berjalan (server, --watch) tidak didukung.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          command: { type: "string", description: 'Mis. "git diff --stat" atau "npx eslint src"' },
+          timeout_seconds: { type: "number", description: "Batas waktu, default 120, maksimal 600" },
+        },
+        required: ["command"],
+        additionalProperties: false,
+      },
+    },
+    mutates(input, ctx) {
+      try {
+        return classifyCommand(parseCommand(String(input.command ?? "")), ctx.allowedCommands).risk !== "read";
+      } catch {
+        return false;
+      }
+    },
+    async run(input, ctx) {
+      if (!ctx.runCommand) throw new ToolError("run_command tidak tersedia di sesi ini");
+      const line = str(input, "command")!;
+      const seconds = typeof input.timeout_seconds === "number" && input.timeout_seconds > 0 ? Math.min(600, input.timeout_seconds) : 120;
+      let argv: string[];
+      let check;
+      try {
+        argv = parseCommand(line);
+        check = classifyCommand(argv, ctx.allowedCommands);
+      } catch (err) {
+        if (err instanceof CommandRejected) throw new ToolError(`Perintah ditolak: ${err.message}`);
+        throw err;
+      }
+      await gate(ctx, {
+        tool: "run_command",
+        risk: check.risk,
+        reason: check.reason,
+        summary: `Jalankan: ${line.trim()}`,
+        preview: `$ ${line.trim()}`,
+        previewKind: "command",
+      });
+      if (ctx.dryRun && check.risk !== "read") return `[dry-run] ${line.trim()} tidak dijalankan`;
+      const result = await ctx.runCommand(argv, { timeoutMs: seconds * 1000, signal: ctx.signal });
+      const output = redactSecrets(result.output.trim(), secretValues(ctx.root));
+      return `${result.ok ? "BERHASIL" : "GAGAL"}: ${line.trim()}\n${truncate(output) || "(tanpa output)"}`;
     },
   },
   {
@@ -344,7 +404,7 @@ export const agentTools: AgentTool[] = [
           else if (before !== fs.readFileSync(path.join(ctx.root, f), "utf8")) ctx.journal.recordExternal(f, before);
         }
       }
-      return `${result.ok ? "BERHASIL" : "GAGAL"}: db:${action}\n${truncate(result.output, 3000)}`;
+      return `${result.ok ? "BERHASIL" : "GAGAL"}: db:${action}\n${truncate(redactSecrets(result.output, secretValues(ctx.root)), 3000)}`;
     },
   },
   {

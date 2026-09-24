@@ -39,6 +39,16 @@ interface OpenAIResponse {
   usage?: { prompt_tokens?: number; completion_tokens?: number };
 }
 
+interface StreamChunk {
+  model?: string;
+  error?: unknown;
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  choices?: {
+    delta?: { content?: string | null; tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[] };
+    finish_reason?: string | null;
+  }[];
+}
+
 export interface ModelInfo {
   id: string;
   created?: number;
@@ -105,7 +115,8 @@ export class OpenAICompatibleProvider implements ModelProvider {
     return h;
   }
 
-  private async request(path: string, init: RequestInit, signal?: AbortSignal): Promise<unknown> {
+  /** Kirim request dengan penanganan 429 sesaat; mengembalikan respons sukses yang body-nya belum dibaca. */
+  private async send(path: string, init: RequestInit, signal?: AbortSignal): Promise<Response> {
     let res: Response;
     let body = "";
     for (let attempt = 0; ; attempt++) {
@@ -121,6 +132,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         const timedOut = cause instanceof Error && cause.name === "TimeoutError";
         throw new ProviderUnavailableError(this.name, timedOut ? "timeout" : `tidak bisa terhubung ke ${this.baseUrl}`, { cause });
       }
+      if (res.ok) return res;
       body = await res.text();
       // 429 sesaat (batas token/permintaan per menit): tunggu sesuai saran server lalu coba lagi.
       // Kuota/kredit yang benar-benar habis tetap dianggap provider tidak tersedia (pindah ke provider lain).
@@ -128,18 +140,30 @@ export class OpenAICompatibleProvider implements ModelProvider {
       if (wait === undefined) break;
       await sleep(wait, signal);
     }
-    if (!res.ok) {
-      const detail = body.slice(0, 300).replace(/\s+/g, " ");
-      if (UNAVAILABLE_STATUS.has(res.status) || res.status >= 500) {
-        const label = res.status === 402 ? "kredit habis" : res.status === 429 ? "kuota/rate limit habis" : "tidak tersedia";
-        throw new ProviderUnavailableError(this.name, `${label} (${res.status}) ${detail}`.trim());
-      }
-      throw new RequestRejectedError(res.status, detail, this.name);
+    const detail = body.slice(0, 300).replace(/\s+/g, " ");
+    if (UNAVAILABLE_STATUS.has(res.status) || res.status >= 500) {
+      const label = res.status === 402 ? "kredit habis" : res.status === 429 ? "kuota/rate limit habis" : "tidak tersedia";
+      throw new ProviderUnavailableError(this.name, `${label} (${res.status}) ${detail}`.trim());
     }
+    throw new RequestRejectedError(res.status, detail, this.name);
+  }
+
+  private async request(path: string, init: RequestInit, signal?: AbortSignal): Promise<unknown> {
+    const res = await this.send(path, init, signal);
+    const body = await this.readBody(res, signal);
     try {
       return JSON.parse(body) as unknown;
     } catch (cause) {
       throw new ProviderUnavailableError(this.name, "respons bukan JSON yang valid", { cause });
+    }
+  }
+
+  private async readBody(res: Response, signal?: AbortSignal): Promise<string> {
+    try {
+      return await res.text();
+    } catch (cause) {
+      if (signal?.aborted) throw new AbortedError();
+      throw new ProviderUnavailableError(this.name, "koneksi terputus saat membaca respons", { cause });
     }
   }
 
@@ -206,26 +230,126 @@ export class OpenAICompatibleProvider implements ModelProvider {
 
   private tokenParam: TokenParam | undefined;
   private reasoningNone = false;
+  /** Server menolak streaming: pakai respons biasa untuk permintaan berikutnya. */
+  private noStream = false;
   /** Berapa kali 429 sesaat dicoba ulang sebelum pindah provider. */
   protected maxRateLimitRetries = 4;
 
+  /** Baca respons Server-Sent Events (stream: true) dan rakit kembali menjadi satu respons utuh. */
+  private async readStream(res: Response, onText: (delta: string) => void, signal?: AbortSignal): Promise<OpenAIResponse> {
+    let content = "";
+    let finish: string | undefined;
+    let model: string | undefined;
+    let usage: OpenAIResponse["usage"];
+    const calls: { id?: string; name?: string; arguments: string }[] = [];
+    const handle = (data: string) => {
+      if (data === "[DONE]") return;
+      let chunk: StreamChunk;
+      try {
+        chunk = JSON.parse(data) as StreamChunk;
+      } catch {
+        return;
+      }
+      if (chunk.error) throw new ProviderUnavailableError(this.name, `error dari server: ${JSON.stringify(chunk.error).slice(0, 200)}`);
+      model ??= chunk.model;
+      if (chunk.usage) usage = chunk.usage;
+      const choice = chunk.choices?.[0];
+      if (!choice) return;
+      if (choice.finish_reason) finish = choice.finish_reason;
+      const delta = choice.delta;
+      if (typeof delta?.content === "string" && delta.content) {
+        content += delta.content;
+        onText(delta.content);
+      }
+      for (const tc of delta?.tool_calls ?? []) {
+        // Tanpa index (sebagian gateway): cocokkan lewat id, atau lanjutkan tool call terakhir.
+        let i = typeof tc.index === "number" ? tc.index : tc.id ? calls.findIndex((c) => c?.id === tc.id) : calls.length - 1;
+        if (i < 0) i = calls.length;
+        const slot = (calls[i] ??= { arguments: "" });
+        if (tc.id) slot.id = tc.id;
+        if (tc.function?.name) slot.name = (slot.name ?? "") + tc.function.name;
+        if (tc.function?.arguments) slot.arguments += tc.function.arguments;
+      }
+    };
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let event: string[] = [];
+    const flushLine = (line: string) => {
+      if (line === "") {
+        if (event.length) handle(event.join("\n"));
+        event = [];
+      } else if (line.startsWith("data:")) event.push(line.slice(5).replace(/^ /, ""));
+    };
+    try {
+      for await (const part of res.body as unknown as AsyncIterable<Uint8Array>) {
+        buffer += decoder.decode(part, { stream: true });
+        let nl: number;
+        while ((nl = buffer.indexOf("\n")) !== -1) {
+          flushLine(buffer.slice(0, nl).replace(/\r$/, ""));
+          buffer = buffer.slice(nl + 1);
+        }
+      }
+    } catch (cause) {
+      if (signal?.aborted) throw new AbortedError();
+      if (cause instanceof ProviderUnavailableError) throw cause;
+      throw new ProviderUnavailableError(this.name, "koneksi terputus saat streaming", { cause });
+    }
+    flushLine(buffer.replace(/\r$/, ""));
+    flushLine("");
+
+    return {
+      model,
+      usage,
+      choices: [
+        {
+          finish_reason: finish,
+          message: {
+            content,
+            tool_calls: calls.filter(Boolean).map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.arguments } })),
+          },
+        },
+      ],
+    };
+  }
+
   async complete(request: CompletionRequest): Promise<ModelTurn> {
     const model = await this.model();
-    const send = (param: TokenParam) =>
-      this.request("/chat/completions", {
+    const send = async (param: TokenParam): Promise<OpenAIResponse> => {
+      const stream = Boolean(request.onText) && !this.noStream;
+      const init: RequestInit = {
         method: "POST",
         body: JSON.stringify({
           model,
           [param]: this.options.maxTokens ?? 16000,
           // Model reasoning OpenAI terbaru hanya menerima function tools di chat/completions tanpa reasoning.
           ...(this.reasoningNone ? { reasoning_effort: "none" } : {}),
+          ...(stream ? { stream: true } : {}),
           messages: this.toMessages(request.system, request.messages),
-          tools: request.tools.map((t) => ({
-            type: "function",
-            function: { name: t.name, description: t.description, parameters: t.inputSchema },
-          })),
+          // Sebagian server menolak daftar tools kosong.
+          ...(request.tools.length
+            ? {
+                tools: request.tools.map((t) => ({
+                  type: "function",
+                  function: { name: t.name, description: t.description, parameters: t.inputSchema },
+                })),
+              }
+            : {}),
         }),
-      }, request.signal) as Promise<OpenAIResponse>;
+      };
+      if (!stream) return (await this.request("/chat/completions", init, request.signal)) as OpenAIResponse;
+      const res = await this.send("/chat/completions", init, request.signal);
+      // Server yang mengabaikan stream: true tetap menjawab JSON biasa.
+      if (!/text\/event-stream/i.test(res.headers.get("content-type") ?? "")) {
+        const body = await this.readBody(res, request.signal);
+        try {
+          return JSON.parse(body) as OpenAIResponse;
+        } catch (cause) {
+          throw new ProviderUnavailableError(this.name, "respons bukan JSON yang valid", { cause });
+        }
+      }
+      return this.readStream(res, request.onText!, request.signal);
+    };
 
     let data: OpenAIResponse | undefined;
     // Beberapa server menolak parameter tertentu dengan 400 dan menyebut solusinya; sesuaikan sekali per
@@ -240,6 +364,8 @@ export class OpenAICompatibleProvider implements ModelProvider {
           this.tokenParam = param === "max_tokens" ? "max_completion_tokens" : "max_tokens";
         } else if (/reasoning_effort/i.test(err.detail) && !this.reasoningNone) {
           this.reasoningNone = true;
+        } else if (/\bstream/i.test(err.detail) && request.onText && !this.noStream) {
+          this.noStream = true;
         } else throw err;
       }
     }

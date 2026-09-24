@@ -30,6 +30,7 @@ npm install -g zentara
 | Perintah | Fungsi |
 |---|---|
 | `zentara` | CLI interaktif (gaya Claude Code) |
+| `zentara --continue` | CLI interaktif, langsung melanjutkan percakapan terakhir |
 | `zentara "<kalimat>" [--auto] [--dry-run]` | satu perintah AI |
 | `zentara ai:setup [provider]` | atur akses AI dengan menu panah |
 | `zentara ai:status` | cek provider AI |
@@ -45,6 +46,8 @@ npm install -g zentara
 | `/logs` | log server dev |
 | `/open [path]` | buka aplikasi di browser |
 | `/undo` | batalkan perubahan AI terakhir |
+| `/resume` | lanjutkan percakapan tersimpan |
+| `/compact` | ringkas percakapan |
 | `/status` · `/setup [provider]` (alias `/login`) | cek atau atur akses AI |
 | `/omniroute [install\|start\|stop]` | OmniRoute (AI gratis) |
 | `/clear` | percakapan baru |
@@ -59,5 +62,6 @@ npm install -g zentara
 | `--auto` | perubahan biasa langsung dikerjakan; aksi krusial tetap ditanyakan |
 | `--dry-run` | lihat rencana AI tanpa mengubah file |
 | `--no-dev` | CLI interaktif tanpa menawarkan server dev |
+| `--continue` | CLI interaktif melanjutkan percakapan terakhir |
 | `--no-ai` | `zentara dev` tanpa chat AI di browser |
 | `--force` | timpa file saat `make:*` |

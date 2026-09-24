@@ -5,6 +5,11 @@ import { AbortedError, type ChatMessage, type ToolCall, type ToolResult } from "
 
 export interface AgentUI {
   thinking(provider: string): void;
+  /**
+   * Potongan jawaban yang sedang dialirkan (streaming). Opsional: tanpa ini jawaban hanya muncul utuh
+   * lewat assistant(). assistant() tetap dipanggil di akhir dengan teks lengkap.
+   */
+  assistantDelta?(delta: string): void;
   assistant(text: string, provider: string): void;
   toolStart(call: ToolCall): void;
   toolEnd(call: ToolCall, result: ToolResult): void;
@@ -31,6 +36,15 @@ export interface AgentResult {
   providersUsed: string[];
 }
 
+const COMPACT_PROMPT =
+  "You summarize a conversation between a developer and Zentara AI (a coding assistant working inside the developer's Zentara Core project) so the conversation can continue with a much shorter history. Reply in the developer's language.";
+const COMPACT_REQUEST = `Ringkas seluruh percakapan di atas untuk melanjutkan pekerjaan nanti. Jangan memanggil tool. Tulis dalam poin singkat:
+- Tujuan dan permintaan pengguna (termasuk yang belum selesai).
+- Keputusan penting, dan hal yang pengguna tolak atau tidak setujui.
+- File yang dibuat/diubah beserta isi penting singkatnya (nama route, tabel, fungsi).
+- Status terakhir: apa yang sudah berhasil, error yang tersisa, langkah berikutnya.
+Jangan sertakan isi rahasia atau kode panjang.`;
+
 const WRITE_TOOLS = new Set(["write_file", "edit_file", "delete_file", "install_package", "database"]);
 
 /** Loop agen: kirim percakapan ke model, jalankan tool yang diminta, ulangi sampai selesai. */
@@ -38,6 +52,39 @@ export class Agent {
   /** Lupakan percakapan sebelumnya (mis. perintah /clear). */
   reset(): void {
     this.messages.length = 0;
+  }
+
+  /** Salinan riwayat percakapan (untuk disimpan). */
+  get history(): ChatMessage[] {
+    return structuredClone(this.messages);
+  }
+
+  /** Ganti riwayat dengan percakapan tersimpan (perintah /resume). */
+  load(messages: readonly ChatMessage[]): void {
+    this.messages.splice(0, this.messages.length, ...structuredClone(messages as ChatMessage[]));
+  }
+
+  /**
+   * Ringkas percakapan menjadi satu catatan agar hemat token (perintah /compact, atau otomatis saat
+   * percakapan terlalu panjang). Mengembalikan false bila tidak ada yang bisa diringkas.
+   */
+  async compact(options: { signal?: AbortSignal } = {}): Promise<boolean> {
+    if (this.messages.length < 2) return false;
+    const turn = await this.options.chain.complete({
+      system: COMPACT_PROMPT,
+      messages: [...this.messages, { role: "user", text: COMPACT_REQUEST }],
+      tools: [],
+      signal: options.signal,
+    });
+    const summary = turn.text.trim();
+    if (!summary) throw new Error("Model tidak mengembalikan ringkasan.");
+    this.messages.splice(
+      0,
+      this.messages.length,
+      { role: "user", text: `<ringkasan percakapan sebelumnya>\n${summary}\n</ringkasan percakapan sebelumnya>\n\nLanjutkan dari ringkasan ini bila saya meminta sesuatu yang berkaitan.` },
+      { role: "assistant", text: "Baik, saya sudah memahami konteks percakapan sebelumnya.", toolCalls: [] },
+    );
+    return true;
   }
 
   private readonly messages: ChatMessage[] = [];
@@ -85,6 +132,7 @@ export class Agent {
           messages: this.messages,
           tools: this.options.tools.map((t) => t.spec),
           signal,
+          onText: ui.assistantDelta ? (delta) => ui.assistantDelta!(delta) : undefined,
         });
       } catch (err) {
         if (err instanceof AbortedError || signal?.aborted) return interrupted();
@@ -136,7 +184,7 @@ export class Agent {
           res = { id: call.id, isError: true, content: "Input tool terpotong (max_tokens). Pecah menjadi langkah/file yang lebih kecil." };
         } else {
           res = await this.execute(call);
-          if (!res.isError && WRITE_TOOLS.has(call.name) && !context.dryRun) dirty = true;
+          if (!res.isError && !context.dryRun && this.mutates(call)) dirty = true;
         }
         ui.toolEnd(call, res);
         results.push(res);
@@ -152,6 +200,14 @@ export class Agent {
       providersUsed: [...providersUsed],
       changedFiles: context.journal.changedFiles.filter((f) => !changedBefore.has(f)),
     };
+  }
+
+  private mutates(call: ToolCall): boolean {
+    if (WRITE_TOOLS.has(call.name)) return true;
+    const tool = this.toolMap.get(call.name);
+    const input = call.input;
+    if (!tool?.mutates || typeof input !== "object" || input === null || Array.isArray(input)) return false;
+    return tool.mutates(input as Record<string, unknown>, this.options.context);
   }
 
   private async execute(call: ToolCall): Promise<ToolResult> {

@@ -41,6 +41,7 @@ Menjalankan aplikasi:
 Bicara dengan AI (bahasa sehari-hari):
   zentara                                          CLI interaktif: chat dengan AI, server dev di latar
                                                    belakang (ditanya dulu; --no-dev untuk melewati)
+  zentara --continue                               Lanjutkan percakapan terakhir (atau /resume di dalam CLI)
   zentara "buatkan API produk dengan nama dan harga"
   zentara ai "<perintah>" [--auto] [--dry-run]
   zentara ai:status                                Cek provider AI yang tersedia
@@ -310,6 +311,7 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     appPort,
     offerDevServer: args.flags["no-dev"] !== true,
     dryRun: args.flags["dry-run"] === true,
+    continueLast: args.flags.continue === true,
     runSetup: async (prompts, preset) => {
       const user = (await loadConfigFile(io.cwd)) as { ai?: AiUserConfig };
       return interactiveSetup({ root: io.cwd, prompts, io, preset, configProviders: user.ai?.providers });

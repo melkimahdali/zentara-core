@@ -26,6 +26,8 @@ Saat pengembangan (`NODE_ENV=development`, otomatis lewat `zentara dev`), browse
 ## Keamanan Zentara AI
 
 - AI **tidak pernah** membaca atau mengubah `.env` dan file database, dan tidak bisa menulis ke `.git/`, `node_modules/`, `dist/`, atau keluar folder proyek.
-- Aksi krusial (hapus file, pasang paket, migrasi database, mengubah `package.json`/config) **selalu** meminta persetujuan, juga di mode otomatis.
+- Aksi krusial (hapus file, pasang paket, migrasi database, mengubah `package.json`/config, perintah terminal di luar daftar baca-saja) **selalu** meminta persetujuan, juga di mode otomatis.
+- Perintah terminal dijalankan tanpa shell, jadi pipa, `&&`, pengalihan, dan variabel ditolak. Perintah admin, shell bersarang, kredensial (`npm publish`, `git push`, `git config`), dan argumen yang menyebut `.env` atau path di luar proyek juga ditolak. Nilai rahasia disensor dari output sebelum dikirim ke provider AI. [Rinciannya](zentara-ai.html#perintah-terminal).
+- Riwayat percakapan (`.zentara/sessions/`) disimpan dengan izin baca pemilik saja dan diabaikan git.
 - Chat di browser hanya aktif saat pengembangan, lewat server di `127.0.0.1` dengan token per sesi dan origin `localhost`.
 - OmniRoute yang dijalankan Zentara hanya mendengar di `127.0.0.1`.

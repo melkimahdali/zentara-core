@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { formatPreview, renderMarkdown } from "../src/ai/terminal.js";
+import { formatPreview, renderMarkdown, TerminalUI } from "../src/ai/terminal.js";
 import { DevServer, isServerUp } from "../src/dev/server.js";
 import { devWatchArgs } from "../src/cli.js";
 
@@ -61,9 +61,23 @@ describe("tampilan terminal", () => {
     assert.equal(out, "Rencana:\n• buat a.ts\n│ const x = 1;");
   });
 
+  it("TerminalUI: jawaban yang dialirkan dicetak per baris, sekali saja", () => {
+    const lines: string[] = [];
+    const ui = new TerminalUI({ out: (l) => lines.push(l.replace(/\x1b\[[0-9;]*m/g, "")), err: () => {} });
+    ui.thinking("x");
+    for (const d of ["\nRenc", "ana:\n- buat `a", ".ts`\n```\nconst x", " = 1;\n```\nSel", "esai"]) ui.assistantDelta(d);
+    assert.deepEqual(lines, ["\n⏺ Rencana:", "  • buat a.ts", "  │ const x = 1;"]);
+    ui.assistant("Rencana:\n- buat `a.ts`\n```\nconst x = 1;\n```\nSelesai", "x");
+    assert.deepEqual(lines.slice(3), ["  Selesai"]);
+    // Tanpa streaming, jawaban utuh tetap dicetak seperti biasa.
+    ui.thinking("x");
+    ui.assistant("Halo", "x");
+    assert.deepEqual(lines.slice(4), ["\n⏺ Halo"]);
+  });
+
   it("formatPreview: diff dan nomor baris file baru", () => {
     const strip = (l: string) => l.replace(/\x1b\[[0-9;]*m/g, "");
-    assert.deepEqual(formatPreview({ tool: "edit_file", risk: "write", summary: "", preview: "- a\n+ b" }).map(strip), ["- a", "+ b"]);
+    assert.deepEqual(formatPreview({ tool: "edit_file", risk: "write", summary: "", preview: "@@ -1,1 +1,1 @@\n-a\n+b", previewKind: "diff" }).map(strip), ["@@ -1,1 +1,1 @@", "-a", "+b"]);
     assert.deepEqual(formatPreview({ tool: "write_file", risk: "write", summary: "", preview: "x\ny" }).map(strip), ["  1 x", "  2 y"]);
   });
 
