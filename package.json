@@ -14,5 +14,10 @@
     "typecheck": "npm run typecheck -w zentara -w create-zentara",
     "test": "npm test -w zentara -w create-zentara",
     "e2e": "node scripts/e2e.mjs"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    }
   }
 }

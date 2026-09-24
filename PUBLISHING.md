@@ -50,7 +50,7 @@ Lalu cek hasilnya:
   cd coba-zentara && npm run dev
   ```
 
-## C. Hubungkan GitHub untuk rilis otomatis (Trusted Publishing)
+## C. Hubungkan GitHub untuk rilis otomatis (Trusted Publishing + staging)
 
 Lakukan untuk **kedua** paket (`zentara` dan `create-zentara`):
 
@@ -60,22 +60,33 @@ Lakukan untuk **kedua** paket (`zentara` dan `create-zentara`):
    - Repository: `zentara-core`
    - Workflow filename: `release.yml`
    - Environment: *(kosongkan)*
-3. Simpan.
-4. (Disarankan) Di *Publishing access*, pilih **Require two-factor authentication and disallow tokens**, supaya paket hanya bisa di-publish lewat 2FA atau workflow tepercaya.
+3. **Kosongkan** centang **"Allow npm publish"** (disarankan npm). Dengan begitu workflow hanya bisa **menitipkan** (*stage*) versi baru, dan versi itu baru tayang setelah Anda setujui dengan 2FA.
+4. Di *Publishing access*, pilih **"Require two-factor authentication and disallow bypass 2fa tokens"**.
 
-Dengan cara ini tidak ada token npm yang disimpan di GitHub. Workflow membuktikan identitasnya ke npm lewat OIDC, dan setiap rilis mendapat tanda **provenance** (bukti paket dibangun dari repo ini).
+Dengan cara ini:
+- tidak ada token npm yang disimpan di GitHub;
+- setiap rilis punya tanda **provenance**;
+- walaupun repo GitHub dibobol, versi berbahaya tetap tertahan sampai Anda setujui.
 
 ## D. Rilis berikutnya
 
 1. Naikkan versi kedua paket:
    ```bash
-   node scripts/version.mjs 0.6.1       # patch: perbaikan bug; minor (0.7.0): fitur baru
+   node scripts/version.mjs 0.6.2       # patch: perbaikan bug; minor (0.7.0): fitur baru
    npm install                          # memperbarui package-lock.json
    ```
 2. Tulis perubahan di `CHANGELOG.md`.
 3. Commit, buat PR, tunggu CI hijau, lalu merge ke `main`.
-4. Di GitHub, buka **Releases → Draft a new release**. Buat tag **`v0.6.1`** (harus sama persis dengan versi), isi catatan rilis, lalu **Publish release**.
-5. Workflow **Release** di tab *Actions* akan menjalankan test dan simulasi publish, mencocokkan tag dengan versi, lalu mem-publish kedua paket. Versi yang sudah ada di npm dilewati, jadi aman dijalankan ulang.
+4. Di GitHub, buka **Releases → Draft a new release**. Buat tag **`v0.6.2`** (harus sama persis dengan versi), isi catatan rilis, lalu **Publish release**.
+5. Workflow **Release** di tab *Actions* akan menjalankan test dan simulasi publish, mencocokkan tag dengan versi, lalu **menitipkan** kedua paket di npm.
+6. **Setujui** dari komputer Anda. Versi baru langsung tayang setelah disetujui:
+   ```bash
+   npm stage list zentara               # catat stage-id versi baru
+   npm stage approve <stage-id>         # diminta kode 2FA
+   npm stage list create-zentara
+   npm stage approve <stage-id>
+   ```
+   Perintah `npm stage` butuh npm versi terbaru: `npm install -g npm@latest`. Untuk memeriksa isi paket dulu, gunakan `npm stage download <stage-id>`. Kalau ada yang salah, tolak dengan `npm stage reject <stage-id>`, perbaiki, lalu buat rilis baru.
 
 ## Masalah umum
 
@@ -85,7 +96,9 @@ Dengan cara ini tidak ada token npm yang disimpan di GitHub. Workflow membuktika
 | `EOTP` | masukkan kode 2FA saat diminta (atau `--otp=123456`) |
 | `E403 ... You do not have permission` | nama paket sudah dipakai orang lain, atau Anda bukan pemiliknya |
 | `cannot publish over the previously published versions` | naikkan versi dulu (`node scripts/version.mjs ...`) |
-| Workflow gagal `404`/`E403` saat publish | Trusted Publisher belum diatur untuk paket itu, atau nama repo/file workflow tidak sama persis |
+| Workflow gagal `404`/`E403` saat stage publish | Trusted Publisher belum diatur untuk paket itu, atau nama repo/file workflow tidak sama persis |
+| `npm stage`: perintah tidak dikenal | perbarui npm: `npm install -g npm@latest` |
+| Versi tidak muncul di npm setelah rilis | belum disetujui: `npm stage list <paket>` lalu `npm stage approve <stage-id>` |
 | Workflow gagal: tag tidak cocok | tag rilis harus `v` + versi di `package.json`, mis. `v0.6.1` |
 
 ## Jika terlanjur salah publish

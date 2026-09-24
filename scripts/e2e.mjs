@@ -61,7 +61,9 @@ function startServer(cwd, args, port) {
 
 function pack(pkgDir) {
   const out = JSON.parse(sh(npm, ["pack", "--json", "--pack-destination", WORK], pkgDir));
-  const info = out[0];
+  // npm <= 11 mengembalikan array [{...}], npm >= 12 object { "<nama>": {...} }.
+  const info = Array.isArray(out) ? out[0] : Object.values(out)[0];
+  if (!info?.files) throw new Error(`Format output npm pack --json tidak dikenal: ${JSON.stringify(out).slice(0, 200)}`);
   const files = info.files.map((f) => f.path);
   console.log(`  ${info.filename}: ${files.length} file, ${(info.size / 1024).toFixed(0)} KB`);
   return { tarball: path.join(WORK, info.filename), files };
@@ -99,6 +101,7 @@ try {
     if (template === "api") {
       sh(process.execPath, [...cli, "db:migrate"], app);
       check(sh(process.execPath, [...cli, "db:seed"], app).includes("Admin dibuat"), "db:migrate & db:seed");
+      check(/No schema changes/.test(sh(process.execPath, [...cli, "db:generate"], app)), "db:generate (drizzle-kit) berjalan");
     }
 
     // Produksi: zentara start (dist/app)

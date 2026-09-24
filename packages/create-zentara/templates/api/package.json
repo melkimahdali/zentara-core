@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.45.3",
-    "zentara": "^0.6.0",
+    "zentara": "^0.6.1",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -24,5 +24,10 @@
     "drizzle-kit": "^0.31.11",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    }
   }
 }
