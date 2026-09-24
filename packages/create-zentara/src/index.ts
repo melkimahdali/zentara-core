@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -123,6 +123,15 @@ export function platformCommand(command: string, args: readonly string[], platfo
   return { command: [command, ...args].map(quoteWindowsArg).join(" "), args: [] as string[], shell: true };
 }
 
+/** Apakah perintah tersedia di PATH (mis. omniroute yang dipasang global). */
+function commandExists(command: string): boolean {
+  try {
+    return spawnSync(process.platform === "win32" ? "where" : "which", [command], { stdio: "ignore", windowsHide: true }).status === 0;
+  } catch {
+    return false;
+  }
+}
+
 function run(command: string, args: string[], cwd: string): Promise<boolean> {
   return new Promise((resolve) => {
     const cmd = platformCommand(command, args);
@@ -201,6 +210,14 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       const answer = (await rl.question(`Pasang dependency sekarang? ${c.dim("(Y/n)")}: `)).trim().toLowerCase();
       install = answer === "" || answer.startsWith("y");
     }
+    // Zentara AI memakai OmniRoute (gratis, tanpa API key) sebagai provider default.
+    const omniInstalled = commandExists("omniroute");
+    let installOmni = false;
+    if (rl && !omniInstalled) {
+      console.log(`\nZentara AI memakai ${c.bold("OmniRoute")} sebagai provider default: ${c.teal("gratis")}, tanpa API key.`);
+      const answer = (await rl.question(`Pasang OmniRoute sekarang (npm install -g omniroute, sekali saja)? ${c.dim("(Y/n)")}: `)).trim().toLowerCase();
+      installOmni = answer === "" || answer.startsWith("y");
+    }
     rl?.close();
 
     const target = path.resolve(dir);
@@ -220,6 +237,14 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       }
     }
 
+    let omniReady = omniInstalled;
+    if (installOmni) {
+      console.log(c.dim("\nnpm install -g omniroute..."));
+      omniReady = (await run("npm", ["install", "-g", "omniroute"], target)) && commandExists("omniroute");
+      if (omniReady) console.log(`${c.green("✓")} OmniRoute terpasang. ${c.dim("npx zentara akan menawarkan menjalankannya di latar belakang.")}`);
+      else console.error(c.red("Gagal memasang OmniRoute. Coba manual: npm install -g omniroute (di Windows mungkin perlu terminal Administrator)."));
+    }
+
     const runCmd = pm === "npm" ? "npm run" : pm;
     console.log(`\nLangkah berikutnya:\n`);
     if (rel !== ".") console.log(`  cd ${rel}`);
@@ -227,9 +252,10 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       console.log(`  ${pm} install`);
       if (template === "api") console.log(`  npx zentara db:migrate && npx zentara db:seed`);
     }
-    console.log(`  npm install -g omniroute      ${c.dim("# AI gratis (sekali saja); atau pilih provider lain: npx zentara ai:setup")}`);
+    if (!omniReady) console.log(`  npm install -g omniroute      ${c.dim("# AI gratis (sekali saja); atau pilih provider lain: npx zentara ai:setup")}`);
     console.log(`  npx zentara                   ${c.dim("# chat dengan Zentara AI + server dev di latar belakang")}`);
-    console.log(`\nAtau jalankan server saja: ${runCmd} dev ${c.dim("(http://localhost:3000)")}\n`);
+    console.log(`\nAtau jalankan server saja: ${runCmd} dev ${c.dim("(http://localhost:3000)")}`);
+    console.log(c.dim(`Tip: npm install -g zentara agar cukup mengetik "zentara" dari folder mana pun.\n`));
     return 0;
   } catch (err) {
     rl?.close();

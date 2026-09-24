@@ -104,23 +104,33 @@ export interface Choice<T> {
 }
 
 /**
- * Menu pilihan dengan panah/angka/Enter; Esc memilih `cancel`. Setelah memilih, menu
- * diringkas menjadi satu baris jawaban.
+ * Menu pilihan gaya ZCode/Claude Code: label di kiri, keterangan di kolom kanan. ↑/↓ lalu Enter,
+ * angka untuk memilih langsung, ketik huruf untuk mencari, Esc memilih `cancel`. Setelah memilih,
+ * menu diringkas menjadi satu baris jawaban.
  */
 export function select<T>(keys: Keys, question: string, choices: Choice<T>[], cancel: T, output: NodeJS.WriteStream = process.stdout): Promise<T> {
   return new Promise((resolve) => {
     let index = 0;
     let drawn = 0;
+    let filter = "";
+    const labelWidth = Math.max(...choices.map((c) => c.label.length)) + 3;
+    const visible = () => (filter ? choices.filter((c) => `${c.label} ${c.hint ?? ""}`.toLowerCase().includes(filter.toLowerCase())) : choices);
     const draw = () => {
       if (drawn) output.write(`\x1b[${drawn}A\r\x1b[J`);
+      const list = visible();
+      if (index >= list.length) index = Math.max(0, list.length - 1);
+      const width = (output.columns ?? 100) - 4;
       const lines = [c.bold(question)];
-      choices.forEach((choice, i) => {
+      if (filter) lines.push(c.dim(`Cari: ${filter}`));
+      if (list.length === 0) lines.push(c.dim("  (tidak ada yang cocok)"));
+      list.forEach((choice, i) => {
         const active = i === index;
-        const label = `${i + 1}. ${choice.label}`;
-        lines.push(`${active ? accent("❯") : " "} ${active ? accent(label) : label}${choice.hint ? c.dim(`  ${choice.hint}`) : ""}`);
+        const label = choice.label.padEnd(labelWidth);
+        const hint = choice.hint ? choice.hint.slice(0, Math.max(0, width - labelWidth - 2)) : "";
+        lines.push(`${active ? accent("→") : " "} ${active ? accent(label) : label}${hint ? (active ? hint : c.dim(hint)) : ""}`);
       });
-      lines.push(c.dim("  ↑/↓ pilih · Enter setuju · Esc batal"));
-      output.write(lines.map((l) => `  ${l}`).join("\n") + "\n");
+      lines.push("", c.dim("↑/↓ pilih · Enter setuju · Esc lewati · ketik untuk mencari"));
+      output.write(lines.map((l) => (l ? `  ${l}` : l)).join("\n") + "\n");
       drawn = lines.length;
     };
     const finish = (value: T, label: string) => {
@@ -130,16 +140,40 @@ export function select<T>(keys: Keys, question: string, choices: Choice<T>[], ca
       resolve(value);
     };
     const release = keys.push((str, key) => {
-      if (key.name === "up" || key.name === "k") index = (index - 1 + choices.length) % choices.length;
-      else if (key.name === "down" || key.name === "j" || key.name === "tab") index = (index + 1) % choices.length;
-      else if (key.name === "return" || key.name === "enter") return finish(choices[index]!.value, choices[index]!.label);
-      else if (key.name === "escape" || (key.ctrl && key.name === "c")) return finish(cancel, "dibatalkan");
-      else if (str && /^[1-9]$/.test(str) && Number(str) <= choices.length) {
-        const choice = choices[Number(str) - 1]!;
+      const list = visible();
+      if (key.name === "up") index = (index - 1 + Math.max(1, list.length)) % Math.max(1, list.length);
+      else if (key.name === "down" || key.name === "tab") index = (index + 1) % Math.max(1, list.length);
+      else if (key.name === "return" || key.name === "enter") {
+        const choice = list[index];
+        if (choice) return finish(choice.value, choice.label);
+        return;
+      } else if (key.name === "escape" || (key.ctrl && key.name === "c")) return finish(cancel, "dilewati");
+      else if (key.name === "backspace") filter = filter.slice(0, -1);
+      else if (!filter && str && /^[1-9]$/.test(str) && Number(str) <= list.length) {
+        const choice = list[Number(str) - 1]!;
         return finish(choice.value, choice.label);
+      } else if (str && !key.ctrl && !key.meta && /^[\p{L}\p{N} ]$/u.test(str)) {
+        filter += str;
+        index = 0;
       } else return;
       draw();
     });
     draw();
   });
+}
+
+/** Kotak header gaya ZCode: judul di garis atas, keterangan di garis bawah. */
+export function box(title: string, lines: string[], footer: string, columns = process.stdout.columns ?? 80): string[] {
+  const width = Math.max(40, Math.min(columns - 2, 78));
+  const inner = width - 4;
+  const vis = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "").length;
+  const fit = (s: string) => {
+    if (vis(s) <= inner) return s + " ".repeat(inner - vis(s));
+    // Potong teks polos yang terlalu panjang (baris berwarna dijaga pendek oleh pemanggil).
+    const plain = s.replace(/\x1b\[[0-9;]*m/g, "");
+    return plain.slice(0, inner - 1) + "…";
+  };
+  const top = `${c.gray("╭─")} ${title} ${c.gray("─".repeat(Math.max(0, width - vis(title) - 5)) + "╮")}`;
+  const bottom = `${c.gray("╰─")} ${c.dim(footer)} ${c.gray("─".repeat(Math.max(0, width - vis(footer) - 5)) + "╯")}`;
+  return [top, ...lines.map((l) => `${c.gray("│")} ${fit(l)} ${c.gray("│")}`), bottom];
 }

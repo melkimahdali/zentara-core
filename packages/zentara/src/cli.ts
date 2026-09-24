@@ -309,9 +309,9 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     appPort,
     offerDevServer: args.flags["no-dev"] !== true,
     dryRun: args.flags["dry-run"] === true,
-    runSetup: async (rl) => {
+    runSetup: async (rl, preset) => {
       const user = (await loadConfigFile(io.cwd)) as { ai?: AiUserConfig };
-      return interactiveSetup({ root: io.cwd, rl, io, configProviders: user.ai?.providers });
+      return interactiveSetup({ root: io.cwd, rl, io, preset, configProviders: user.ai?.providers });
     },
   });
 }

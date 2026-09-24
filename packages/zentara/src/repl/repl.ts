@@ -12,10 +12,12 @@ import { accent, c, gold, printApprovalHeader, TerminalUI, type Output } from ".
 import { ToolError, type AgentTool } from "../ai/tools.js";
 import { ProviderUnavailableError, type ToolCall, type ToolResult } from "../ai/types.js";
 import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
-import { BackgroundProcess, commandExists, DevServer, isServerUp, openBrowser, waitForUrl } from "../dev/server.js";
-import { findPreset } from "../ai/presets.js";
+import { BackgroundProcess, DevServer, isServerUp, openBrowser, waitForUrl } from "../dev/server.js";
+import { installOmniRoute, nodeSupportsOmniRoute, OMNIROUTE, OMNIROUTE_TIPS, omnirouteEnv, omnirouteInstalled } from "../ai/omniroute.js";
 import { banner, colorDepth } from "../brand/index.js";
-import { Keys, select, Spinner, type Choice } from "./widgets.js";
+import { spawn } from "node:child_process";
+import { platformCommand } from "../process.js";
+import { box, Keys, select, Spinner, type Choice } from "./widgets.js";
 
 export interface ReplOptions {
   cwd: string;
@@ -33,7 +35,7 @@ export interface ReplOptions {
   /** false = jangan tawarkan menjalankan server dev (flag --no-dev). */
   offerDevServer: boolean;
   /** Wizard `ai:setup` (dipanggil dari /setup). */
-  runSetup: (rl: readlinePromises.Interface) => Promise<number>;
+  runSetup: (rl: readlinePromises.Interface, preset?: string) => Promise<number>;
   dryRun?: boolean;
 }
 
@@ -44,8 +46,9 @@ const COMMANDS: [string, string][] = [
   ["/logs", "Lihat log server dev terakhir"],
   ["/open", "Buka aplikasi di browser"],
   ["/undo", "Batalkan perubahan AI terakhir"],
+  ["/omniroute", "OmniRoute (AI gratis): /omniroute (status), /omniroute install, start, stop"],
   ["/status", "Cek provider AI"],
-  ["/setup", "Atur provider AI (API key, model)"],
+  ["/setup", "Atur akses AI: provider, API key, model (/setup openai, /setup omniroute, ...)"],
   ["/clear", "Mulai percakapan baru"],
   ["/exit", "Keluar"],
 ];
@@ -116,7 +119,9 @@ export async function startRepl(options: ReplOptions): Promise<number> {
           ? `${c.yellow("●")} server dev dimulai...`
           : devServer.state === "crashed"
             ? `${c.red("●")} server dev berhenti (/logs)`
-            : c.dim("○ server dev mati (/dev start)");
+            : fs.existsSync(path.join(cwd, "src", "app"))
+              ? c.dim("○ server dev mati (/dev start)")
+              : c.dim("○ di luar proyek Zentara");
     const mode = session.approval.mode === "auto" ? "otomatis" : "minta persetujuan";
     return `${server}${c.dim(`  ·  mode ${mode}  ·  /help`)}`;
   }
@@ -243,64 +248,195 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     createAiSession({ root: cwd, config: cfg, ui: new ReplUI(), prompter, dryRun: options.dryRun, extraTools: [devServerTool] });
   let session = newSession(config);
 
-  // ── Banner (pedoman brand bagian 05) ────────────────────────────────────
-  const modeLabel = config.mode === "auto" ? "otomatis (aksi krusial tetap ditanyakan)" : "minta persetujuan";
-  const clip = (text: string) => (text.length > 46 ? text.slice(0, 45) + "…" : text);
+  /** Wizard ai:setup di dalam CLI, lalu muat ulang config & mulai percakapan baru. */
+  async function runSetupWizard(preset?: string): Promise<void> {
+    const rl = readlinePromises.createInterface({ input: process.stdin, output: out, terminal: true });
+    try {
+      await options.runSetup(rl, preset);
+    } finally {
+      rl.close();
+    }
+    try {
+      config = await options.loadConfig();
+      session = newSession(config);
+      io.out(c.dim(`  Provider: ${config.providers.map((p) => p.name ?? "claude").join(" → ")} (percakapan baru dimulai)`));
+    } catch (err) {
+      io.out(c.red(`  ${(err as Error).message}`));
+    }
+  }
+
+  /** Buat proyek baru dengan create-zentara, lalu buka Zentara di folder proyek itu. */
+  async function createProject(): Promise<number> {
+    const rl = readlinePromises.createInterface({ input: process.stdin, output: out, terminal: true });
+    let name: string;
+    try {
+      name = (await rl.question(`  Nama folder proyek ${c.dim("(zentara-app)")}: `)).trim() || "zentara-app";
+    } finally {
+      rl.close();
+    }
+    const cmd = platformCommand("npm", ["create", "zentara@latest", name]);
+    const code = await new Promise<number>((resolve) => {
+      const child = spawn(cmd.command, cmd.args, { cwd, stdio: "inherit", shell: cmd.shell });
+      child.on("error", () => resolve(1));
+      child.on("close", (c2) => resolve(c2 ?? 1));
+    });
+    const target = path.resolve(cwd, name);
+    if (code !== 0 || !fs.existsSync(path.join(target, "src", "app"))) {
+      io.out(c.red("  Proyek belum berhasil dibuat."));
+      return 1;
+    }
+    io.out(c.green(`\n  ✓ Proyek siap. Membuka Zentara di ${shortPath(target)}...`));
+    io.out(c.dim(`    (Lain kali: cd ${name} lalu ketik zentara)\n`));
+    await devtools?.close();
+    return new Promise<number>((resolve) => {
+      const child = spawn(process.execPath, [...process.execArgv, process.argv[1]!], { cwd: target, stdio: "inherit" });
+      child.on("close", (c2) => resolve(c2 ?? 0));
+      child.on("error", () => resolve(1));
+    });
+  }
+
+  // ── Kesiapan AI (cek cepat, hanya localhost & API key) ─────────────────
+  const isProject = fs.existsSync(path.join(cwd, "src", "app"));
+  async function readiness(cfg: AiConfig): Promise<string | undefined> {
+    const checks = await Promise.all(
+      cfg.providers.map(async (p) => {
+        if (p.type === "anthropic") return p.apiKey || process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN ? p.name ?? "claude" : undefined;
+        if (/^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(p.baseUrl)) return (await isServerUp(`${p.baseUrl.replace(/\/+$/, "")}/models`)) ? p.name : undefined;
+        return p.apiKey ? p.name : undefined;
+      }),
+    );
+    return checks.find(Boolean);
+  }
+  let readyProvider = await readiness(config);
+
+  // ── Header (gaya ZCode) + logo pada pembukaan pertama ──────────────────
+  const stateFile = path.join(os.homedir(), ".zentara", "state.json");
+  let firstRun = false;
+  try {
+    firstRun = !(JSON.parse(fs.readFileSync(stateFile, "utf8")) as { welcomed?: boolean }).welcomed;
+  } catch {
+    firstRun = true;
+  }
+  if (firstRun) {
+    io.out("");
+    for (const line of banner({ version: options.version, columns: process.stdout.columns ?? 80, depth: colorDepth(process.stdout) })) io.out(line);
+    try {
+      fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+      fs.writeFileSync(stateFile, JSON.stringify({ welcomed: true }));
+    } catch {
+      // Folder home tidak bisa ditulis: logo tampil lagi lain kali, tidak apa-apa.
+    }
+  }
+  const modeLabel = config.mode === "auto" ? "mode otomatis" : "mode minta persetujuan";
   io.out("");
-  for (const line of banner({
-    version: options.version,
-    columns: process.stdout.columns ?? 80,
-    depth: colorDepth(process.stdout),
-    details: [
-      `${c.dim("Folder")}  ${clip(shortPath(cwd))}`,
-      `${c.dim("AI    ")}  ${clip(config.providers.map((p) => p.name ?? "claude").join(" → "))}`,
-      `${c.dim("Mode  ")}  ${modeLabel}`,
+  for (const line of box(
+    `${accent("◆")} ${c.bold("ZENTARA")} ${c.bold(accent("CORE"))}  ${c.dim(`v${options.version}`)}`,
+    [
+      c.dim(shortPath(cwd)),
+      readyProvider
+        ? `${c.green("●")} AI: ${readyProvider}${readyProvider === "omniroute" ? c.dim(" (gratis)") : ""} ${c.dim(`· ${modeLabel}`)}`
+        : c.yellow("AI belum diatur · pilih di bawah atau jalankan /setup"),
+      c.bold(isProject ? "Tulis tugas untuk proyek ini" : "Folder ini belum berisi proyek Zentara"),
     ],
-  })) io.out(line);
-  io.out("");
+    "/help perintah · /status detail",
+  )) io.out(line);
   const newer = await Promise.race([options.checkUpdate?.() ?? Promise.resolve(undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), 1500).unref())]);
   if (newer) {
     io.out(`  ${gold("★")} Versi baru ${c.bold(`v${newer}`)} tersedia (Anda memakai v${options.version}). Perbarui: ${accent("npm install zentara@latest")}`);
     io.out(c.dim("    Bila npm bilang versi tidak ditemukan, cache npm Anda tertinggal: npm cache clean --force lalu ulangi."));
   }
-  io.out(c.dim("  Tulis permintaan dalam bahasa biasa · /help perintah · Esc hentikan AI · Ctrl+C 2x keluar"));
   if (options.dryRun) io.out(c.yellow("  Mode dry-run: tidak ada file yang diubah."));
 
-  // ── OmniRoute (AI gratis) di latar belakang ────────────────────────────
-  let omniroute: BackgroundProcess | undefined;
-  const first = config.providers[0];
-  if (first?.type === "openai-compatible" && first.name === "omniroute" && /^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(first.baseUrl)) {
-    const preset = findPreset("omniroute")!;
-    const modelsUrl = `${first.baseUrl.replace(/\/+$/, "")}/models`;
-    if (!(await isServerUp(modelsUrl))) {
-      io.out("");
-      if (!commandExists(preset.command!)) {
-        io.out(`  ${gold("●")} OmniRoute (AI gratis) belum terpasang; Zentara memakai provider lain yang tersedia ${c.dim("(cek: /status)")}.`);
-        io.out(c.dim(`    Pasang sekali: ${preset.install}`));
-      } else {
-        const start = await select(keys, "OmniRoute (AI gratis) belum berjalan. Jalankan di latar belakang?", [
-          { label: "Ya", value: true, hint: "dimatikan lagi saat Anda keluar" },
-          { label: "Tidak", value: false, hint: "pakai provider lain yang tersedia" },
-        ], false);
-        if (start) {
-          omniroute = new BackgroundProcess(preset.command!, [], { cwd, env: options.serverEnv });
-          omniroute.start();
-          spinnerLabel = "Menyalakan OmniRoute";
-          spinner.start(spinnerLabel);
-          const ok = await waitForUrl(modelsUrl, 60_000, () => omniroute!.running);
-          spinner.stop();
-          if (ok) io.out(`  ${c.green("●")} OmniRoute berjalan di ${c.bold(first.baseUrl.replace(/\/v1\/?$/, ""))} ${c.dim("(dashboard & pengaturan provider)")}`);
-          else {
-            io.out(c.yellow("  ⚠ OmniRoute belum siap; sementara memakai provider lain yang tersedia. Log terakhir:"));
-            for (const line of omniroute.logs(8)) io.out(c.dim(`    │ ${line}`));
-          }
-        }
-      }
+  // ── Di luar proyek: buat proyek baru? ──────────────────────────────────
+  if (!isProject) {
+    io.out("");
+    const choice = await select(keys, "Mau mulai dari mana?", [
+      { label: "Buat proyek baru", value: "create", hint: "npm create zentara: template api (login + database) atau minimal" },
+      { label: "Chat di folder ini", value: "chat", hint: "Zentara AI bekerja di folder saat ini" },
+      { label: "Buka dokumentasi", value: "docs", hint: "panduan Zentara Core di GitHub" },
+      { label: "Keluar", value: "exit", hint: "" },
+    ], "chat");
+    if (choice === "exit") return 0;
+    if (choice === "docs") {
+      openBrowser("https://github.com/melkimahdali/zentara-core/blob/main/packages/zentara/README.md");
+      io.out(c.dim("  Membuka dokumentasi di browser..."));
     }
+    if (choice === "create") return createProject();
+  }
+
+  // ── OmniRoute (AI gratis, provider default) ────────────────────────────
+  let omniroute: BackgroundProcess | undefined;
+  let omniUrl: string | undefined;
+  const first = config.providers[0];
+  const isLocalOmni = first?.type === "openai-compatible" && first.name === "omniroute" && /^https?:\/\/(localhost|127\.0\.0\.1)[:/]/.test(first.baseUrl);
+  if (isLocalOmni) omniUrl = `${first.baseUrl.replace(/\/+$/, "")}/models`;
+
+  /** Nyalakan OmniRoute di latar belakang dan tunggu sampai siap. */
+  async function startOmniRoute(): Promise<boolean> {
+    if (!omniUrl) return false;
+    if (await isServerUp(omniUrl)) return true;
+    omniroute = new BackgroundProcess(OMNIROUTE.command, [], { cwd, env: omnirouteEnv(options.serverEnv) });
+    omniroute.start();
+    spinnerLabel = "Menyalakan OmniRoute";
+    spinner.start(spinnerLabel);
+    const ok = await waitForUrl(omniUrl, 90_000, () => omniroute!.running);
+    spinner.stop();
+    if (ok) {
+      io.out(`  ${c.green("●")} OmniRoute (AI gratis) berjalan · dashboard ${c.bold(OMNIROUTE.dashboard)}`);
+      for (const tip of OMNIROUTE_TIPS) io.out(c.dim(`    ${tip}`));
+    } else {
+      io.out(c.yellow("  ⚠ OmniRoute belum siap; sementara memakai provider lain yang tersedia. Log terakhir:"));
+      for (const line of omniroute.logs(8)) io.out(c.dim(`    │ ${line}`));
+    }
+    return ok;
+  }
+
+  /** Pasang OmniRoute (npm install -g omniroute) setelah dikonfirmasi. */
+  async function installOmni(): Promise<boolean> {
+    if (!nodeSupportsOmniRoute()) {
+      io.out(c.yellow(`  ⚠ OmniRoute butuh Node.js 22.22+ atau 24+ (Anda memakai ${process.version}). Perbarui Node.js lalu jalankan: npm install -g omniroute`));
+      return false;
+    }
+    io.out(c.dim("  $ npm install -g omniroute   (±1–3 menit, sekali saja)"));
+    const ok = await installOmniRoute();
+    if (!ok || !omnirouteInstalled()) {
+      io.out(c.yellow("  ⚠ Pemasangan OmniRoute gagal. Coba jalankan sendiri: npm install -g omniroute (di Windows mungkin perlu terminal Administrator)."));
+      return false;
+    }
+    io.out(c.green("  ✓ OmniRoute terpasang."));
+    return true;
+  }
+
+  if (!readyProvider) {
+    // Belum ada AI yang siap: layar sambutan untuk memilih cara mengakses model.
+    io.out("");
+    io.out(c.bold("  Selamat datang di Zentara Core"));
+    io.out(c.dim("  Pilih cara Zentara AI mengakses model. Bisa diubah kapan saja dengan /setup."));
+    io.out("");
+    const choice = await select(keys, "Atur akses AI", [
+      { label: "OmniRoute (gratis)", value: "omniroute", hint: omnirouteInstalled() ? "direkomendasikan · jalankan di latar belakang, tanpa API key" : "direkomendasikan · pasang & jalankan otomatis, tanpa API key" },
+      { label: "Masukkan API key", value: "key", hint: "OpenAI, Claude, Gemini, Groq, DeepSeek, OpenRouter" },
+      { label: "Provider kustom", value: "custom", hint: "Ollama atau server OpenAI-compatible lain (alamat sendiri)" },
+      { label: "Lewati dulu", value: "skip", hint: "mulai tanpa AI; atur nanti dengan /setup" },
+    ], "skip");
+    if (choice === "omniroute") {
+      omniUrl ??= `${OMNIROUTE.api}/models`;
+      if (omnirouteInstalled() || (await installOmni())) await startOmniRoute();
+    } else if (choice === "key" || choice === "custom") {
+      await runSetupWizard(choice === "custom" ? "ollama" : undefined);
+    }
+    readyProvider = await readiness(config);
+  } else if (isLocalOmni && !(await isServerUp(omniUrl!)) && omnirouteInstalled()) {
+    // OmniRoute provider utama tapi belum berjalan (provider lain sudah siap sebagai cadangan).
+    io.out("");
+    const start = await select(keys, "OmniRoute (AI gratis) belum berjalan. Jalankan di latar belakang?", [
+      { label: "Ya", value: true, hint: "dimatikan lagi saat Anda keluar" },
+      { label: "Tidak", value: false, hint: `pakai ${readyProvider}` },
+    ], false);
+    if (start) await startOmniRoute();
   }
 
   // ── Tawarkan server dev ────────────────────────────────────────────────
-  const isProject = fs.existsSync(path.join(cwd, "src", "app"));
   if (isProject && options.offerDevServer) {
     const url = `http://localhost:${options.appPort}`;
     if (await isServerUp(url)) {
@@ -487,6 +623,36 @@ export async function startRepl(options: ReplOptions): Promise<number> {
         }
         return true;
       }
+      case "omniroute": {
+        const url = omniUrl ?? `${OMNIROUTE.api}/models`;
+        if (arg === "install") {
+          if (omnirouteInstalled()) io.out("  OmniRoute sudah terpasang.");
+          else if ((await confirm("Pasang OmniRoute sekarang (npm install -g omniroute)?")) && (await installOmni())) {
+            omniUrl ??= url;
+            await startOmniRoute();
+          }
+        } else if (arg === "start") {
+          if (!omnirouteInstalled()) io.out(c.yellow("  OmniRoute belum terpasang. Jalankan: /omniroute install"));
+          else {
+            omniUrl ??= url;
+            await startOmniRoute();
+          }
+        } else if (arg === "stop") {
+          if (omniroute?.running) {
+            await omniroute.stop();
+            io.out("  OmniRoute dihentikan.");
+          } else io.out("  OmniRoute tidak dijalankan dari sesi ini.");
+        } else {
+          const up = await isServerUp(url);
+          io.out(`  OmniRoute: ${up ? c.green("berjalan") : omnirouteInstalled() ? c.yellow("terpasang, belum berjalan (/omniroute start)") : c.yellow("belum terpasang (/omniroute install)")}`);
+          io.out(c.dim(`  Dashboard: ${OMNIROUTE.dashboard} · API: ${OMNIROUTE.api} · ${OMNIROUTE.repo}`));
+        }
+        if (arg === "install" || arg === "start") {
+          // Provider yang sempat gagal dicoba ulang dengan percakapan baru.
+          session = newSession(config);
+        }
+        return true;
+      }
       case "status": {
         spinnerLabel = "Mengecek provider";
         spinner.start(spinnerLabel);
@@ -502,22 +668,10 @@ export async function startRepl(options: ReplOptions): Promise<number> {
         for (const r of rows) io.out(r);
         return true;
       }
-      case "setup": {
-        const rl = readlinePromises.createInterface({ input: process.stdin, output: out, terminal: true });
-        try {
-          await options.runSetup(rl);
-        } finally {
-          rl.close();
-        }
-        try {
-          config = await options.loadConfig();
-          session = newSession(config);
-          io.out(c.dim(`  Provider: ${config.providers.map((p) => p.name ?? "claude").join(" → ")} (percakapan baru dimulai)`));
-        } catch (err) {
-          io.out(c.red(`  ${(err as Error).message}`));
-        }
+      case "setup":
+      case "login":
+        await runSetupWizard(arg || undefined);
         return true;
-      }
       default:
         io.out(c.yellow(`  Perintah tidak dikenal: /${cmd}. Ketik /help.`));
         return true;

@@ -2,6 +2,25 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.8.4]
+
+### Ditambahkan
+- **Zentara memasang OmniRoute sendiri** (dengan konfirmasi), sehingga provider AI gratis siap tanpa langkah manual:
+  - `npm create zentara` menawarkan *"Pasang OmniRoute sekarang?"* dan memasangnya setelah proyek dibuat;
+  - CLI interaktif menawarkan **"Ya, pasang & jalankan"** bila OmniRoute belum terpasang, lalu menyalakannya di latar belakang;
+  - `zentara ai:setup omniroute` memasang (bila perlu), menyalakan OmniRoute sementara untuk tes koneksi & daftar model, lalu menyimpan pengaturan.
+- Perintah `/omniroute` di CLI interaktif: status, `install`, `start`, `stop`.
+- Tutorial OmniRoute di README (pasang, jalankan, pakai, tambah provider gratis lewat dashboard). Pemeriksaan versi Node.js yang dibutuhkan OmniRoute (22.22+ / 24+).
+- **Tampilan pembuka CLI gaya ZCode:** kotak status (folder, AI aktif, mode) dan **layar sambutan** bila AI belum diatur: *OmniRoute (gratis)*, *Masukkan API key*, *Provider kustom*, *Lewati dulu*. Menu dua kolom (pilihan + keterangan) dengan pencarian. Logo lengkap tampil pada pembukaan pertama.
+- **`zentara` dari folder mana pun** (`npm install -g zentara`): di luar proyek muncul pilihan *Buat proyek baru* (lalu langsung membuka proyeknya), *Chat di folder ini*, *Buka dokumentasi*.
+- `/login` sebagai alias `/setup`; `/setup <provider>` langsung ke provider tertentu.
+
+### Diperbaiki
+- OmniRoute dianggap "tidak tersedia" karena `/v1/models`-nya meminta API key (padahal chat dengan model `auto` tidak). Kini `ai:status`/`ai:setup` mengenali server yang berjalan dan tetap memakai model yang diatur.
+
+### Keamanan
+- OmniRoute yang dijalankan Zentara hanya mendengar di `127.0.0.1` (`OMNIROUTE_SERVER_HOST`). Bawaan OmniRoute terbuka di `0.0.0.0` tanpa API key, sehingga perangkat lain di jaringan bisa memakai kuota provider Anda.
+
 ## [0.8.3]
 
 ### Diubah

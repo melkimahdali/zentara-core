@@ -52,7 +52,21 @@ npx zentara undo                  # batalkan perubahan AI terakhir
 
 ### CLI interaktif
 
-`npx zentara` (tanpa argumen) membuka sesi obrolan di terminal:
+Pasang sekali secara global agar cukup mengetik `zentara` dari folder mana pun, seperti Claude Code:
+
+```bash
+npm install -g zentara
+zentara
+```
+
+(Tanpa pemasangan global: `npx zentara` di folder proyek.)
+
+Saat dibuka, Zentara menampilkan kotak status (folder, AI yang aktif, mode). Lalu:
+- **Belum ada AI yang siap:** muncul layar sambutan untuk memilih cara mengakses model, yaitu *OmniRoute (gratis)*, *Masukkan API key*, *Provider kustom*, atau *Lewati dulu*. Menu dipilih dengan ↑/↓ + Enter, atau ketik untuk mencari.
+- **Di luar folder proyek:** muncul pilihan *Buat proyek baru* (menjalankan `npm create zentara` lalu langsung membuka proyeknya), *Chat di folder ini*, atau *Buka dokumentasi*.
+- **Logo lengkap Zentara Core** tampil pada pembukaan pertama; setelahnya cukup kotak status yang ringkas.
+
+Fitur sesi interaktif:
 
 - **Server dev di latar belakang.** Saat dibuka, Zentara bertanya dulu *"Jalankan server dev (npm run dev) di latar belakang?"*. Bila Ya, tidak perlu membuka terminal kedua; lognya disimpan (lihat dengan `/logs`) dan error server muncul di baris status. AI juga bisa membaca log itu untuk mencari penyebab error, dan menyalakan server hanya setelah Anda setujui. Bila `npm run dev` sudah berjalan di terminal lain, Zentara memakainya. Lewati pertanyaannya dengan `--no-dev`.
 - **Percakapan berlanjut**, jadi permintaan berikutnya bisa merujuk yang sebelumnya ("ubah warnanya jadi biru").
@@ -68,7 +82,8 @@ npx zentara undo                  # batalkan perubahan AI terakhir
 | `/logs` | log server dev terakhir |
 | `/open [path]` | buka aplikasi di browser |
 | `/undo` | batalkan perubahan AI terakhir |
-| `/status` · `/setup` | cek atau atur provider AI |
+| `/status` · `/setup` (alias `/login`) | cek atau atur akses AI; `/setup openai` langsung ke provider tertentu |
+| `/omniroute` | OmniRoute (AI gratis): status, `install`, `start`, `stop` |
 | `/clear` | mulai percakapan baru |
 | `/exit` | keluar |
 
@@ -119,14 +134,26 @@ Pilihan lain:
 
 ### Provider AI & fallback
 
-**Default: [OmniRoute](https://github.com/diegosouzapw/OmniRoute), gratis tanpa API key.** OmniRoute adalah gateway lokal ke ratusan provider AI, termasuk banyak yang gratis. Model `auto` memilih provider gratis yang sedang sehat.
+**Default: [OmniRoute](https://github.com/diegosouzapw/OmniRoute), gratis tanpa API key.** OmniRoute adalah gateway AI lokal ke ratusan provider, termasuk banyak yang gratis. Model `auto` memilih provider gratis yang sedang sehat.
 
-```bash
-npm install -g omniroute        # sekali saja
-npx zentara                     # CLI menawarkan menjalankan OmniRoute di latar belakang (dengan konfirmasi)
-```
+#### Tutorial: memakai OmniRoute
 
-Dashboard OmniRoute ada di http://localhost:20128. Bila OmniRoute belum terpasang atau tidak berjalan, Zentara otomatis memakai provider berikutnya di rantai.
+Zentara bisa memasang dan menjalankan OmniRoute sendiri. Tidak perlu membuka terminal lain.
+
+1. **Pasang.** Pilih salah satu:
+   - saat `npm create zentara@latest`, jawab **Y** pada *"Pasang OmniRoute sekarang?"*;
+   - di CLI interaktif (`npx zentara`), pilih **Ya, pasang & jalankan** saat ditawari, atau ketik `/omniroute install`;
+   - lewat wizard `npx zentara ai:setup omniroute`;
+   - atau manual: `npm install -g omniroute`.
+
+   OmniRoute butuh Node.js 22.22+ atau 24+, dan cukup dipasang sekali untuk semua proyek.
+2. **Jalankan.** `npx zentara` otomatis menawarkan menjalankan OmniRoute di latar belakang dan mematikannya lagi saat Anda keluar. Perintah lain:
+   - `/omniroute`: cek status;
+   - `/omniroute start` / `/omniroute stop`: nyalakan atau matikan.
+3. **Pakai.** Tulis permintaan seperti biasa. Model `auto` langsung bekerja tanpa API key.
+4. **(Opsional) Tambah provider gratis** di dashboard OmniRoute http://localhost:20128, menu **Providers**, mis. *OpenCode Free* (tanpa login) atau *Kiro*. Bila dashboard meminta API key untuk endpoint, salin dari **Endpoints** lalu simpan dengan `npx zentara ai:setup omniroute`.
+
+Bila OmniRoute tidak berjalan, Zentara otomatis memakai provider berikutnya di rantai (mis. OpenAI atau Claude bila API key-nya diisi).
 
 Untuk memilih provider lain:
 

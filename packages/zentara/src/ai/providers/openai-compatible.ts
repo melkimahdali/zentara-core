@@ -132,6 +132,9 @@ export class OpenAICompatibleProvider implements ModelProvider {
     if (!this.resolvedModel) return `model ${await this.model()} siap`;
     // Model sudah diatur: pastikan server mengenalnya (bila server mau memberi daftar model).
     const models = await this.listModels().catch((err: unknown) => {
+      // Sebagian gateway (mis. OmniRoute) meminta API key untuk daftar model tapi tidak untuk chat:
+      // server berjalan dan model yang diatur tetap bisa dipakai.
+      if (err instanceof ProviderUnavailableError && !this.options.apiKey && /\(401\)/.test(err.reason)) return undefined;
       if (err instanceof ProviderUnavailableError) throw err;
       return undefined;
     });
