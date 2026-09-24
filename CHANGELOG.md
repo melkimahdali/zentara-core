@@ -2,6 +2,12 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [Belum dirilis]
+
+### Ditambahkan
+- `npm run release:approve` (repo): menyetujui rilis terbaru langsung dari CLI dengan ID stage dari run Release terakhir, tanpa bergantung pada `npm stage list` yang bisa tertinggal.
+- Workflow Release menulis ID stage sebagai anotasi publik dan ringkasan run berisi perintah `npm stage approve` siap salin.
+
 ## [0.6.2]
 
 ### Ditambahkan
