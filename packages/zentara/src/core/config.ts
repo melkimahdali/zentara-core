@@ -8,6 +8,13 @@ import type { ZenPlugin } from "./plugin.js";
 export interface ZenConfig {
   appName: string;
   env: string;
+  /**
+   * Tampilkan halaman error lengkap (stack trace, potongan kode, detail request) di browser.
+   * Default: true hanya bila NODE_ENV=development (atau `env: "development"` di config) diisi eksplisit;
+   * `zentara dev` selalu mengisinya. Env ZENTARA_DEBUG=true/false menang.
+   * Jangan aktifkan di produksi: halaman error membuka kode sumber.
+   */
+  debug: boolean;
   host: string;
   port: number;
   /**
@@ -67,9 +74,16 @@ export function resolveConfig(user: UserConfig = {}, env: NodeJS.ProcessEnv = pr
   const routesDir = user.routesDir ? path.resolve(cwd, user.routesDir) : path.join(appDir, "routes");
   const publicDir = user.publicDir === false ? false : path.resolve(cwd, user.publicDir ?? "public");
 
+  const debugEnv = env.ZENTARA_DEBUG?.trim().toLowerCase();
+  // Tanpa NODE_ENV/env yang diisi eksplisit, anggap bukan pengembangan: halaman error lengkap tidak boleh
+  // muncul di server produksi yang lupa mengatur NODE_ENV. `zentara dev` selalu mengisi NODE_ENV=development.
+  const explicitDev = env.NODE_ENV ? env.NODE_ENV === "development" : user.env === "development";
+  const debug = debugEnv ? ["1", "true", "yes", "on"].includes(debugEnv) : (user.debug ?? explicitDev);
+
   return {
     appName: user.appName ?? "Zentara App",
     env: envName,
+    debug,
     host: env.HOST || user.host || "0.0.0.0",
     port: parsePort(env.PORT ?? user.port ?? 3000),
     appDir,

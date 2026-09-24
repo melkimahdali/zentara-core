@@ -109,7 +109,11 @@ try {
     let stop = startServer(app, ["start"], prodPort);
     try {
       const home = await waitFor(`http://127.0.0.1:${prodPort}/`);
-      check(home.status === 200 && (await home.text()).includes("Zentara"), "zentara start: halaman utama");
+      const homeHtml = await home.text();
+      check(home.status === 200 && homeHtml.includes("Aplikasi Anda") && !homeHtml.includes("window.ZentaraChat"), "zentara start: halaman sambutan tanpa chat AI");
+      const missing = await fetch(`http://127.0.0.1:${prodPort}/tidak-ada`, { headers: { accept: "text/html" } });
+      const missingHtml = await missing.text();
+      check(missing.status === 404 && missingHtml.includes("Halaman tidak ditemukan") && !missingHtml.includes("Route yang tersedia"), "zentara start: halaman 404 tanpa detail internal");
       const hello = await (await fetch(`http://127.0.0.1:${prodPort}/api/hello?name=Nusantara`)).json();
       check(hello.message === "Hello from Nusantara API", "zentara start: /api/hello");
       if (template === "api") {
@@ -127,6 +131,13 @@ try {
     try {
       const res = await waitFor(`http://127.0.0.1:${devPort}/api/hello`);
       check(res.status === 200, "zentara dev: server TypeScript berjalan");
+      const welcome = await (await fetch(`http://127.0.0.1:${devPort}/`)).text();
+      const devtools = JSON.parse(welcome.match(/<script type="application\/json" id="zx-data">(.*?)<\/script>/)?.[1] ?? "{}").devtools;
+      check(welcome.includes("window.ZentaraChat") && devtools?.port > 0, "zentara dev: halaman sambutan dengan chat Zentara AI");
+      const status = await fetch(`http://127.0.0.1:${devtools.port}/status`, { headers: { "X-Zentara-Token": devtools.token } });
+      check(status.status === 200 && Array.isArray((await status.json()).providers), "zentara dev: server devtools (chat AI) menjawab");
+      const notFound = await (await fetch(`http://127.0.0.1:${devPort}/belum-ada`, { headers: { accept: "text/html" } })).text();
+      check(notFound.includes("Route yang tersedia") && notFound.includes("/api/hello"), "zentara dev: halaman 404 pengembangan");
     } finally {
       stop();
     }

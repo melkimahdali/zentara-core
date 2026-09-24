@@ -2,11 +2,25 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
-## [Belum dirilis]
+## [0.7.0]
 
 ### Ditambahkan
-- `npm run release:approve` (repo): menyetujui rilis terbaru langsung dari CLI dengan ID stage dari run Release terakhir, tanpa bergantung pada `npm stage list` yang bisa tertinggal.
-- Workflow Release menulis ID stage sebagai anotasi publik dan ringkasan run berisi perintah `npm stage approve` siap salin.
+- **CLI interaktif gaya Claude Code** (`npx zentara` tanpa argumen): banner, percakapan berlanjut, indikator kerja dengan waktu, jawaban AI dengan markdown, tampilan tool `⏺ Tulis(...)` / `⎿`, diff berwarna, persetujuan lewat menu panah, **Esc untuk menghentikan AI**, Ctrl+C dua kali untuk keluar, riwayat input, dan perintah `/help`, `/mode`, `/dev`, `/logs`, `/open`, `/undo`, `/status`, `/setup`, `/clear`, `/exit`.
+- **Server dev di latar belakang**: CLI interaktif menawarkan menjalankan `npm run dev` (selalu dengan konfirmasi), menyimpan lognya, menampilkan status/error server di baris status, dan mematikannya saat keluar. Server yang sudah berjalan di terminal lain dipakai. AI mendapat tool `dev_server` untuk membaca log (mencari error runtime) dan menyalakan server setelah disetujui. `--no-dev` untuk melewati.
+- **Halaman error untuk pengembangan**: pesan, stack trace dengan potongan kode yang disorot, rantai `cause`, detail request (header rahasia disembunyikan), tombol salin, dan **✦ Tanya Zentara AI** untuk menjelaskan & memperbaiki error langsung dari browser. Halaman 404 pengembangan menampilkan route yang ada dan tombol "Buat halaman ini dengan Zentara AI". Aplikasi yang gagal boot tetap menampilkan halaman error di port-nya.
+- **Halaman sambutan bawaan** (`welcomePage`, dipakai template baru): status aplikasi, daftar route, perintah penting, dan chat Zentara AI di halaman. Mode gelap/terang otomatis.
+- Chat Zentara AI di browser lewat server devtools `zentara dev`: hanya di `127.0.0.1`, token per sesi, hanya dari halaman localhost, persetujuan dengan diff dan tombol Setujui/Tolak, tombol Berhenti, dan Batalkan perubahan (undo).
+- Halaman status yang rapi untuk produksi (404, 500, dll.) tanpa detail internal.
+- Opsi config `debug` (env `ZENTARA_DEBUG`); default aktif hanya saat `NODE_ENV=development`.
+- `npm run release:approve` (repo): menyetujui rilis terbaru langsung dari CLI dengan ID stage dari run Release terakhir. Workflow Release menulis ID stage sebagai anotasi publik.
+
+### Diubah
+- `zentara dev` juga memantau seluruh folder aplikasi (route baru langsung aktif), `.env`, dan `zentara.config.mjs`.
+- `ai:setup`: daftar model diurutkan dari yang terbaru, dan model non-chat (instruct, codex, embedding, dll.) tidak ditampilkan.
+- Perintah AI satu kali (`zentara "..."`) memakai tampilan terminal yang baru.
+
+### Diperbaiki
+- `release:approve` tidak lagi diam saat log GitHub tidak bisa dibaca: pesan menjelaskan penyebabnya dan cara menyetujui manual (atau pakai `GITHUB_TOKEN`).
 
 ## [0.6.2]
 

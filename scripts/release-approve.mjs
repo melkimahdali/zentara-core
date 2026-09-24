@@ -60,15 +60,27 @@ async function findStaged() {
   const annotations = await getJson(`${API}/repos/${REPO}/check-runs/${job.id}/annotations`);
   let staged = parseStagedIds(annotations.map((a) => a.message).join("\n"));
   if (staged.length === 0) {
-    // Run lama belum menulis ID di anotasi: baca dari log job.
+    // Run lama belum menulis ID di anotasi: baca dari log job. GitHub hanya memberikan log kepada
+    // pengguna yang login, jadi pakai GITHUB_TOKEN bila ada.
+    const headers = { "User-Agent": "zentara-release-approve" };
+    if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
+    let res;
     try {
-      const res = await fetch(`${API}/repos/${REPO}/actions/jobs/${job.id}/logs`, { headers: { "User-Agent": "zentara-release-approve" } });
-      if (res.ok) staged = parseStagedIds(await res.text());
+      res = await fetch(`${API}/repos/${REPO}/actions/jobs/${job.id}/logs`, { headers });
     } catch (err) {
-      throw new Error(`Gagal membaca log run Release (${err.message}). Buka ${job.html_url} dan cari baris "staged with id".`);
+      throw new Error(`Gagal membaca log run Release (${err.message}). ${manualHint(job)}`);
     }
+    if (!res.ok) {
+      const why = res.status === 401 || res.status === 403 || res.status === 404 ? "GitHub hanya memberikan log kepada pengguna yang login" : `HTTP ${res.status}`;
+      throw new Error(`ID stage tidak ada di anotasi run ini dan log-nya tidak bisa dibaca (${why}). ${manualHint(job)}`);
+    }
+    staged = parseStagedIds(await res.text());
   }
   return staged;
+}
+
+function manualHint(job) {
+  return `Buka ${job.html_url}, cari baris "staged with id <id>", lalu jalankan: npm stage approve <id>. (Atau set GITHUB_TOKEN lalu ulangi.)`;
 }
 
 function run(cmd, args) {

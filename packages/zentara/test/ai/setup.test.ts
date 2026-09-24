@@ -73,6 +73,17 @@ describe("helper ai:setup", () => {
 
   it("suggestModels menyaring model non-chat dan mendahulukan model pilihan", () => {
     const models = ["text-embedding-3-small", "gpt-4o", "whisper-1", "gpt-4.1", "dall-e-3", "o4-mini", "tts-1"];
-    assert.deepEqual(suggestModels(models, "gpt-4.1"), ["gpt-4.1", "gpt-4o", "o4-mini"]);
+    assert.deepEqual(suggestModels(models, "gpt-4.1"), ["gpt-4.1", "o4-mini", "gpt-4o"]);
+  });
+
+  it("suggestModels: model terbaru dulu (menurut created), model instruct/codex disaring", () => {
+    const models = [
+      { id: "gpt-3.5-turbo", created: 1677610602 },
+      { id: "gpt-3.5-turbo-instruct", created: 1692901427 },
+      { id: "gpt-5", created: 1754425777 },
+      { id: "gpt-4.1", created: 1744316542 },
+      { id: "codex-mini-latest", created: 1746673257 },
+    ];
+    assert.deepEqual(suggestModels(models), ["gpt-5", "gpt-4.1", "gpt-3.5-turbo"]);
   });
 });

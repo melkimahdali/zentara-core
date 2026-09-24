@@ -7,8 +7,8 @@ Framework web TypeScript **AI-driven asal Nusantara**. Tulis apa yang Anda mau d
 ```bash
 npm create zentara@latest toko-saya
 cd toko-saya
-npm run dev
-npx zentara "tambahkan fitur keranjang belanja untuk user yang login"
+npx zentara            # chat dengan Zentara AI; server dev ikut dijalankan di latar belakang
+❯ tambahkan fitur keranjang belanja untuk user yang login
 ```
 
 Fitur utama:
@@ -16,7 +16,9 @@ Fitur utama:
 - **Keamanan bawaan:** session terenkripsi, CSRF, CORS, dan rate limit.
 - **Database** Drizzle ORM: SQLite tanpa instalasi, atau PostgreSQL.
 - **Auth** dengan scrypt dan role.
-- **Zentara AI** dengan fallback otomatis Claude → OmniRoute → Ollama.
+- **Zentara AI** di terminal (CLI interaktif gaya Claude Code) dan di browser: halaman sambutan dan halaman error bisa langsung diajak chat untuk membangun fitur atau memperbaiki error.
+- **Halaman error lengkap** saat pengembangan: stack trace dengan potongan kode, detail request, tombol "Tanya Zentara AI".
+- Provider AI: Claude, OpenAI, Gemini, Groq, DeepSeek, OpenRouter, OmniRoute, Ollama, dengan fallback otomatis bila kredit habis.
 
 ## Paket di repo ini
 

@@ -13,7 +13,8 @@ Database SQLite ada di `data/app.db`. Akun admin untuk pengembangan: `admin@zent
 ## Bicara dengan Zentara AI
 
 ```bash
-npx zentara ai:setup                       # panduan provider (Claude / OmniRoute / Ollama)
+npx zentara ai:setup                       # atur provider AI (Claude, OpenAI, Gemini, Groq, ...)
+npx zentara                                # CLI interaktif; server dev bisa ikut dijalankan
 npx zentara "tambahkan fitur keranjang belanja untuk user yang login"
 npx zentara undo                           # batalkan perubahan AI terakhir
 ```

@@ -15,7 +15,7 @@ export interface PendingAction {
 
 /** "all" = setujui semua perubahan biasa berikutnya dalam sesi ini (aksi krusial tetap ditanyakan). */
 export type ApprovalAnswer = "yes" | "no" | "all";
-export type Prompter = (action: PendingAction) => Promise<ApprovalAnswer>;
+export type Prompter = (action: PendingAction, signal?: AbortSignal) => Promise<ApprovalAnswer>;
 
 /**
  * Kebijakan persetujuan:
@@ -25,15 +25,28 @@ export type Prompter = (action: PendingAction) => Promise<ApprovalAnswer>;
  */
 export class ApprovalPolicy {
   private approveAllWrites: boolean;
+  private currentMode: ApprovalMode;
 
-  constructor(readonly mode: ApprovalMode, private readonly prompter: Prompter) {
+  constructor(mode: ApprovalMode, private readonly prompter: Prompter) {
+    this.currentMode = mode;
     this.approveAllWrites = mode === "auto";
   }
 
-  async approve(action: PendingAction): Promise<boolean> {
+  get mode(): ApprovalMode {
+    return this.currentMode;
+  }
+
+  /** Ganti mode di tengah sesi (perintah /mode). */
+  setMode(mode: ApprovalMode): void {
+    this.currentMode = mode;
+    this.approveAllWrites = mode === "auto";
+  }
+
+  async approve(action: PendingAction, signal?: AbortSignal): Promise<boolean> {
     if (action.risk === "read") return true;
     if (action.risk === "write" && this.approveAllWrites) return true;
-    const answer = await this.prompter(action);
+    if (signal?.aborted) return false;
+    const answer = await this.prompter(action, signal);
     if (answer === "all") {
       this.approveAllWrites = true;
       return true;

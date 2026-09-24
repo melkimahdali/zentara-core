@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import {
+  AbortedError,
   ProviderUnavailableError,
   safeToolId,
   type ChatMessage,
@@ -140,8 +141,9 @@ export class AnthropicProvider implements ModelProvider {
         // Bila model utama menolak karena kebijakan keamanan, API mengulang otomatis di model cadangan.
         betas: [FALLBACK_BETA],
         fallbacks: "default",
-      });
+      }, { signal: request.signal });
     } catch (err) {
+      if (request.signal?.aborted) throw new AbortedError();
       const reason = unavailableReason(err, Boolean(this.options.apiKey));
       if (reason) throw new ProviderUnavailableError(this.name, reason, { cause: err });
       throw err;

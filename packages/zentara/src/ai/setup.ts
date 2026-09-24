@@ -3,12 +3,12 @@ import path from "node:path";
 import type readline from "node:readline/promises";
 import { createProviders, type ProviderConfig } from "./config.js";
 import { findPreset, PRESETS, presetBaseUrl, type ProviderPreset } from "./presets.js";
-import { OpenAICompatibleProvider } from "./providers/openai-compatible.js";
+import { OpenAICompatibleProvider, type ModelInfo } from "./providers/openai-compatible.js";
 import { c, type Output } from "./terminal.js";
 import { ProviderUnavailableError } from "./types.js";
 
 /** Model yang jelas bukan untuk chat/coding (embedding, gambar, audio, dll.) disembunyikan dari saran. */
-const NON_CHAT_MODEL = /embed|whisper|tts|dall-e|image|audio|moderation|transcri|realtime|search|davinci|babbage|guard|vision-preview/i;
+const NON_CHAT_MODEL = /embed|whisper|tts|dall-e|image|audio|moderation|transcri|realtime|search|davinci|babbage|guard|vision-preview|instruct|codex|computer-use|sora|rerank/i;
 
 function formatEnvValue(value: string): string {
   return /^[\w@%+=:,./-]*$/.test(value) ? value : `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
@@ -48,8 +48,14 @@ export function isEnvIgnored(root: string): boolean {
 }
 
 /** Saran model: model chat dari server, model bawaan di urutan pertama. */
-export function suggestModels(models: readonly string[], preferred?: string, limit = 12): string[] {
-  const chat = models.filter((m) => !NON_CHAT_MODEL.test(m)).sort();
+/**
+ * Model yang disarankan: hanya model chat, yang terbaru di depan (menurut `created` bila server
+ * melaporkannya, selain itu urutan nama menurun agar versi lebih baru muncul dulu), model pilihan paling depan.
+ */
+export function suggestModels(models: readonly (string | ModelInfo)[], preferred?: string, limit = 12): string[] {
+  const infos = models.map((m) => (typeof m === "string" ? { id: m } : m)).filter((m) => !NON_CHAT_MODEL.test(m.id));
+  infos.sort((a, b) => (b.created ?? 0) - (a.created ?? 0) || b.id.localeCompare(a.id, undefined, { numeric: true }));
+  const chat = infos.map((m) => m.id);
   const ordered = preferred && chat.includes(preferred) ? [preferred, ...chat.filter((m) => m !== preferred)] : chat;
   return ordered.slice(0, limit);
 }
@@ -137,11 +143,11 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
 
   // 2. Ambil daftar model dari akun (sekaligus menguji API key/koneksi)
   const baseUrl = presetBaseUrl(preset, { ...env, ...updates });
-  let models: string[] = [];
+  let modelInfo: ModelInfo[] = [];
   if (preset.type === "openai-compatible") {
     io.out(c.dim("Mengecek koneksi & daftar model..."));
     try {
-      models = await new OpenAICompatibleProvider({ name: preset.name, baseUrl: baseUrl!, apiKey }).listModels();
+      modelInfo = await new OpenAICompatibleProvider({ name: preset.name, baseUrl: baseUrl!, apiKey }).listModelInfo();
     } catch (err) {
       const reason = err instanceof ProviderUnavailableError ? err.reason : (err as Error).message;
       io.err(c.red(`✗ Gagal terhubung ke ${preset.label}: ${reason}`));
@@ -151,8 +157,9 @@ export async function interactiveSetup(options: SetupOptions): Promise<number> {
   }
 
   // 3. Pilih model
-  const currentModel = env[preset.modelEnv] || preset.defaultModel || models[0];
-  const suggestions = suggestModels(models, currentModel);
+  const models = modelInfo.map((m) => m.id);
+  const currentModel = env[preset.modelEnv] || preset.defaultModel || suggestModels(modelInfo)[0] || models[0];
+  const suggestions = suggestModels(modelInfo, currentModel);
   if (suggestions.length) io.out(`Model tersedia: ${suggestions.join(", ")}${models.length > suggestions.length ? ", ..." : ""}`);
   const model = (await rl.question(`Model ${currentModel ? c.dim(`(${currentModel})`) : ""}: `)).trim() || currentModel;
   if (!model) {

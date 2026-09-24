@@ -31,3 +31,14 @@ describe("resolveConfig", () => {
     assert.equal(resolveConfig({ publicDir: false }, {}).publicDir, false);
   });
 });
+
+describe("debug (halaman error lengkap)", () => {
+  it("hanya aktif bila pengembangan diatur eksplisit", () => {
+    assert.equal(resolveConfig({}, {}).debug, false, "NODE_ENV kosong: jangan bocorkan detail error");
+    assert.equal(resolveConfig({}, { NODE_ENV: "development" }).debug, true);
+    assert.equal(resolveConfig({ env: "development" }, {}).debug, true);
+    assert.equal(resolveConfig({}, { NODE_ENV: "production" }).debug, false);
+    assert.equal(resolveConfig({ debug: true }, { NODE_ENV: "production" }).debug, true);
+    assert.equal(resolveConfig({ debug: true }, { NODE_ENV: "development", ZENTARA_DEBUG: "false" }).debug, false);
+  });
+});

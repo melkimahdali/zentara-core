@@ -1,0 +1,508 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import readline from "node:readline";
+import readlinePromises from "node:readline/promises";
+import type { AgentResult } from "../ai/agent.js";
+import type { ApprovalAnswer, PendingAction, Prompter } from "../ai/approval.js";
+import { createProviders, type AiConfig } from "../ai/config.js";
+import { latestJournal, undoLatest } from "../ai/journal.js";
+import { createAiSession, type AiSession } from "../ai/session.js";
+import { accent, c, printApprovalHeader, TerminalUI, type Output } from "../ai/terminal.js";
+import { ToolError, type AgentTool } from "../ai/tools.js";
+import { ProviderUnavailableError, type ToolCall, type ToolResult } from "../ai/types.js";
+import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
+import { DevServer, isServerUp, openBrowser } from "../dev/server.js";
+import { Keys, select, Spinner, type Choice } from "./widgets.js";
+
+export interface ReplOptions {
+  cwd: string;
+  io: Output;
+  version: string;
+  loadConfig: () => Promise<AiConfig>;
+  /** Environment untuk server dev, disalin sebelum .env dimuat ke proses ini. */
+  serverEnv: NodeJS.ProcessEnv;
+  /** Perintah server dev bila proyek tidak punya skrip "dev". */
+  fallbackDev: { command: string; args: string[] };
+  /** Port aplikasi dari zentara.config (untuk mendeteksi server yang sudah berjalan). */
+  appPort: number;
+  /** false = jangan tawarkan menjalankan server dev (flag --no-dev). */
+  offerDevServer: boolean;
+  /** Wizard `ai:setup` (dipanggil dari /setup). */
+  runSetup: (rl: readlinePromises.Interface) => Promise<number>;
+  dryRun?: boolean;
+}
+
+const COMMANDS: [string, string][] = [
+  ["/help", "Tampilkan bantuan"],
+  ["/mode", "Ganti mode persetujuan: /mode ask atau /mode auto"],
+  ["/dev", "Server dev: /dev (status), /dev start, /dev stop, /dev restart"],
+  ["/logs", "Lihat log server dev terakhir"],
+  ["/open", "Buka aplikasi di browser"],
+  ["/undo", "Batalkan perubahan AI terakhir"],
+  ["/status", "Cek provider AI"],
+  ["/setup", "Atur provider AI (API key, model)"],
+  ["/clear", "Mulai percakapan baru"],
+  ["/exit", "Keluar"],
+];
+
+function shortPath(p: string): string {
+  const home = os.homedir();
+  return p === home || p.startsWith(home + path.sep) ? "~" + p.slice(home.length) : p;
+}
+
+function width(): number {
+  return Math.max(40, Math.min(process.stdout.columns ?? 80, 120));
+}
+
+/**
+ * Mode obrolan interaktif `zentara` (tanpa argumen), gaya Claude Code:
+ * percakapan berlanjut, AI bisa dihentikan dengan Esc, persetujuan lewat menu panah,
+ * perintah garis miring, dan server dev (npm run dev) di latar belakang setelah dikonfirmasi.
+ */
+export async function startRepl(options: ReplOptions): Promise<number> {
+  const { io, cwd } = options;
+  const out = process.stdout;
+  let config: AiConfig;
+  try {
+    config = await options.loadConfig();
+  } catch (err) {
+    io.err(c.red((err as Error).message));
+    return 1;
+  }
+
+  const keys = new Keys();
+  const spinner = new Spinner();
+  let spinnerLabel = "Berpikir";
+  let promptActive = false;
+  let status = "";
+  const history: string[] = [];
+  let lastCtrlC = 0;
+  let serverNoticeAt = 0;
+  let externalServer: string | undefined;
+  let runningTask = false;
+
+  /** Cetak pemberitahuan tanpa merusak spinner atau kotak input. */
+  function notify(line: string): void {
+    if (promptActive) {
+      setStatus(line.trim());
+      return;
+    }
+    spinner.clear();
+    io.out(line);
+    if (spinnerLabel && runningTask) spinner.start(spinnerLabel);
+  }
+
+  let activeRl: readline.Interface | undefined;
+  function setStatus(line: string): void {
+    status = line;
+    // Baris status ada di atas garis input: tulis ulang di tempat tanpa mengganggu ketikan.
+    if (promptActive && activeRl) {
+      const up = 2 + activeRl.getCursorPos().rows;
+      out.write(`\x1b7\x1b[${up}A\r\x1b[2K  ${line}\x1b8`);
+    }
+  }
+
+  function statusLine(): string {
+    const server = externalServer
+      ? `${c.green("●")} ${externalServer}`
+      : devServer.state === "running" && devServer.url
+        ? `${c.green("●")} ${devServer.url}`
+        : devServer.state === "starting"
+          ? `${c.yellow("●")} server dev dimulai...`
+          : devServer.state === "crashed"
+            ? `${c.red("●")} server dev berhenti (/logs)`
+            : c.dim("○ server dev mati (/dev start)");
+    const mode = session.approval.mode === "auto" ? "otomatis" : "minta persetujuan";
+    return `${server}${c.dim(`  ·  mode ${mode}  ·  /help`)}`;
+  }
+
+  // Server devtools: chat Zentara AI di browser memakai kunci yang sama dengan terminal.
+  const lock: AiLock = { owner: undefined };
+  let devtools: Devtools | undefined;
+  try {
+    devtools = await startDevtools({ root: cwd, loadConfig: options.loadConfig, lock, log: (l) => notify(l) });
+  } catch {
+    devtools = undefined;
+  }
+
+  const devServer = new DevServer({ cwd, env: { ...options.serverEnv, ...devtools?.env }, fallback: options.fallbackDev });
+  let announcedReady = false;
+  devServer.on("ready", (url: string) => {
+    if (!announcedReady) {
+      announcedReady = true;
+      notify(`  ${c.green("●")} Server dev berjalan di ${c.bold(url)}${devtools ? c.dim("  ·  chat Zentara AI juga ada di halaman itu") : ""}`);
+    } else if (promptActive) setStatus(statusLine());
+  });
+  devServer.on("problem", (line: string) => {
+    if (Date.now() - serverNoticeAt < 4000) return;
+    serverNoticeAt = Date.now();
+    notify(c.yellow(`  ⚠ Server: ${line.trim().slice(0, 140)}  ${c.dim("(/logs)")}`));
+  });
+  devServer.on("exit", (code: number | null) => {
+    announcedReady = false;
+    if (code) notify(c.red(`  ● Server dev berhenti (kode ${code}). Lihat /logs, jalankan lagi dengan /dev start.`));
+  });
+
+  async function waitForServer(timeoutMs = 25_000): Promise<string> {
+    if (devServer.state === "running" && devServer.url) return `Server berjalan di ${devServer.url}`;
+    return new Promise((resolve) => {
+      const done = (text: string) => {
+        clearTimeout(timer);
+        devServer.off("ready", onReady);
+        devServer.off("exit", onExit);
+        resolve(text);
+      };
+      const onReady = (url: string) => done(`Server berjalan di ${url}`);
+      const onExit = () => done(`Server berhenti. Log terakhir:\n${devServer.logs(30).join("\n")}`);
+      const timer = setTimeout(() => done(`Server belum siap setelah ${timeoutMs / 1000} detik. Log:\n${devServer.logs(30).join("\n")}`), timeoutMs);
+      devServer.on("ready", onReady);
+      devServer.on("exit", onExit);
+    });
+  }
+
+  // Tool tambahan: AI bisa melihat status/log server dev, dan menyalakannya setelah dikonfirmasi.
+  const devServerTool: AgentTool = {
+    spec: {
+      name: "dev_server",
+      description:
+        "Server pengembangan (npm run dev) yang berjalan di latar belakang CLI ini. status = cek apakah jalan & URL-nya; logs = baca log server terakhir (untuk melihat error runtime); start/restart = nyalakan atau mulai ulang (selalu minta persetujuan pengguna). Server otomatis dimuat ulang saat file berubah, jadi biasanya tidak perlu restart.",
+      inputSchema: {
+        type: "object",
+        properties: { action: { type: "string", enum: ["status", "logs", "start", "restart"] } },
+        required: ["action"],
+        additionalProperties: false,
+      },
+    },
+    async run(input, ctx) {
+      const action = input.action;
+      if (action === "status") {
+        if (externalServer) return `Server sudah dijalankan di terminal lain: ${externalServer} (log tidak tersedia di sini).`;
+        return `state: ${devServer.state}${devServer.url ? `\nurl: ${devServer.url}` : ""}`;
+      }
+      if (action === "logs") return externalServer ? "Server berjalan di terminal lain; log tidak tersedia." : devServer.logs(80).join("\n") || "(log kosong)";
+      if (action !== "start" && action !== "restart") throw new ToolError("action harus status, logs, start, atau restart");
+      if (externalServer) throw new ToolError(`Server sudah berjalan di terminal lain (${externalServer}).`);
+      const approved = await ctx.approval.approve(
+        {
+          tool: "dev_server",
+          risk: "critical",
+          reason: `menjalankan ${devServer.commandText} di latar belakang`,
+          summary: action === "start" ? `Jalankan ${devServer.commandText} di latar belakang` : "Mulai ulang server dev",
+        },
+        ctx.signal,
+      );
+      if (!approved) throw new ToolError("Pengguna tidak menyetujui. Jangan ulangi; beri tahu cara menjalankannya sendiri (/dev start).");
+      if (action === "restart") await devServer.stop();
+      devServer.start();
+      return waitForServer();
+    },
+  };
+
+  class ReplUI extends TerminalUI {
+    constructor() {
+      super(io, false, () => spinner.clear());
+    }
+    override thinking(): void {
+      spinnerLabel = "Berpikir";
+      spinner.start(spinnerLabel);
+    }
+    override toolStart(call: ToolCall): void {
+      super.toolStart(call);
+      spinnerLabel = call.name === "run_check" ? "Mengecek" : call.name === "database" ? "Menjalankan database" : "Bekerja";
+      spinner.start(spinnerLabel);
+    }
+    override toolEnd(call: ToolCall, result: ToolResult): void {
+      super.toolEnd(call, result);
+      spinner.start(spinnerLabel);
+    }
+    override info(message: string): void {
+      super.info(message);
+      if (/^Memverifikasi/.test(message)) spinnerLabel = "Memverifikasi";
+      spinner.start(spinnerLabel);
+    }
+  }
+
+  const prompter: Prompter = async (action: PendingAction, signal?: AbortSignal): Promise<ApprovalAnswer> => {
+    if (signal?.aborted) return "no";
+    spinner.clear();
+    printApprovalHeader(io, action);
+    const choices: Choice<ApprovalAnswer>[] = [{ label: "Ya", value: "yes" }];
+    if (action.risk !== "critical") choices.push({ label: "Ya, dan setujui semua perubahan biasa di sesi ini", value: "all" });
+    choices.push({ label: "Tidak", value: "no" });
+    const answer = await select(keys, action.risk === "critical" ? "Izinkan aksi krusial ini?" : "Lanjutkan?", choices, "no");
+    if (!signal?.aborted) spinner.start(spinnerLabel);
+    return answer;
+  };
+
+  const newSession = (cfg: AiConfig): AiSession =>
+    createAiSession({ root: cwd, config: cfg, ui: new ReplUI(), prompter, dryRun: options.dryRun, extraTools: [devServerTool] });
+  let session = newSession(config);
+
+  // ── Banner ─────────────────────────────────────────────────────────────
+  const w = Math.min(width(), 76);
+  const boxLine = (plain: string, styled: string) => `${c.gray("│")} ${styled}${" ".repeat(Math.max(0, w - 4 - plain.length))} ${c.gray("│")}`;
+  const field = (label: string, value: string) => {
+    const text = value.length > w - 14 ? value.slice(0, w - 15) + "…" : value;
+    return boxLine(`${label.padEnd(8)}${text}`, `${c.dim(label.padEnd(8))}${text}`);
+  };
+  io.out(c.gray(`╭${"─".repeat(w - 2)}╮`));
+  io.out(boxLine(`✻ Zentara AI  v${options.version}`, `${accent("✻")} ${c.bold("Zentara AI")}  ${c.dim(`v${options.version}`)}`));
+  io.out(boxLine("", ""));
+  io.out(field("Folder", shortPath(cwd)));
+  io.out(field("AI", config.providers.map((p) => p.name ?? "claude").join(" → ")));
+  io.out(field("Mode", config.mode === "auto" ? "otomatis (aksi krusial tetap ditanyakan)" : "minta persetujuan"));
+  io.out(c.gray(`╰${"─".repeat(w - 2)}╯`));
+  io.out(c.dim("  Tulis permintaan dalam bahasa biasa · /help perintah · Esc hentikan AI · Ctrl+C 2x keluar"));
+  if (options.dryRun) io.out(c.yellow("  Mode dry-run: tidak ada file yang diubah."));
+
+  // ── Tawarkan server dev ────────────────────────────────────────────────
+  const isProject = fs.existsSync(path.join(cwd, "src", "app"));
+  if (isProject && options.offerDevServer) {
+    const url = `http://localhost:${options.appPort}`;
+    if (await isServerUp(url)) {
+      externalServer = url;
+      io.out(`\n  ${c.green("●")} Server dev sudah berjalan di ${c.bold(url)} ${c.dim("(dari terminal lain)")}`);
+    } else {
+      io.out("");
+      const start = await select(keys, `Jalankan server dev (${devServer.commandText}) di latar belakang?`, [
+        { label: "Ya", value: true, hint: "tidak perlu buka terminal baru" },
+        { label: "Tidak", value: false, hint: "bisa nanti dengan /dev start" },
+      ], false);
+      if (start) {
+        devServer.start();
+        io.out(c.dim(`  Menyalakan server... (hasilnya muncul di baris status)`));
+      }
+    }
+  }
+
+  // ── Input ──────────────────────────────────────────────────────────────
+  const completer = (line: string): [string[], string] => {
+    if (!line.startsWith("/")) return [[], line];
+    const hits = COMMANDS.map(([cmd]) => cmd).filter((cmd) => cmd.startsWith(line));
+    return [hits, line];
+  };
+
+  function readInput(): Promise<string | null> {
+    out.write(`\n  ${status || statusLine()}\n${c.gray("─".repeat(width()))}\n`);
+    status = "";
+    const rl = readline.createInterface({ input: process.stdin, output: out, terminal: true, history: [...history], historySize: 200, completer, removeHistoryDuplicates: true });
+    activeRl = rl;
+    promptActive = true;
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (value: string | null) => {
+        if (settled) return;
+        settled = true;
+        promptActive = false;
+        activeRl = undefined;
+        history.splice(0, history.length, ...((rl as unknown as { history?: string[] }).history ?? history));
+        rl.close();
+        resolve(value);
+      };
+      rl.on("SIGINT", () => {
+        if (rl.line) {
+          rl.write(null, { ctrl: true, name: "u" });
+          return;
+        }
+        if (Date.now() - lastCtrlC < 2000) {
+          out.write("\n");
+          return finish(null);
+        }
+        lastCtrlC = Date.now();
+        setStatus(c.yellow("Tekan Ctrl+C sekali lagi untuk keluar"));
+      });
+      rl.on("close", () => finish(null));
+      rl.question(`${accent("❯")} `, (answer) => finish(answer));
+    });
+  }
+
+  async function runTask(task: string): Promise<void> {
+    if (lock.owner) {
+      io.out(c.yellow(`  Zentara AI sedang mengerjakan tugas dari ${lock.owner}. Tunggu sampai selesai.`));
+      return;
+    }
+    lock.owner = "terminal";
+    runningTask = true;
+    status = "";
+    const controller = new AbortController();
+    const release = keys.push((_str, key) => {
+      if (key.name === "escape" || (key.ctrl && key.name === "c")) {
+        if (!controller.signal.aborted) {
+          controller.abort();
+          spinnerLabel = "Menghentikan";
+          spinner.start(spinnerLabel);
+        }
+      }
+    });
+    spinnerLabel = "Berpikir";
+    spinner.start(spinnerLabel);
+    let result: AgentResult | undefined;
+    try {
+      result = await session.run(task, { signal: controller.signal });
+    } catch (err) {
+      spinner.stop();
+      io.out(c.red(`  ✗ ${(err as Error).message}`));
+    } finally {
+      spinner.stop();
+      release();
+      runningTask = false;
+      lock.owner = undefined;
+    }
+    if (!result) return;
+    const label = {
+      done: c.green("✓ Selesai"),
+      incomplete: c.yellow("… Belum selesai (batas langkah)"),
+      refused: c.yellow("✗ Ditolak model"),
+      verification_failed: c.red("✗ Verifikasi gagal"),
+      interrupted: c.yellow("■ Dihentikan"),
+    }[result.status];
+    const files = result.changedFiles.length ? ` · ${result.changedFiles.length} file berubah ${c.dim("(/undo untuk membatalkan)")}` : "";
+    io.out(`\n${label}${c.dim(` · ${result.steps} langkah${result.providersUsed.length ? ` · ${result.providersUsed.join(", ")}` : ""}`)}${files}`);
+    if (result.changedFiles.length && devServer.url) io.out(c.dim(`  Lihat hasilnya: ${devServer.url}`));
+  }
+
+  async function confirm(question: string): Promise<boolean> {
+    return select(keys, question, [{ label: "Ya", value: true }, { label: "Tidak", value: false }], false);
+  }
+
+  async function command(line: string): Promise<boolean> {
+    const [cmd, ...rest] = line.slice(1).trim().split(/\s+/);
+    const arg = rest.join(" ");
+    switch (cmd) {
+      case "help":
+      case "?":
+        io.out("");
+        for (const [name, desc] of COMMANDS) io.out(`  ${accent(name.padEnd(9))} ${desc}`);
+        io.out(c.dim("\n  Selain itu, tulis saja permintaan Anda, mis. \"buatkan API produk dengan nama dan harga\"."));
+        return true;
+      case "exit":
+      case "quit":
+      case "keluar":
+        return false;
+      case "clear":
+        session.reset();
+        out.write("\x1b[2J\x1b[H");
+        io.out(c.dim("  Percakapan baru dimulai."));
+        return true;
+      case "mode": {
+        const mode = arg === "auto" || arg === "otomatis" ? "auto" : arg === "ask" || arg === "tanya" ? "ask" : session.approval.mode === "auto" ? "ask" : "auto";
+        session.approval.setMode(mode);
+        io.out(`  Mode: ${mode === "auto" ? "otomatis (perubahan biasa langsung dikerjakan; aksi krusial tetap ditanyakan)" : "minta persetujuan untuk setiap perubahan"}`);
+        return true;
+      }
+      case "dev": {
+        if (externalServer) {
+          io.out(`  Server sudah berjalan di terminal lain: ${externalServer}`);
+          return true;
+        }
+        if (arg === "stop") {
+          await devServer.stop();
+          io.out("  Server dev dihentikan.");
+        } else if (arg === "start" || arg === "restart") {
+          if (!fs.existsSync(path.join(cwd, "src", "app"))) {
+            io.out(c.yellow("  Folder src/app tidak ada: ini bukan proyek Zentara."));
+            return true;
+          }
+          if (arg === "restart") await devServer.stop();
+          if (!devServer.running) {
+            devServer.start();
+            spinnerLabel = "Menyalakan server";
+            spinner.start(spinnerLabel);
+            const text = await waitForServer();
+            spinner.stop();
+            io.out(`  ${text.split("\n")[0]}`);
+          } else io.out(`  Server dev sudah berjalan${devServer.url ? ` di ${devServer.url}` : ""}.`);
+        } else io.out(`  ${statusLine()}`);
+        return true;
+      }
+      case "logs": {
+        const lines = externalServer ? ["(server berjalan di terminal lain)"] : devServer.logs(Number(arg) || 40);
+        io.out(lines.length ? lines.map((l) => c.dim("  │ ") + l).join("\n") : c.dim("  (belum ada log)"));
+        return true;
+      }
+      case "open": {
+        const url = externalServer ?? devServer.url;
+        if (!url) io.out(c.yellow("  Server dev belum berjalan. Jalankan dengan /dev start."));
+        else {
+          openBrowser(url + (arg ? `/${arg.replace(/^\/+/, "")}` : ""));
+          io.out(c.dim(`  Membuka ${url}...`));
+        }
+        return true;
+      }
+      case "undo": {
+        const preview = latestJournal(cwd);
+        if (!preview) {
+          io.out("  Tidak ada perubahan AI yang bisa dibatalkan.");
+          return true;
+        }
+        io.out(`  Perubahan terakhir: ${c.bold(preview.task.split("\n")[0]!.slice(0, 80))}`);
+        for (const e of preview.entries) io.out(c.dim(`    ${e.action === "delete" ? "hapus   " : "pulihkan"} ${e.path}`));
+        if (await confirm("Batalkan perubahan ini?")) {
+          undoLatest(cwd);
+          io.out(c.green("  ✓ Perubahan dibatalkan."));
+        }
+        return true;
+      }
+      case "status": {
+        spinnerLabel = "Mengecek provider";
+        spinner.start(spinnerLabel);
+        const rows: string[] = [];
+        for (const provider of createProviders(config.providers)) {
+          try {
+            rows.push(`  ${c.green("✓")} ${provider.name.padEnd(10)} ${c.dim(await provider.check())}`);
+          } catch (err) {
+            rows.push(`  ${c.red("✗")} ${provider.name.padEnd(10)} ${c.dim(err instanceof ProviderUnavailableError ? err.reason : (err as Error).message)}`);
+          }
+        }
+        spinner.stop();
+        for (const r of rows) io.out(r);
+        return true;
+      }
+      case "setup": {
+        const rl = readlinePromises.createInterface({ input: process.stdin, output: out, terminal: true });
+        try {
+          await options.runSetup(rl);
+        } finally {
+          rl.close();
+        }
+        try {
+          config = await options.loadConfig();
+          session = newSession(config);
+          io.out(c.dim(`  Provider: ${config.providers.map((p) => p.name ?? "claude").join(" → ")} (percakapan baru dimulai)`));
+        } catch (err) {
+          io.out(c.red(`  ${(err as Error).message}`));
+        }
+        return true;
+      }
+      default:
+        io.out(c.yellow(`  Perintah tidak dikenal: /${cmd}. Ketik /help.`));
+        return true;
+    }
+  }
+
+  // ── Loop utama ─────────────────────────────────────────────────────────
+  try {
+    for (;;) {
+      const line = await readInput();
+      if (line === null) break;
+      const text = line.trim();
+      if (!text) continue;
+      if (["keluar", "exit", "quit"].includes(text.toLowerCase())) break;
+      if (text.startsWith("/")) {
+        if (!(await command(text))) break;
+        continue;
+      }
+      await runTask(text);
+    }
+  } finally {
+    spinner.stop();
+    if (devServer.running) {
+      io.out(c.dim("  Menghentikan server dev..."));
+      await devServer.stop();
+    }
+    await devtools?.close();
+    io.out(c.dim("  Sampai jumpa!"));
+  }
+  return 0;
+}
