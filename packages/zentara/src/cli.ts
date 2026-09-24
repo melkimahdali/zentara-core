@@ -13,6 +13,7 @@ import { createTerminalSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
 import { startDevtools, type Devtools } from "./dev/devtools.js";
 import { startRepl } from "./repl/repl.js";
+import { banner, colorDepth } from "./brand/index.js";
 import { ProviderUnavailableError } from "./ai/types.js";
 import { defaultAppDir, loadConfigFile, resolveConfig } from "./core/config.js";
 import type { DbCommandResult } from "./db/commands.js";
@@ -27,7 +28,7 @@ export interface CliIO {
   interactive?: boolean;
 }
 
-const HELP = `Zentara CLI
+const HELP = `Zentara Core CLI
 
 Menjalankan aplikasi:
   zentara dev [--no-ai]                            Server pengembangan dengan auto-reload (src/app),
@@ -522,6 +523,10 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       io.out(HELP);
       return 0;
     case "help":
+      if (io.interactive) {
+        for (const line of banner({ version: version(), columns: process.stdout.columns ?? 80, depth: colorDepth(process.stdout) })) io.out(line);
+        io.out("");
+      }
       io.out(HELP);
       return 0;
     case "ai": {

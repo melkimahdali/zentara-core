@@ -2,6 +2,16 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.8.0]
+
+### Ditambahkan
+- **Identitas brand Zentara Core** (Concept C · Nusantara Tech) dari paket logo resmi, tanpa desain ulang:
+  - Halaman sambutan, error, 404, status, dan chat Zentara AI memakai logo asli, wordmark "Zentara **Core**", tagline *Rooted here. Built for what's next.*, font Plus Jakarta Sans, dan warna brand (Zentara Teal, Heritage Gold, Core Obsidian, Pearl White, Muted Slate) untuk mode gelap dan terang.
+  - Favicon resmi di halaman bawaan dan di template proyek baru (`public/favicon.ico`, `public/apple-touch-icon.png`).
+  - Banner CLI dengan logo Z berwarna (dikonversi dari master logo, latar transparan) di CLI interaktif dan `zentara help`: logo + teks di terminal lebar, teks saja di terminal sedang, satu baris `Z> Zentara Core` di terminal sempit; menyesuaikan truecolor/256/16 warna dan menghormati `NO_COLOR`. Prompt menjadi `zentara >`.
+  - `create-zentara` menampilkan header brand.
+- `assets/brand/`: master logo, favicon multi-ukuran, logo ANSI/monokrom untuk terminal, dan catatan paket asli. `scripts/brand/generate.py` membuat aset ringan untuk framework dari master.
+
 ## [0.7.0]
 
 ### Ditambahkan

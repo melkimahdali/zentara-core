@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { BRAND } from "../../brand/index.js";
+import { FAVICON_PNG, LOGO_WEBP } from "../../brand/assets.js";
 import { escapeHtml } from "../view.js";
 
 /** Versi paket zentara yang sedang dipakai (dibaca sekali dari package.json). */
@@ -13,23 +15,29 @@ export const ZENTARA_VERSION: string = (() => {
   }
 })();
 
-export const LOGO_SVG = `<svg class="zx-logo" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="zx-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2dd4bf"/><stop offset=".55" stop-color="#38bdf8"/><stop offset="1" stop-color="#6366f1"/></linearGradient></defs><rect width="32" height="32" rx="9" fill="url(#zx-g)"/><path d="M10.5 10.5h11l-11 11h11" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+/** Logo Zentara Core (dari master brand). Gambar dipasang lewat CSS sekali, elemen ini ringan untuk diulang. */
+export const LOGO_SVG = `<span class="zx-logo" role="img" aria-label="Zentara Core"></span>`;
 
-/** CSS bersama untuk halaman bawaan Zentara (sambutan, error, status). Mengikuti mode gelap/terang sistem. */
+/** Wordmark: "Zentara" Pearl White + "Core" Zentara Teal. */
+export const WORDMARK = `<span class="zx-word">Zentara <b>Core</b></span>`;
+
+/** CSS bersama untuk halaman bawaan Zentara (sambutan, error, status). Warna dari pedoman brand; mengikuti mode gelap/terang sistem. */
 export const BASE_CSS = `
-:root{color-scheme:light dark;--bg:#f6f7f9;--bg-glow:rgba(45,212,191,.16);--surface:#fff;--surface-2:#f1f3f6;--border:#e3e6ec;--text:#141821;--muted:#667085;--accent:#0f9f8f;--accent-2:#5b5ff0;--accent-soft:rgba(15,159,143,.1);--danger:#d92d20;--danger-soft:rgba(217,45,32,.08);--warn:#b54708;--warn-soft:rgba(247,144,9,.12);--ok:#079455;--code-bg:#f8f9fb;--code-line:rgba(217,45,32,.1);--shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px -8px rgba(16,24,40,.12);--radius:14px;--mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;--sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--tok-k:#7c3aed;--tok-s:#067647;--tok-c:#98a2b3;--tok-n:#c4320a;--tok-f:#175cd3}
-@media (prefers-color-scheme:dark){:root{--bg:#0a0c11;--bg-glow:rgba(45,212,191,.12);--surface:#11141b;--surface-2:#171b24;--border:#242a36;--text:#e8eaf0;--muted:#8a93a6;--accent:#2dd4bf;--accent-2:#818cf8;--accent-soft:rgba(45,212,191,.12);--danger:#f97066;--danger-soft:rgba(249,112,102,.1);--warn:#fdb022;--warn-soft:rgba(253,176,34,.1);--ok:#47cd89;--code-bg:#0d1017;--code-line:rgba(249,112,102,.14);--shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px -12px rgba(0,0,0,.6);--tok-k:#c4b5fd;--tok-s:#86efac;--tok-c:#5d6679;--tok-n:#fdba74;--tok-f:#93c5fd}}
+:root{color-scheme:light dark;--bg:${BRAND.pearl};--bg-glow:rgba(46,211,183,.18);--bg-glow-2:rgba(200,155,82,.12);--surface:#fff;--surface-2:#e9eeea;--border:#d5ddd8;--text:${BRAND.obsidian};--muted:#56686a;--accent:#0b8a76;--accent-2:#9a7337;--brand-teal:${BRAND.teal};--brand-gold:${BRAND.gold};--on-accent:${BRAND.obsidian};--accent-soft:rgba(11,138,118,.1);--danger:#c4321f;--danger-soft:rgba(196,50,31,.08);--warn:#a45c06;--warn-soft:rgba(200,155,82,.16);--ok:#0b8a4a;--code-bg:#f6f8f6;--code-line:rgba(196,50,31,.1);--shadow:0 1px 2px rgba(13,23,25,.05),0 8px 24px -8px rgba(13,23,25,.14);--radius:14px;--mono:"JetBrains Mono",ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;--sans:"Plus Jakarta Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--tok-k:#7a4fb8;--tok-s:#0b7a5f;--tok-c:#8a9a96;--tok-n:#a45c06;--tok-f:#1f6f9e}
+@media (prefers-color-scheme:dark){:root{--bg:${BRAND.obsidian};--bg-glow:rgba(46,211,183,.13);--bg-glow-2:rgba(200,155,82,.09);--surface:#112022;--surface-2:#16292c;--border:#223a3d;--text:${BRAND.pearl};--muted:${BRAND.slate};--accent:${BRAND.teal};--accent-2:${BRAND.gold};--accent-soft:rgba(46,211,183,.12);--danger:#f97066;--danger-soft:rgba(249,112,102,.1);--warn:#e0b573;--warn-soft:rgba(200,155,82,.12);--ok:#47cd89;--code-bg:#0a1315;--code-line:rgba(249,112,102,.14);--shadow:0 1px 2px rgba(0,0,0,.3),0 12px 32px -12px rgba(0,0,0,.6);--tok-k:#c4b5fd;--tok-s:#7ee8cf;--tok-c:#5f716d;--tok-n:#e0b573;--tok-f:#93c5fd}}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{margin:0}
-body{background:radial-gradient(1200px 500px at 10% -10%,var(--bg-glow),transparent 60%),radial-gradient(900px 400px at 110% 0%,rgba(99,102,241,.12),transparent 60%),var(--bg);background-attachment:fixed;color:var(--text);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+body{background:radial-gradient(1200px 520px at 8% -12%,var(--bg-glow),transparent 60%),radial-gradient(900px 420px at 108% -4%,var(--bg-glow-2),transparent 60%),var(--bg);background-attachment:fixed;color:var(--text);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
 a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
 code,pre,kbd{font-family:var(--mono);font-size:13px}
 .zx-wrap{max-width:1180px;margin:0 auto;padding:24px 20px 64px}
 .zx-top{display:flex;align-items:center;gap:12px;margin-bottom:28px}
-.zx-logo{width:32px;height:32px;flex:none}
-.zx-brand{font-weight:700;letter-spacing:-.01em;font-size:16px}
-.zx-brand small{font-weight:500;color:var(--muted);margin-left:6px}
+.zx-logo{display:inline-block;width:34px;height:34px;flex:none;background:url(${LOGO_WEBP}) center/contain no-repeat}
+.zx-word{font-weight:700;letter-spacing:-.015em}.zx-word b{color:var(--brand-teal);font-weight:700}
+@media (prefers-color-scheme:light){.zx-word b{color:var(--accent)}}
+.zx-brand{font-weight:700;letter-spacing:-.01em;font-size:17px}
+.zx-brand small{font-weight:500;color:var(--muted);margin-left:10px;padding-left:10px;border-left:1px solid var(--border)}
 .zx-spacer{flex:1}
 .zx-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--muted);white-space:nowrap}
 .zx-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--ok)}
@@ -41,7 +49,7 @@ code,pre,kbd{font-family:var(--mono);font-size:13px}
 .zx-btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:10px;padding:8px 14px;font:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:transform .08s ease,background .15s,border-color .15s}
 .zx-btn:hover{border-color:var(--accent);text-decoration:none}.zx-btn:active{transform:translateY(1px)}
 .zx-btn:disabled{opacity:.5;cursor:not-allowed}
-.zx-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff}
+.zx-btn.primary{background:var(--brand-teal);border-color:transparent;color:var(--on-accent);font-weight:600}
 .zx-btn.primary:hover{filter:brightness(1.07)}
 .zx-btn.danger{color:var(--danger)}.zx-btn.small{padding:5px 10px;font-size:13px;border-radius:8px}
 .zx-muted{color:var(--muted)}
@@ -73,7 +81,7 @@ export function jsonForScript(value: unknown): string {
 export function renderPage(options: PageOptions): string {
   const data = options.data ? `<script type="application/json" id="zx-data">${jsonForScript(options.data)}</script>` : "";
   const script = options.script ? `<script>${options.script}</script>` : "";
-  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(options.title)}</title><link rel="icon" href="data:image/svg+xml,${encodeURIComponent(LOGO_SVG)}"><style>${BASE_CSS}${options.css ?? ""}</style></head><body>${options.body}${data}${script}</body></html>`;
+  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(options.title)}</title><link rel="icon" type="image/png" href="${FAVICON_PNG}"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"><style>${BASE_CSS}${options.css ?? ""}</style></head><body>${options.body}${data}${script}</body></html>`;
 }
 
 const KEYWORDS = new Set(

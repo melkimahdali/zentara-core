@@ -13,6 +13,7 @@ import { ToolError, type AgentTool } from "../ai/tools.js";
 import { ProviderUnavailableError, type ToolCall, type ToolResult } from "../ai/types.js";
 import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
 import { DevServer, isServerUp, openBrowser } from "../dev/server.js";
+import { banner, colorDepth } from "../brand/index.js";
 import { Keys, select, Spinner, type Choice } from "./widgets.js";
 
 export interface ReplOptions {
@@ -239,20 +240,21 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     createAiSession({ root: cwd, config: cfg, ui: new ReplUI(), prompter, dryRun: options.dryRun, extraTools: [devServerTool] });
   let session = newSession(config);
 
-  // ── Banner ─────────────────────────────────────────────────────────────
-  const w = Math.min(width(), 76);
-  const boxLine = (plain: string, styled: string) => `${c.gray("│")} ${styled}${" ".repeat(Math.max(0, w - 4 - plain.length))} ${c.gray("│")}`;
-  const field = (label: string, value: string) => {
-    const text = value.length > w - 14 ? value.slice(0, w - 15) + "…" : value;
-    return boxLine(`${label.padEnd(8)}${text}`, `${c.dim(label.padEnd(8))}${text}`);
-  };
-  io.out(c.gray(`╭${"─".repeat(w - 2)}╮`));
-  io.out(boxLine(`✻ Zentara AI  v${options.version}`, `${accent("✻")} ${c.bold("Zentara AI")}  ${c.dim(`v${options.version}`)}`));
-  io.out(boxLine("", ""));
-  io.out(field("Folder", shortPath(cwd)));
-  io.out(field("AI", config.providers.map((p) => p.name ?? "claude").join(" → ")));
-  io.out(field("Mode", config.mode === "auto" ? "otomatis (aksi krusial tetap ditanyakan)" : "minta persetujuan"));
-  io.out(c.gray(`╰${"─".repeat(w - 2)}╯`));
+  // ── Banner (pedoman brand bagian 05) ────────────────────────────────────
+  const modeLabel = config.mode === "auto" ? "otomatis (aksi krusial tetap ditanyakan)" : "minta persetujuan";
+  const clip = (text: string) => (text.length > 46 ? text.slice(0, 45) + "…" : text);
+  io.out("");
+  for (const line of banner({
+    version: options.version,
+    columns: process.stdout.columns ?? 80,
+    depth: colorDepth(process.stdout),
+    details: [
+      `${c.dim("Folder")}  ${clip(shortPath(cwd))}`,
+      `${c.dim("AI    ")}  ${clip(config.providers.map((p) => p.name ?? "claude").join(" → "))}`,
+      `${c.dim("Mode  ")}  ${modeLabel}`,
+    ],
+  })) io.out(line);
+  io.out("");
   io.out(c.dim("  Tulis permintaan dalam bahasa biasa · /help perintah · Esc hentikan AI · Ctrl+C 2x keluar"));
   if (options.dryRun) io.out(c.yellow("  Mode dry-run: tidak ada file yang diubah."));
 
@@ -313,7 +315,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
         setStatus(c.yellow("Tekan Ctrl+C sekali lagi untuk keluar"));
       });
       rl.on("close", () => finish(null));
-      rl.question(`${accent("❯")} `, (answer) => finish(answer));
+      rl.question(`${accent("zentara")} ${c.dim(">")} `, (answer) => finish(answer));
     });
   }
 

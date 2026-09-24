@@ -1,8 +1,12 @@
-# Zentara
+<p align="center"><img src="https://raw.githubusercontent.com/melkimahdali/zentara-core/main/assets/zentara-logo.png" alt="Zentara Core" width="128"></p>
+
+# Zentara Core
+
+*Rooted here. Built for what's next.*
 
 Framework web TypeScript AI-driven asal Nusantara: routing berbasis file, auth, database, dan **Zentara AI** yang membangun aplikasi dari bahasa sehari-hari.
 
-> Status: **v0.7**. API masih bisa berubah sebelum v1.0.
+> Status: **v0.8**. API masih bisa berubah sebelum v1.0.
 
 ## Mulai cepat
 

@@ -1,6 +1,7 @@
-<p align="center"><img src="assets/zentara-logo.png" alt="Zentara" width="160"></p>
+<p align="center"><img src="assets/zentara-logo.png" alt="Zentara Core" width="160"></p>
 
-# Zentara
+<h1 align="center">Zentara Core</h1>
+<p align="center"><em>Rooted here. Built for what's next.</em></p>
 
 Framework web TypeScript **AI-driven asal Nusantara**. Tulis apa yang Anda mau dalam bahasa sehari-hari, lalu Zentara AI yang mengerjakan langkah teknisnya, dengan persetujuan Anda dan selalu diverifikasi dengan test.
 
@@ -19,6 +20,10 @@ Fitur utama:
 - **Zentara AI** di terminal (CLI interaktif gaya Claude Code) dan di browser: halaman sambutan dan halaman error bisa langsung diajak chat untuk membangun fitur atau memperbaiki error.
 - **Halaman error lengkap** saat pengembangan: stack trace dengan potongan kode, detail request, tombol "Tanya Zentara AI".
 - Provider AI: Claude, OpenAI, Gemini, Groq, DeepSeek, OpenRouter, OmniRoute, Ollama, dengan fallback otomatis bila kredit habis.
+
+## Brand
+
+Logo, favicon, versi terminal (ANSI/ASCII), dan pedoman warna ada di [`assets/brand`](assets/brand). Warna utama: Zentara Teal `#2ED3B7`, Heritage Gold `#C89B52`, Core Obsidian `#0D1719`, Pearl White `#F2F4F0`, Muted Slate `#829490`. Aset kecil yang dipakai framework dibuat dari master logo dengan `scripts/brand/generate.py`.
 
 ## Paket di repo ini
 

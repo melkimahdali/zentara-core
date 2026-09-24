@@ -6,7 +6,7 @@ import { defaultMessage } from "../errors.js";
 import { escapeHtml } from "../view.js";
 import { CHAT_CSS, CHAT_JS } from "./chat.js";
 import { appInfo, devtoolsClient, type RouteInfo } from "./info.js";
-import { highlight, LOGO_SVG, renderPage, ZENTARA_VERSION } from "./theme.js";
+import { highlight, LOGO_SVG, renderPage, WORDMARK, ZENTARA_VERSION } from "./theme.js";
 
 export interface StackFrame {
   fn?: string;
@@ -166,7 +166,7 @@ const ERROR_JS = `
 
 function header(badge: string): string {
   const info = appInfo();
-  return `<header class="zx-top">${LOGO_SVG}<div class="zx-brand">Zentara <small>${escapeHtml(info.appName)}</small></div><div class="zx-spacer"></div><span class="zx-badge warn"><span class="dot"></span>${escapeHtml(badge)}</span></header>`;
+  return `<header class="zx-top">${LOGO_SVG}<div class="zx-brand">${WORDMARK}<small>${escapeHtml(info.appName)}</small></div><div class="zx-spacer"></div><span class="zx-badge warn"><span class="dot"></span>${escapeHtml(badge)}</span></header>`;
 }
 
 function drawer(): string {
@@ -269,7 +269,7 @@ const STATUS_TEXT: Record<number, [string, string]> = {
 /** Halaman status sederhana yang aman untuk produksi (tanpa detail internal). */
 export function renderStatusPage(status: number, message?: string): string {
   const [title, text] = STATUS_TEXT[status] ?? (status >= 500 ? STATUS_TEXT[500]! : [defaultMessage(status), ""]);
-  const body = `<main class="zs"><div><div class="code-big">${status}</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message && message !== defaultMessage(status) ? message : text)}</p><a class="zx-btn" href="/">← Kembali ke beranda</a></div></main>`;
+  const body = `<main class="zs"><div>${LOGO_SVG.replace('class="zx-logo"', 'class="zx-logo" style="width:56px;height:56px;margin-bottom:18px"')}<div class="code-big">${status}</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message && message !== defaultMessage(status) ? message : text)}</p><a class="zx-btn" href="/">← Kembali ke beranda</a></div></main>`;
   return renderPage({ title: `${status} · ${title}`, body, css: ERROR_CSS });
 }
 
