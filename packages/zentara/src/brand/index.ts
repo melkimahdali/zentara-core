@@ -58,6 +58,10 @@ export function brandPaint(hex: string, depth: ColorDepth, basicCode = "36"): (s
  * jadi rapi di terminal gelap maupun terang. Tanpa warna: siluet satu warna.
  */
 export function terminalLogo(depth: ColorDepth): string[] {
+  return renderGrid(LOGO_TERMINAL, depth);
+}
+
+function renderGrid(grid: readonly string[], depth: ColorDepth): string[] {
   const color = (cell: string): string | undefined => {
     if (cell === ".") return undefined;
     const gold = cell === "G";
@@ -69,9 +73,9 @@ export function terminalLogo(depth: ColorDepth): string[] {
     depth === "basic" ? String(Number(color(cell)) + 10) : depth === "truecolor" ? `48;2;${color(cell)}` : `48;5;${to256(hexToRgb(cell === "G" ? BRAND.gold : BRAND.teal))}`;
 
   const lines: string[] = [];
-  for (let y = 0; y < LOGO_TERMINAL.length; y += 2) {
-    const top = LOGO_TERMINAL[y]!;
-    const bottom = LOGO_TERMINAL[y + 1] ?? ".".repeat(top.length);
+  for (let y = 0; y < grid.length; y += 2) {
+    const top = grid[y]!;
+    const bottom = grid[y + 1] ?? ".".repeat(top.length);
     let line = "";
     for (let x = 0; x < top.length; x++) {
       const t = top[x]!;

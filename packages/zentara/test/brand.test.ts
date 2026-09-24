@@ -56,3 +56,14 @@ describe("brand Zentara Core", () => {
     assert.deepEqual(banner({ version: "0.8.0", columns: 30, depth: "none" }), ["Z> Zentara Core v0.8.0"]);
   });
 });
+
+describe("kotak header CLI", () => {
+  it("lebar tetap, judul di garis atas, keterangan di garis bawah, teks panjang dipotong", async () => {
+    const { box } = await import("../src/repl/widgets.js");
+    const lines = box("◆ ZENTARA CORE  v1", ["~/proyek", "x".repeat(200)], "/help perintah", 60).map(strip);
+    assert.ok(lines[0]!.startsWith("╭─ ◆ ZENTARA CORE  v1 ") && lines[0]!.endsWith("╮"));
+    assert.ok(lines.at(-1)!.startsWith("╰─ /help perintah ") && lines.at(-1)!.endsWith("╯"));
+    assert.ok(lines.every((l) => l.length === lines[0]!.length), "semua baris sama lebar");
+    assert.ok(lines[2]!.includes("…"));
+  });
+});

@@ -5,9 +5,8 @@
 Framework web TypeScript **AI-driven asal Nusantara**. Tulis apa yang Anda mau dalam bahasa sehari-hari, lalu Zentara AI yang mengerjakan langkah teknisnya, dengan persetujuan Anda dan selalu diverifikasi dengan test.
 
 ```bash
-npm create zentara@latest toko-saya
-cd toko-saya
-npx zentara            # chat dengan Zentara AI; server dev ikut dijalankan di latar belakang
+npm install -g zentara   # sekali saja, lalu cukup ketik: zentara
+zentara                  # buat proyek baru, atur AI (OmniRoute gratis), lalu chat dengan Zentara AI
 ❯ tambahkan fitur keranjang belanja untuk user yang login
 ```
 
