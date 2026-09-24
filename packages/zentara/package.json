@@ -1,6 +1,6 @@
 {
   "name": "zentara",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Framework web TypeScript AI-driven asal Nusantara: routing berbasis file, auth, database, dan AI yang membangun aplikasi dari bahasa sehari-hari.",
   "keywords": [
     "framework",

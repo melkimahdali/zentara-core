@@ -1,8 +1,10 @@
 name: Release
 
-# Publish ke npm saat sebuah GitHub Release diterbitkan (tag v<versi>).
-# Memakai npm Trusted Publishing (OIDC): tidak ada token npm yang disimpan di GitHub.
-# Publish PERTAMA harus manual dari komputer; lihat PUBLISHING.md.
+# Saat sebuah GitHub Release diterbitkan (tag v<versi>), workflow ini menguji semuanya lalu
+# MENITIPKAN (stage) versi baru di npm lewat Trusted Publishing (OIDC, tanpa token tersimpan).
+# Versi baru baru tayang setelah pemilik paket menyetujuinya dengan 2FA:
+#   npm stage list zentara  ->  npm stage approve <stage-id>
+# Lihat PUBLISHING.md.
 on:
   release:
     types: [published]
@@ -22,13 +24,13 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
           cache: npm
-      - name: Pastikan npm mendukung trusted publishing (>= 11.5.1)
+      - name: Pastikan npm mendukung trusted publishing & staged publishing
         run: npm install -g npm@latest && npm --version
       - run: npm ci
       - run: npm run typecheck
@@ -48,13 +50,15 @@ jobs:
             fi
           done
 
-      - name: Publish ke npm (versi yang sudah ada dilewati)
+      - name: Titipkan (stage) ke npm, menunggu persetujuan pemilik
         run: |
           for pkg in zentara create-zentara; do
             v=$(node -p "require('./packages/$pkg/package.json').version")
             if npm view "$pkg@$v" version >/dev/null 2>&1; then
-              echo "$pkg@$v sudah ada di npm, dilewati"
-            else
-              npm publish -w "$pkg" --access public --provenance
+              echo "$pkg@$v sudah tayang di npm, dilewati"
+              continue
             fi
+            # npm stage tidak mengenal workspace: jalankan dari folder paketnya.
+            (cd "packages/$pkg" && npm stage publish --access public --provenance)
+            echo "::notice::$pkg@$v dititipkan. Setujui dengan: npm stage list $pkg lalu npm stage approve <stage-id>"
           done

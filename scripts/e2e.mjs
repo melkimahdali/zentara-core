@@ -99,6 +99,7 @@ try {
     if (template === "api") {
       sh(process.execPath, [...cli, "db:migrate"], app);
       check(sh(process.execPath, [...cli, "db:seed"], app).includes("Admin dibuat"), "db:migrate & db:seed");
+      check(/No schema changes/.test(sh(process.execPath, [...cli, "db:generate"], app)), "db:generate (drizzle-kit) berjalan");
     }
 
     // Produksi: zentara start (dist/app)
