@@ -40,12 +40,15 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      - name: Smoke test build produksi
-        run: |
-          node dist/cli.js db:migrate
-          node dist/cli.js db:seed
-          PORT=3000 node dist/main.js &
-          for i in $(seq 1 20); do curl -fsS http://localhost:3000/api/hello && break; sleep 0.5; done
-          curl -fsS http://localhost:3000/ | grep -q "Zentara Core"
-          curl -fsS http://localhost:3000/api/products | grep -q "Kopi Gayo"
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/auth/me)" = "401"
+
+  # Simulasi publish: npm pack, buat proyek dari tarball, install, test, build, jalankan server.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run e2e

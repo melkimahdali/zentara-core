@@ -1,41 +1,18 @@
 {
-  "name": "zentara-core",
-  "version": "0.5.0",
-  "description": "Zentara Core Framework \u2013 Intelligence in Harmony",
-  "main": "dist/main.js",
+  "name": "zentara-monorepo",
+  "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/zentara",
+    "packages/create-zentara"
+  ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "dev": "tsx watch src/main.ts",
-    "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/main.js",
-    "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"test/**/*.test.ts\"",
-    "zen": "tsx src/cli.ts"
-  },
-  "devDependencies": {
-    "@types/node": "^22.20.4",
-    "drizzle-kit": "^0.31.11",
-    "postgres": "^3.4.9",
-    "tsx": "^4.23.15",
-    "typescript": "^5.9.3"
-  },
-  "bin": {
-    "zentara": "dist/cli.js"
-  },
-  "dependencies": {
-    "@anthropic-ai/sdk": "^0.128.0",
-    "drizzle-orm": "^0.45.3",
-    "zod": "^4.6.5"
-  },
-  "peerDependencies": {
-    "postgres": "^3.4.0"
-  },
-  "peerDependenciesMeta": {
-    "postgres": {
-      "optional": true
-    }
+    "build": "npm run build -w zentara -w create-zentara",
+    "typecheck": "npm run typecheck -w zentara -w create-zentara",
+    "test": "npm test -w zentara -w create-zentara",
+    "e2e": "node scripts/e2e.mjs"
   }
 }
