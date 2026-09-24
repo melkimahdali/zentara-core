@@ -1,4 +1,6 @@
+import type { ZenContext } from "../../../core/index.js";
 
-export async function GET(){
-  return { message:"Hello from Zentara API", time:new Date().toISOString() };
+export function GET(ctx: ZenContext) {
+  const name = typeof ctx.query.name === "string" ? ctx.query.name : "Zentara";
+  return { message: `Hello from ${name} API`, time: new Date().toISOString() };
 }

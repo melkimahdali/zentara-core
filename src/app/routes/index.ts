@@ -1,14 +1,19 @@
+import { h, loadZenStyles, raw, renderToString } from "../../core/index.js";
 
-import { h, renderToString } from "../../core/view";
-import { loadZenStyles } from "../../core/style";
-
-export default function Page(){
-  const html=renderToString(
-    h("div",{class:"p-8"},
-      h("h1",{class:"text-3xl"},"Zentara Core"),
-      h("p",{},"Framework AI-driven asal Nusantara.")
-    )
+export function GET(): string {
+  const page = h("html", { lang: "id" },
+    h("head", null,
+      h("meta", { charset: "utf-8" }),
+      h("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),
+      h("title", null, "Zentara"),
+      h("style", null, raw(loadZenStyles())),
+    ),
+    h("body", null,
+      h("div", { class: "p-8" },
+        h("h1", { class: "text-3xl" }, "Zentara Core"),
+        h("p", null, "Framework AI-driven asal Nusantara."),
+      ),
+    ),
   );
-  const css=loadZenStyles();
-  return `<!doctype html><html><head><style>${css}</style><title>Zentara</title></head><body>${html}</body></html>`;
+  return "<!doctype html>" + renderToString(page);
 }
