@@ -38,6 +38,18 @@ export class Journal {
     fs.writeFileSync(this.file, JSON.stringify(this.data, null, 2));
   }
 
+  /**
+   * Catat file yang diubah proses lain (mis. drizzle-kit) dengan isi sebelumnya yang sudah difoto
+   * lebih dulu; `null` berarti file itu baru dibuat.
+   */
+  recordExternal(relativePath: string, before: string | null): void {
+    if (this.seen.has(relativePath)) return;
+    this.seen.add(relativePath);
+    this.data.entries.push({ path: relativePath, before });
+    fs.mkdirSync(path.dirname(this.file), { recursive: true });
+    fs.writeFileSync(this.file, JSON.stringify(this.data, null, 2));
+  }
+
   get changedFiles(): string[] {
     return this.data.entries.map((e) => e.path);
   }

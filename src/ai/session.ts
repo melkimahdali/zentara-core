@@ -6,7 +6,7 @@ import { createProviders, type AiConfig } from "./config.js";
 import { Journal } from "./journal.js";
 import { projectSnapshot, SYSTEM_PROMPT } from "./prompt.js";
 import { c, terminalPrompter, TerminalUI, type Output } from "./terminal.js";
-import { agentTools, createScriptRunner } from "./tools.js";
+import { agentTools, createDbRunner, createScriptRunner } from "./tools.js";
 
 export interface SessionOptions {
   root: string;
@@ -36,6 +36,7 @@ export function createAiSession(options: SessionOptions): AiSession {
     journal: new Journal(root, ""),
     dryRun: options.dryRun ?? false,
     runScript: createScriptRunner(root),
+    runDb: createDbRunner(root),
   };
   const agent = new Agent({
     chain,

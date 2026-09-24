@@ -1,6 +1,6 @@
 {
   "name": "zentara-core",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Zentara Core Framework \u2013 Intelligence in Harmony",
   "main": "dist/main.js",
   "type": "module",
@@ -17,14 +17,25 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
+    "drizzle-kit": "^0.31.11",
+    "postgres": "^3.4.9",
     "tsx": "^4.23.15",
-    "typescript": "^5.9.3",
-    "zod": "^4.6.5"
+    "typescript": "^5.9.3"
   },
   "bin": {
     "zentara": "dist/cli.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.128.0"
+    "@anthropic-ai/sdk": "^0.128.0",
+    "drizzle-orm": "^0.45.3",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
+    "postgres": "^3.4.0"
+  },
+  "peerDependenciesMeta": {
+    "postgres": {
+      "optional": true
+    }
   }
 }

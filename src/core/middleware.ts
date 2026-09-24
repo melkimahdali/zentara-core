@@ -28,6 +28,15 @@ export function compose(middleware: readonly Middleware[], final: (ctx: ZenConte
   };
 }
 
+/**
+ * Pasang middleware hanya untuk satu handler (satu method), mis.
+ *   export const POST = withMiddleware([requireAdmin], createProduct);
+ */
+export function withMiddleware(middleware: readonly Middleware[], handler: (ctx: ZenContext) => unknown) {
+  const run = compose(middleware, handler);
+  return (ctx: ZenContext): Promise<unknown> => run(ctx);
+}
+
 /** Log satu baris per request: method, path, status, dan durasi. */
 export function requestLogger(): Middleware {
   return (ctx, next) => {

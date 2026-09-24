@@ -9,3 +9,6 @@ coverage/
 
 # Jurnal perubahan AI (untuk zentara undo)
 .zentara/
+
+# Database SQLite lokal
+data/

@@ -33,6 +33,7 @@ const tool = (id: string, name: string, input: unknown): ModelTurn => ({ text: "
 let root: string;
 let asked: PendingAction[];
 let answer: ApprovalAnswer;
+let dbCalls: string[];
 
 function makeContext(mode: "ask" | "auto" = "ask", dryRun = false): ToolContext {
   return {
@@ -44,6 +45,15 @@ function makeContext(mode: "ask" | "auto" = "ask", dryRun = false): ToolContext 
     journal: new Journal(root, "tugas uji"),
     dryRun,
     runScript: async () => ({ ok: true, output: "ok" }),
+    runDb: async (action) => {
+      dbCalls.push(action);
+      if (action === "generate") {
+        fs.mkdirSync(path.join(root, "drizzle", "meta"), { recursive: true });
+        fs.writeFileSync(path.join(root, "drizzle", "0001_baru.sql"), "CREATE TABLE x (id integer);");
+        fs.writeFileSync(path.join(root, "drizzle", "meta", "_journal.json"), '{"entries":["0000","0001"]}');
+      }
+      return { ok: true, output: `db:${action} ok` };
+    },
   };
 }
 
@@ -55,6 +65,7 @@ beforeEach(() => {
   fs.writeFileSync(path.join(root, "src", "a.ts"), "export const a = 1;\n");
   asked = [];
   answer = "yes";
+  dbCalls = [];
 });
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -129,6 +140,39 @@ describe("persetujuan", () => {
     const ctx = makeContext("auto", true);
     assert.match(await write(ctx, "src/dry.ts"), /dry-run/);
     assert.equal(fs.existsSync(path.join(root, "src", "dry.ts")), false);
+  });
+});
+
+describe("tool database", () => {
+  const db = (ctx: ToolContext, action: string) => agentTools.find((t) => t.spec.name === "database")!.run({ action }, ctx);
+
+  it("generate = perubahan biasa (bisa di-undo); migrate & seed = krusial", async () => {
+    answer = "no";
+    fs.mkdirSync(path.join(root, "drizzle", "meta"), { recursive: true });
+    fs.writeFileSync(path.join(root, "drizzle", "0000_init.sql"), "CREATE TABLE a (id integer);");
+    fs.writeFileSync(path.join(root, "drizzle", "meta", "_journal.json"), '{"entries":["0000"]}');
+    const ctx = makeContext("auto");
+    assert.match(await db(ctx, "generate"), /BERHASIL/);
+    assert.deepEqual(ctx.journal.changedFiles.sort(), ["drizzle/0001_baru.sql", "drizzle/meta/_journal.json"]);
+    await assert.rejects(db(ctx, "migrate"), /tidak menyetujui/);
+    await assert.rejects(db(ctx, "seed"), /tidak menyetujui/);
+    assert.deepEqual(dbCalls, ["generate"]);
+    assert.deepEqual(asked.map((a) => a.risk), ["critical", "critical"]);
+    undoLatest(root);
+    assert.equal(fs.existsSync(path.join(root, "drizzle", "0001_baru.sql")), false);
+    assert.equal(fs.readFileSync(path.join(root, "drizzle", "meta", "_journal.json"), "utf8"), '{"entries":["0000"]}');
+    assert.ok(fs.existsSync(path.join(root, "drizzle", "0000_init.sql")));
+  });
+
+  it("file database tidak bisa dibaca/ditulis AI; migrasi manual = krusial", async () => {
+    fs.writeFileSync(path.join(root, "app.db"), "SQLite format 3");
+    const ctx = makeContext("auto");
+    const run = (name: string, input: Record<string, unknown>) => agentTools.find((t) => t.spec.name === name)!.run(input, ctx);
+    await assert.rejects(run("read_file", { path: "app.db" }), /rahasia/);
+    await assert.rejects(run("write_file", { path: "data/app.db", content: "x" }), /tidak diizinkan/);
+    answer = "no";
+    await assert.rejects(run("write_file", { path: "drizzle/0002_manual.sql", content: "x" }), /tidak menyetujui/);
+    assert.equal(asked.at(-1)!.risk, "critical");
   });
 });
 

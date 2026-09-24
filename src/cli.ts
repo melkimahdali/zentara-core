@@ -9,6 +9,7 @@ import { createAiSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
 import { ProviderUnavailableError } from "./ai/types.js";
 import { loadConfigFile, resolveConfig } from "./core/config.js";
+import { dbGenerate, dbMigrate, dbSeed, type DbCommandResult } from "./db/commands.js";
 import { ZenLogger } from "./core/logger.js";
 import { allowedMethods, HTTP_METHODS, segmentsFromFile, ZenRouter } from "./core/router.js";
 
@@ -35,6 +36,9 @@ Bicara dengan AI (bahasa sehari-hari):
 
 Perintah manual:
   zentara routes [--json]                          Tampilkan semua route
+  zentara db:generate [--name <nama>]              Buat file migrasi dari perubahan schema
+  zentara db:migrate                               Terapkan migrasi ke database
+  zentara db:seed                                  Isi data awal (app/db/seed.ts)
   zentara make:route <path> [--methods GET,POST]   Buat file route baru, mis. api/products/[id]
   zentara make:middleware <nama>                   Buat file middleware baru
   zentara help                                     Tampilkan bantuan ini
@@ -62,7 +66,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     const [key, inline] = arg.slice(2).split("=", 2) as [string, string | undefined];
     const next = argv[i + 1];
     if (inline !== undefined) flags[key] = inline;
-    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir"].includes(key)) {
+    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name"].includes(key)) {
       flags[key] = next;
       i++;
     } else flags[key] = true;
@@ -188,7 +192,21 @@ async function listRoutes(args: ParsedArgs, io: CliIO): Promise<number> {
   return 0;
 }
 
-const KNOWN_COMMANDS = new Set(["help", "routes", "make:route", "make:middleware", "ai", "ai:status", "ai:setup", "undo"]);
+const KNOWN_COMMANDS = new Set([
+  "help", "routes", "make:route", "make:middleware", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed",
+]);
+
+async function dbCommand(fn: () => Promise<DbCommandResult>, io: CliIO): Promise<number> {
+  loadDotEnv(io.cwd);
+  try {
+    const result = await fn();
+    (result.ok ? io.out : io.err)(result.output);
+    return result.ok ? 0 : 1;
+  } catch (err) {
+    io.err((err as Error).message);
+    return 1;
+  }
+}
 
 /** Argumen yang bukan perintah dan berisi spasi dianggap kalimat untuk AI. */
 export function isNaturalLanguage(positional: readonly string[]): boolean {
@@ -370,6 +388,12 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return aiSetup(args, io);
     case "undo":
       return undo(args, io);
+    case "db:generate":
+      return dbCommand(() => dbGenerate(io.cwd, typeof args.flags.name === "string" ? args.flags.name : undefined), io);
+    case "db:migrate":
+      return dbCommand(() => dbMigrate(io.cwd), io);
+    case "db:seed":
+      return dbCommand(() => dbSeed(io.cwd), io);
     case "routes":
       return listRoutes(args, io);
     case "make:route":

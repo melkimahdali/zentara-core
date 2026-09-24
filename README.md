@@ -2,7 +2,7 @@
 
 Framework AI-driven fullstack asal Nusantara. Ditulis dalam TypeScript, tanpa dependency runtime.
 
-> Status: **v0.4 – Tahap 3 (Zentara AI: bangun aplikasi dengan bahasa sehari-hari)**. API masih bisa berubah.
+> Status: **v0.5 – Tahap 4 (database, auth, dan AI yang paham database)**. API masih bisa berubah.
 
 ## Mulai cepat
 
@@ -10,6 +10,8 @@ Butuh Node.js 22 atau lebih baru.
 
 ```bash
 npm install
+npm run zen -- db:migrate   # buat tabel di data/app.db (SQLite)
+npm run zen -- db:seed      # data contoh + admin (admin@zentara.test / admin12345, khusus dev)
 npm run dev        # server dev dengan auto-reload di http://localhost:3000
 npm test           # jalankan test
 npm run build      # kompilasi ke dist/
@@ -32,7 +34,7 @@ npm run zen -- undo               # batalkan perubahan AI terakhir
 Setelah build atau dipasang sebagai paket, perintahnya cukup `zentara "..."`.
 
 Cara kerja AI:
-1. Membaca struktur proyek, route, dan kode yang ada.
+1. Membaca struktur proyek, route, schema database, dan kode yang ada.
 2. Menyampaikan rencana singkat.
 3. Membuat atau mengubah file, dengan persetujuan Anda.
 4. **Selalu menjalankan typecheck dan test.** Bila gagal, AI memperbaikinya sendiri (maksimal 2 kali).
@@ -46,11 +48,12 @@ Cara kerja AI:
 | `auto` (`--auto` atau `ai.mode: "auto"`) | langsung dikerjakan | selalu ditanyakan |
 
 Yang termasuk **aksi krusial**:
-- menghapus file dan memasang paket npm;
+- menghapus file, memasang paket npm, serta menerapkan migrasi atau seed ke database;
+- mengedit file migrasi di `drizzle/` secara manual;
 - mengubah `package.json`, `zentara.config`, `tsconfig`, `.github/`, `.gitignore`, `.env*`, atau inti framework (`src/core/`).
 
 Yang **tidak pernah** bisa dilakukan AI:
-- membaca atau mengubah `.env` (rahasia tidak dikirim ke provider AI);
+- membaca atau mengubah `.env` dan file database (`.db`/`.sqlite`), supaya rahasia dan data pengguna tidak dikirim ke provider AI;
 - menulis ke `.git/`, `node_modules/`, atau `dist/`;
 - menyentuh file di luar folder proyek, termasuk lewat symlink.
 
@@ -236,6 +239,77 @@ npm run zen -- make:middleware auth-guard
 
 Setelah build, CLI tersedia sebagai `zentara` (lihat `bin` di `package.json`). Contohnya `npx zentara routes`.
 
+## Database
+
+Zentara memakai [Drizzle ORM](https://orm.drizzle.team). Defaultnya SQLite lewat modul `node:sqlite` bawaan Node, jadi **tidak perlu memasang driver atau server database** apa pun.
+
+```ts
+// src/app/db/schema.ts
+export const products = sqliteTable("products", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  price: integer("price").notNull(),
+});
+
+// di route
+import { eq } from "drizzle-orm";
+import { db } from "../../db/index.js";
+import { products } from "../../db/schema.js";
+
+export const GET = () => db.select().from(products);
+const [baru] = await db.insert(products).values({ name: "Kopi", price: 45000 }).returning();
+await db.update(products).set({ price: 40000 }).where(eq(products.id, 1));
+await db.transaction(async (tx) => { /* ... */ });
+```
+
+Alur kerja setelah mengubah schema:
+
+| Perintah | Fungsi |
+|---|---|
+| `zentara db:generate [--name x]` | buat file migrasi SQL di `drizzle/` dari perubahan schema |
+| `zentara db:migrate` | terapkan migrasi yang belum jalan |
+| `zentara db:seed` | isi data awal dari `src/app/db/seed.ts` (aman diulang) |
+
+**PostgreSQL untuk produksi:**
+1. Jalankan `npm install postgres`.
+2. Tulis schema dengan `drizzle-orm/pg-core`, lalu ubah `dialect` di `drizzle.config.ts` menjadi `"postgresql"`.
+3. Di `src/app/db/index.ts`, ganti `createSqlite(...)` dengan `await createPostgres(process.env.DATABASE_URL, schema)`.
+
+Catatan SQLite: transaksi dijalankan bergantian (satu per satu) supaya query dari request lain tidak ikut masuk ke transaksi yang sedang berjalan.
+
+## Auth
+
+Auth sudah tersedia di core. Password di-hash dengan scrypt (parameter OWASP), dan sesi memakai session terenkripsi.
+
+```ts
+import { hashPassword, verifyPassword, fakeVerify, login, logout, currentUser, requireAuth, rateLimit, withMiddleware } from "../core/index.js";
+
+login(ctx, { id: user.id, role: user.role });   // setelah password cocok
+logout(ctx);
+
+export const middleware = [requireAuth()];                      // seluruh file route wajib login
+export const POST = withMiddleware([requireAuth({ roles: ["admin"] })], handler);  // satu method saja
+export const middleware = [rateLimit({ windowMs: 15 * 60_000, max: 10 })];         // anti brute-force
+```
+
+`requireAuth({ loadUser })` memuat user terbaru dari database di setiap request. Akibatnya:
+- user yang dihapus otomatis ter-logout;
+- perubahan role langsung berlaku.
+
+Aplikasi contoh sudah menyediakan fitur-fitur berikut:
+
+| Endpoint | Akses |
+|---|---|
+| `POST /api/auth/register` · `POST /api/auth/login` · `POST /api/auth/logout` | publik (rate limit 10×/15 menit) |
+| `GET /api/auth/me` | wajib login |
+| `GET /api/products?q=&maxHarga=` · `GET /api/products/:id` | publik |
+| `POST /api/products` · `PUT/DELETE /api/products/:id` | khusus admin |
+
+Pengaman bawaan pada login:
+- pesan dan waktu respons sama untuk email yang tidak terdaftar maupun password salah (`fakeVerify`);
+- hash password tidak pernah dikirim ke klien;
+- hash lama otomatis diperbarui saat login (`needsRehash`).
+
 ## View
 
 ```ts
@@ -288,6 +362,10 @@ src/cli.ts           CLI zentara
 src/ai/              Zentara AI (agen, provider, tool, persetujuan, undo)
 src/app/routes/      route aplikasi
 src/app/middleware.ts middleware global aplikasi
+src/app/db/          schema, koneksi, dan seed database
+src/app/lib/         helper aplikasi (mis. requireUser/requireAdmin)
+src/db/              modul database Zentara (SQLite/PostgreSQL, migrasi)
+drizzle/             file migrasi SQL (hasil db:generate)
 public/          file statis
 zenstyles/       CSS aplikasi
 test/            test (node:test)
