@@ -79,14 +79,14 @@ Dengan cara ini:
 3. Commit, buat PR, tunggu CI hijau, lalu merge ke `main`.
 4. Di GitHub, buka **Releases → Draft a new release**. Buat tag **`v0.6.2`** (harus sama persis dengan versi), isi catatan rilis, lalu **Publish release**.
 5. Workflow **Release** di tab *Actions* akan menjalankan test dan simulasi publish, mencocokkan tag dengan versi, lalu **menitipkan** kedua paket di npm.
-6. **Setujui** dari komputer Anda. Versi baru langsung tayang setelah disetujui:
+6. **Setujui** dari komputer Anda (di folder clone repo ini, setelah `git pull`):
    ```bash
-   npm stage list zentara               # catat stage-id versi baru
-   npm stage approve <stage-id>         # diminta kode 2FA
-   npm stage list create-zentara
-   npm stage approve <stage-id>
+   npm install -g npm@11                # sekali saja: "npm stage" butuh npm ≥ 11.16
+   npm run release:approve              # diminta kode 2FA untuk tiap paket
    ```
-   Perintah `npm stage` butuh npm ≥ 11.16. Jalankan `npm install -g npm@11` (npm 12 butuh Node ≥ 24.15). Untuk memeriksa isi paket dulu, gunakan `npm stage download <stage-id>`. Kalau ada yang salah, tolak dengan `npm stage reject <stage-id>`, perbaiki, lalu buat rilis baru.
+   Perintah ini mengambil ID stage dari run Release terakhir (anotasi publik GitHub, atau log untuk run lama), melewati versi yang sudah tayang, lalu menjalankan `npm stage approve` dan mengecek registry sampai versi baru terlihat. `npm run release:approve -- --dry-run` hanya menampilkan apa yang akan disetujui.
+
+   `npm stage list <paket>` bisa menampilkan data server npm yang tertinggal (versi yang sudah disetujui tetap berstatus `staged`, versi baru belum muncul), jadi jangan dijadikan patokan. ID juga tertera di ringkasan run Release (*Actions → Release → run terakhir*). Untuk memeriksa isi paket sebelum menyetujui, gunakan `npm stage download <stage-id>`. Kalau ada yang salah, tolak dengan `npm stage reject <stage-id>`, perbaiki, lalu buat rilis baru.
 
 ## Masalah umum
 
@@ -101,7 +101,8 @@ Dengan cara ini:
 | `npm stage`: perintah tidak dikenal | perbarui npm: `npm install -g npm@11` |
 | `EBADENGINE` saat memasang npm 12 | npm 12 butuh Node ≥ 24.15; pakai `npm install -g npm@11` atau perbarui Node |
 | PowerShell: `The '<' operator is reserved` | `<stage-id>` hanya contoh isian; ganti dengan ID dari `npm stage list`, tanpa `<` `>` |
-| Versi tidak muncul di npm setelah rilis | belum disetujui: `npm stage list <paket>` lalu `npm stage approve <stage-id>` |
+| Versi tidak muncul di npm setelah rilis | belum disetujui: `npm run release:approve` |
+| `npm stage list` menampilkan versi lama / `approve` menjawab `E404 staged version not found` | daftar dari server npm tertinggal; pakai `npm run release:approve` (ID diambil dari run Release) |
 | Workflow gagal: tag tidak cocok | tag rilis harus `v` + versi di `package.json`, mis. `v0.6.1` |
 
 ## Jika terlanjur salah publish
