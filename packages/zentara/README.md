@@ -61,10 +61,9 @@ zentara
 
 (Tanpa pemasangan global: `npx zentara` di folder proyek.)
 
-Saat dibuka, Zentara menampilkan kotak status (folder, AI yang aktif, mode). Lalu:
+Saat dibuka, Zentara menampilkan logo Zentara Core beserta versi, AI yang aktif, mode, dan folder, seperti Claude Code. Kolom input ada di antara dua garis, dengan baris mode di bawahnya (**Shift+Tab** untuk mengganti mode). Lalu:
 - **Belum ada AI yang siap:** muncul layar sambutan untuk memilih cara mengakses model, yaitu *OmniRoute (gratis)*, *Masukkan API key*, *Provider kustom*, atau *Lewati dulu*. Menu dipilih dengan ↑/↓ + Enter, atau ketik untuk mencari.
 - **Di luar folder proyek:** muncul pilihan *Buat proyek baru* (menjalankan `npm create zentara` lalu langsung membuka proyeknya), *Chat di folder ini*, atau *Buka dokumentasi*.
-- **Logo lengkap Zentara Core** tampil pada pembukaan pertama; setelahnya cukup kotak status yang ringkas.
 
 Fitur sesi interaktif:
 

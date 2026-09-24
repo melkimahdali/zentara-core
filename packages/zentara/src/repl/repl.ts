@@ -14,7 +14,7 @@ import { ProviderUnavailableError, type ToolCall, type ToolResult } from "../ai/
 import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
 import { BackgroundProcess, DevServer, isServerUp, openBrowser, waitForUrl } from "../dev/server.js";
 import { installOmniRoute, nodeSupportsOmniRoute, OMNIROUTE, OMNIROUTE_TIPS, omnirouteEnv, omnirouteInstalled } from "../ai/omniroute.js";
-import { banner, colorDepth } from "../brand/index.js";
+import { colorDepth, terminalLogo, visibleWidth } from "../brand/index.js";
 import { spawn } from "node:child_process";
 import { platformCommand } from "../process.js";
 import { box, Keys, select, Spinner, type Choice } from "./widgets.js";
@@ -106,7 +106,8 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     // Baris status ada di atas garis input: tulis ulang di tempat tanpa mengganggu ketikan.
     if (promptActive && activeRl) {
       const up = 2 + activeRl.getCursorPos().rows;
-      out.write(`\x1b7\x1b[${up}A\r\x1b[2K  ${line}\x1b8`);
+      const cols = Math.max(20, (process.stdout.columns ?? 80) - 1);
+      out.write(`\x1b7\x1b[${up}A\r\x1b[2K${" ".repeat(Math.max(2, cols - visibleWidth(line)))}${line}\x1b8`);
     }
   }
 
@@ -122,8 +123,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
             : fs.existsSync(path.join(cwd, "src", "app"))
               ? c.dim("○ server dev mati (/dev start)")
               : c.dim("○ di luar proyek Zentara");
-    const mode = session.approval.mode === "auto" ? "otomatis" : "minta persetujuan";
-    return `${server}${c.dim(`  ·  mode ${mode}  ·  /help`)}`;
+    return server;
   }
 
   // Server devtools: chat Zentara AI di browser memakai kunci yang sama dengan terminal.
@@ -309,37 +309,30 @@ export async function startRepl(options: ReplOptions): Promise<number> {
   }
   let readyProvider = await readiness(config);
 
-  // ── Header (gaya ZCode) + logo pada pembukaan pertama ──────────────────
-  const stateFile = path.join(os.homedir(), ".zentara", "state.json");
-  let firstRun = false;
-  try {
-    firstRun = !(JSON.parse(fs.readFileSync(stateFile, "utf8")) as { welcomed?: boolean }).welcomed;
-  } catch {
-    firstRun = true;
-  }
-  if (firstRun) {
-    io.out("");
-    for (const line of banner({ version: options.version, columns: process.stdout.columns ?? 80, depth: colorDepth(process.stdout) })) io.out(line);
-    try {
-      fs.mkdirSync(path.dirname(stateFile), { recursive: true });
-      fs.writeFileSync(stateFile, JSON.stringify({ welcomed: true }));
-    } catch {
-      // Folder home tidak bisa ditulis: logo tampil lagi lain kali, tidak apa-apa.
-    }
-  }
-  const modeLabel = config.mode === "auto" ? "mode otomatis" : "mode minta persetujuan";
+  // ── Header gaya Claude Code: logo mini + tiga baris info ────────────────
+  const depth = colorDepth(process.stdout);
+  const aiLine = readyProvider
+    ? `${readyProvider === "omniroute" ? "OmniRoute (gratis)" : readyProvider} ${c.dim("·")} ${config.mode === "auto" ? "mode otomatis" : "minta persetujuan"}`
+    : c.yellow("AI belum diatur · /setup");
+  const info = [
+    `${c.bold("Zentara")} ${c.bold(accent("Core"))} ${c.dim(`v${options.version}`)}`,
+    readyProvider ? c.dim(aiLine) : aiLine,
+    c.dim(shortPath(cwd)),
+  ];
+  const columns = process.stdout.columns ?? 80;
+  // Logo Zentara Core lengkap (motif asli); di terminal sempit logo di atas info.
+  const mark = columns >= 56 ? terminalLogo(depth) : [];
+  const markWidth = mark.length ? Math.max(...mark.map(visibleWidth)) : 0;
   io.out("");
-  for (const line of box(
-    `${accent("◆")} ${c.bold("ZENTARA")} ${c.bold(accent("CORE"))}  ${c.dim(`v${options.version}`)}`,
-    [
-      c.dim(shortPath(cwd)),
-      readyProvider
-        ? `${c.green("●")} AI: ${readyProvider}${readyProvider === "omniroute" ? c.dim(" (gratis)") : ""} ${c.dim(`· ${modeLabel}`)}`
-        : c.yellow("AI belum diatur · pilih di bawah atau jalankan /setup"),
-      c.bold(isProject ? "Tulis tugas untuk proyek ini" : "Folder ini belum berisi proyek Zentara"),
-    ],
-    "/help perintah · /status detail",
-  )) io.out(line);
+  if (mark.length && columns >= markWidth + 4 + 44) {
+    const top = Math.floor((mark.length - info.length) / 2);
+    mark.forEach((line, i) => io.out(` ${line}${" ".repeat(markWidth - visibleWidth(line))}   ${info[i - top] ?? ""}`.replace(/ +$/, "")));
+  } else {
+    for (const line of mark) io.out(` ${line}`);
+    if (mark.length) io.out("");
+    for (const line of info) io.out(`  ${line}`);
+  }
+  if (!isProject) io.out(`\n  ${c.dim("Folder ini belum berisi proyek Zentara.")}`);
   const newer = await Promise.race([options.checkUpdate?.() ?? Promise.resolve(undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), 1500).unref())]);
   if (newer) {
     io.out(`  ${gold("★")} Versi baru ${c.bold(`v${newer}`)} tersedia (Anda memakai v${options.version}). Perbarui: ${accent("npm install zentara@latest")}`);
@@ -462,12 +455,44 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     return [hits, line];
   };
 
+  /** Baris mode di bawah input (gaya Claude Code). */
+  function modeLine(): string {
+    return session.approval.mode === "auto"
+      ? `  ${gold("▸▸ mode otomatis")} ${c.dim("(shift+tab untuk ganti) · aksi krusial tetap ditanyakan · /help")}`
+      : `  ${c.dim("▸ minta persetujuan (shift+tab untuk ganti) · Esc hentikan AI · /help")}`;
+  }
+
+  /**
+   * Input gaya Claude Code: status di kanan atas, input di antara dua garis, baris mode di bawah.
+   * readline menghapus layar di bawah kursor setiap kali menggambar ulang, jadi garis bawah dan
+   * baris mode digambar ulang setelah setiap tombol.
+   */
   function readInput(): Promise<string | null> {
-    out.write(`\n  ${status || statusLine()}\n${c.gray("─".repeat(Math.max(20, (process.stdout.columns ?? 80) - 1)))}\n`);
+    const cols = Math.max(20, (process.stdout.columns ?? 80) - 1);
+    const rule = c.gray("─".repeat(cols));
+    const right = status || statusLine();
+    const pad = Math.max(2, cols - visibleWidth(right));
+    // Sediakan baris untuk garis bawah & baris mode, lalu kembali ke baris input.
+    out.write(`\n${" ".repeat(pad)}${right}\n${rule}\n\n${rule}\n${modeLine()}\x1b[2A\r`);
     status = "";
     const rl = readline.createInterface({ input: process.stdin, output: out, terminal: true, history: [...history], historySize: 200, completer, removeHistoryDuplicates: true });
     activeRl = rl;
     promptActive = true;
+    const promptText = `${accent("❯")} `;
+    const drawFooter = () => {
+      if (!promptActive) return;
+      const pos = rl.getCursorPos();
+      const total = Math.floor((visibleWidth(promptText) + rl.line.length) / (cols + 1)) + 1;
+      const down = total - pos.rows;
+      out.write(`\x1b7\x1b[${down}B\r\x1b[2K${rule}\x1b[1B\r\x1b[2K${modeLine()}\x1b8`);
+    };
+    const onKey = (_str: string | undefined, key: { name?: string; shift?: boolean } | undefined) => {
+      if (key?.name === "tab" && key.shift) {
+        session.approval.setMode(session.approval.mode === "auto" ? "ask" : "auto");
+      }
+      setImmediate(drawFooter);
+    };
+    process.stdin.on("keypress", onKey);
     return new Promise((resolve) => {
       let settled = false;
       const finish = (value: string | null) => {
@@ -475,8 +500,11 @@ export async function startRepl(options: ReplOptions): Promise<number> {
         settled = true;
         promptActive = false;
         activeRl = undefined;
+        process.stdin.off("keypress", onKey);
         history.splice(0, history.length, ...((rl as unknown as { history?: string[] }).history ?? history));
         rl.close();
+        // Hapus garis bawah & baris mode; input yang sudah diketik tetap tercatat.
+        out.write("\r\x1b[J");
         resolve(value);
       };
       rl.on("SIGINT", () => {
@@ -492,7 +520,8 @@ export async function startRepl(options: ReplOptions): Promise<number> {
         setStatus(c.yellow("Tekan Ctrl+C sekali lagi untuk keluar"));
       });
       rl.on("close", () => finish(null));
-      rl.question(`${accent("zentara")} ${c.dim(">")} `, (answer) => finish(answer));
+      rl.question(promptText, (answer) => finish(answer));
+      setImmediate(drawFooter);
     });
   }
 

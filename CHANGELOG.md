@@ -11,7 +11,8 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi
   - `zentara ai:setup omniroute` memasang (bila perlu), menyalakan OmniRoute sementara untuk tes koneksi & daftar model, lalu menyimpan pengaturan.
 - Perintah `/omniroute` di CLI interaktif: status, `install`, `start`, `stop`.
 - Tutorial OmniRoute di README (pasang, jalankan, pakai, tambah provider gratis lewat dashboard). Pemeriksaan versi Node.js yang dibutuhkan OmniRoute (22.22+ / 24+).
-- **Tampilan pembuka CLI gaya ZCode:** kotak status (folder, AI aktif, mode) dan **layar sambutan** bila AI belum diatur: *OmniRoute (gratis)*, *Masukkan API key*, *Provider kustom*, *Lewati dulu*. Menu dua kolom (pilihan + keterangan) dengan pencarian. Logo lengkap tampil pada pembukaan pertama.
+- **Tampilan CLI gaya Claude Code:** logo Zentara Core di kiri dengan info versi, AI aktif & mode, serta folder di kanan; input di antara dua garis dengan status di kanan atas dan **baris mode di bawah** (Shift+Tab untuk mengganti mode persetujuan).
+- **Layar sambutan** bila AI belum diatur: *OmniRoute (gratis)*, *Masukkan API key*, *Provider kustom*, *Lewati dulu*. Menu dua kolom (pilihan + keterangan) dengan pencarian.
 - **`zentara` dari folder mana pun** (`npm install -g zentara`): di luar proyek muncul pilihan *Buat proyek baru* (lalu langsung membuka proyeknya), *Chat di folder ini*, *Buka dokumentasi*.
 - `/login` sebagai alias `/setup`; `/setup <provider>` langsung ke provider tertentu.
 
