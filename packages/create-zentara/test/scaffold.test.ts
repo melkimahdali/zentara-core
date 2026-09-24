@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { detectPackageManager, ownVersion, parseArgs, scaffold, TEMPLATES, toPackageName } from "../src/index.js";
+import { detectPackageManager, ownVersion, parseArgs, platformCommand, scaffold, TEMPLATES, toPackageName } from "../src/index.js";
 
 describe("create-zentara", () => {
   let tmp: string;
@@ -60,5 +60,12 @@ describe("create-zentara", () => {
     assert.equal(parseArgs(["--template=api"]).template, "api");
     assert.equal(detectPackageManager("pnpm/9.0.0 npm/? node/v22"), "pnpm");
     assert.equal(detectPackageManager(""), "npm");
+  });
+
+  it("Windows: node.exe berpath spasi tanpa shell; npm lewat shell dengan kutip", () => {
+    const node = "C:\\Program Files\\nodejs\\node.exe";
+    assert.deepEqual(platformCommand(node, ["cli.js", "db:migrate"], "win32"), { command: node, args: ["cli.js", "db:migrate"], shell: false });
+    assert.deepEqual(platformCommand("npm", ["install"], "win32"), { command: "npm install", args: [], shell: true });
+    assert.equal(platformCommand("npm", ["install"], "linux").shell, false);
   });
 });

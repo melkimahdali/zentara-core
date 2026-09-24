@@ -9,13 +9,21 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = fs.mkdtempSync(path.join(os.tmpdir(), "zentara-e2e-"));
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+const npm = "npm";
+const isWindows = process.platform === "win32";
+
+/** Sama dengan platformCommand di packages/zentara/src/process.ts: npm di Windows lewat shell, argumen dikutip. */
+function platformCommand(command, args) {
+  if (!isWindows || path.win32.isAbsolute(command) || path.posix.isAbsolute(command)) return { command, args, shell: false };
+  const quote = (a) => (a !== "" && /^[\w@+=:,./\\-]+$/.test(a) ? a : `"${a.replace(/"/g, '""')}"`);
+  return { command: [command, ...args].map(quote).join(" "), args: [], shell: true };
+}
 const templates = process.argv.slice(2).length ? process.argv.slice(2) : ["api", "minimal"];
 
 function sh(cmd, args, cwd, extraEnv = {}) {
   console.log(`\n$ ${cmd} ${args.join(" ")}   (${path.relative(WORK, cwd) || cwd})`);
-  return execFileSync(cmd, args, { cwd, stdio: ["ignore", "pipe", "inherit"], env: { ...process.env, ...extraEnv }, shell: process.platform === "win32" })
-    .toString();
+  const p = platformCommand(cmd, args);
+  return execFileSync(p.command, p.args, { cwd, stdio: ["ignore", "pipe", "inherit"], env: { ...process.env, ...extraEnv }, shell: p.shell }).toString();
 }
 
 function check(condition, message) {
@@ -40,12 +48,13 @@ function startServer(cwd, args, port) {
     cwd,
     env: { ...process.env, PORT: String(port), LOG_LEVEL: "warn" },
     stdio: ["ignore", "inherit", "inherit"],
-    detached: process.platform !== "win32",
+    detached: !isWindows,
   });
   return () => {
     try {
-      if (process.platform !== "win32") process.kill(-child.pid, "SIGTERM");
-      else child.kill();
+      // Hentikan seluruh pohon proses (zentara dev menjalankan tsx watch + server sebagai proses anak).
+      if (isWindows) execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      else process.kill(-child.pid, "SIGTERM");
     } catch {}
   };
 }

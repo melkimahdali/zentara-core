@@ -96,9 +96,27 @@ export function detectPackageManager(userAgent = process.env.npm_config_user_age
   return name === "pnpm" || name === "yarn" || name === "bun" ? name : "npm";
 }
 
+/** Kutip satu argumen untuk cmd.exe: aman untuk path berspasi dan tanda kutip. */
+export function quoteWindowsArg(arg: string): string {
+  if (arg !== "" && /^[\w@+=:,./\\-]+$/.test(arg)) return arg;
+  return `"${arg.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Di Windows, npm/pnpm/yarn adalah file .cmd yang hanya bisa dijalankan lewat shell; argumen dikutip
+ * agar path berspasi (mis. "C:\Program Files\nodejs\node.exe") tidak terpotong. Path absolut tanpa shell.
+ */
+export function platformCommand(command: string, args: readonly string[], platform: NodeJS.Platform = process.platform) {
+  if (platform !== "win32" || path.win32.isAbsolute(command) || path.posix.isAbsolute(command)) {
+    return { command, args: [...args], shell: false };
+  }
+  return { command: [command, ...args].map(quoteWindowsArg).join(" "), args: [] as string[], shell: true };
+}
+
 function run(command: string, args: string[], cwd: string): Promise<boolean> {
   return new Promise((resolve) => {
-    const child = spawn(command, args, { cwd, stdio: "inherit", shell: process.platform === "win32" });
+    const cmd = platformCommand(command, args);
+    const child = spawn(cmd.command, cmd.args, { cwd, stdio: "inherit", shell: cmd.shell });
     child.on("error", () => resolve(false));
     child.on("close", (code) => resolve(code === 0));
   });

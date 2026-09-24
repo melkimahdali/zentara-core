@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { loadConfigFile, resolveConfig } from "../core/config.js";
 import { ZenLogger } from "../core/logger.js";
 import { allowedMethods, ZenRouter } from "../core/router.js";
+import { platformCommand } from "../process.js";
 import type { ApprovalPolicy, PendingAction, Risk } from "./approval.js";
 import type { Journal } from "./journal.js";
 import type { ToolSpec } from "./types.js";
@@ -375,14 +376,14 @@ export const agentTools: AgentTool[] = [
 /** Jalankan skrip npm di proyek (tanpa shell), dengan batas waktu. */
 export function createScriptRunner(root: string, timeoutMs = 5 * 60 * 1000) {
   return (script: string, args: string[] = []): Promise<CommandResult> => {
-    const npm = process.platform === "win32" ? "npm.cmd" : "npm";
     const argv = script === "__install__" ? ["install", ...args] : ["run", script, "--silent"];
     if (script !== "__install__") {
       const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")) as { scripts?: Record<string, string> };
       if (!pkg.scripts?.[script]) return Promise.resolve({ ok: true, output: `(skrip "${script}" tidak ada, dilewati)` });
     }
     return new Promise((resolve) => {
-      const child = spawn(npm, argv, { cwd: root, env: { ...process.env, FORCE_COLOR: "0" }, timeout: timeoutMs });
+      const cmd = platformCommand("npm", argv);
+      const child = spawn(cmd.command, cmd.args, { cwd: root, env: { ...process.env, FORCE_COLOR: "0" }, timeout: timeoutMs, shell: cmd.shell });
       let output = "";
       child.stdout.on("data", (c: Buffer) => (output += c.toString()));
       child.stderr.on("data", (c: Buffer) => (output += c.toString()));
