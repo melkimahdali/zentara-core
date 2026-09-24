@@ -1,6 +1,6 @@
 # CORE_SPEC
 
-Kontrak inti Zentara Core v0.5. Perubahan pada kontrak ini dianggap *breaking change*.
+Kontrak inti Zentara v0.6. Framework ada di `packages/zentara`, pembuat proyek di `packages/create-zentara`. Perubahan pada kontrak ini dianggap *breaking change*.
 
 ## 1. Siklus hidup runtime
 
@@ -162,3 +162,23 @@ Hanya untuk `GET`/`HEAD`, dan hanya bila tidak ada route yang cocok. Path di-dec
   - user tersedia di `ctx.state.user`.
 - `rateLimit({ windowMs, max, key, trustProxy })` memakai jendela waktu tetap yang disimpan di memori proses, per IP secara default. Header `RateLimit-Limit/Remaining/Reset` selalu dikirim. Bila batas terlampaui: `429` + `Retry-After`.
 - `withMiddleware(middleware, handler)` menjalankan middleware hanya untuk satu handler.
+
+## 16. Paket & struktur proyek
+
+- **Paket `zentara`:**
+  - `exports` `"."` → core (`dist/core/index.js`, beserta tipe) dan `"./db"` → modul database. `bin` `zentara` → `dist/cli.js`.
+  - Dependency: `@anthropic-ai/sdk` dan `tsx`. Peer opsional: `drizzle-orm`, `drizzle-kit`, dan `postgres`.
+  - Perintah database dimuat saat dipakai saja, sehingga proyek tanpa database tidak memerlukan `drizzle-orm`.
+- **Folder aplikasi (`appDir`)** ditentukan dengan urutan: `config.appDir` → env `ZENTARA_APP_DIR` → `src/app` bila ada → `dist/app`. `routesDir` default-nya `<appDir>/routes`, dan file middleware `<appDir>/middleware`. Modul database dan seed ada di `<appDir>/db/{index,seed}`.
+- **CLI:**
+  - `zentara dev`: `tsx watch` pada entry server dengan `ZENTARA_APP_DIR=src/app`.
+  - `zentara build`: `tsc -p tsconfig.build.json` (atau `tsconfig.json`) memakai TypeScript milik proyek.
+  - `zentara start`: menjalankan server dari `dist/app` dengan default `NODE_ENV=production`.
+  - Perintah yang memuat kode proyek (`routes`, `db:migrate`, `db:seed`, `ai`) memasang loader `tsx` secara otomatis bila `appDir` bukan `dist/`.
+- **`create-zentara`** menyalin `templates/<nama>` dengan aturan berikut:
+  - `_gitignore` diubah menjadi `.gitignore`, karena npm tidak mem-publish file `.gitignore`.
+  - `name` diatur dari nama folder, dan `dependencies.zentara` diisi `^<versi create-zentara>`.
+  - `.env` dibuat dari `.env.example` dengan `SESSION_SECRET` acak (mode 0600).
+  - Folder tujuan harus kosong.
+  - Bila install diminta: memasang dependency memakai package manager pemanggil, lalu untuk template `api` menjalankan `db:migrate` dan `db:seed`.
+- **Versi** kedua paket selalu sama (`scripts/version.mjs`). Rilis dilakukan lewat GitHub Release bertag `v<versi>`, memakai npm Trusted Publishing dan provenance (`.github/workflows/release.yml`).

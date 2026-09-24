@@ -1,0 +1,46 @@
+{
+  "name": "create-zentara",
+  "version": "0.6.0",
+  "description": "Buat proyek Zentara baru: npm create zentara@latest",
+  "keywords": [
+    "zentara",
+    "create",
+    "scaffold",
+    "template"
+  ],
+  "license": "MIT",
+  "author": "melkimahdali",
+  "homepage": "https://github.com/melkimahdali/zentara-core#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/melkimahdali/zentara-core.git",
+    "directory": "packages/create-zentara"
+  },
+  "bugs": {
+    "url": "https://github.com/melkimahdali/zentara-core/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "create-zentara": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

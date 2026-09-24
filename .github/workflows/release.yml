@@ -1,0 +1,60 @@
+name: Release
+
+# Publish ke npm saat sebuah GitHub Release diterbitkan (tag v<versi>).
+# Memakai npm Trusted Publishing (OIDC): tidak ada token npm yang disimpan di GitHub.
+# Publish PERTAMA harus manual dari komputer; lihat PUBLISHING.md.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - name: Pastikan npm mendukung trusted publishing (>= 11.5.1)
+        run: npm install -g npm@latest && npm --version
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run e2e
+
+      - name: Cocokkan tag rilis dengan versi paket
+        if: github.event_name == 'release'
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          for pkg in zentara create-zentara; do
+            v=$(node -p "require('./packages/$pkg/package.json').version")
+            if [ "v$v" != "$TAG" ]; then
+              echo "::error::Tag $TAG tidak cocok dengan versi $pkg ($v). Jalankan: node scripts/version.mjs <versi>"
+              exit 1
+            fi
+          done
+
+      - name: Publish ke npm (versi yang sudah ada dilewati)
+        run: |
+          for pkg in zentara create-zentara; do
+            v=$(node -p "require('./packages/$pkg/package.json').version")
+            if npm view "$pkg@$v" version >/dev/null 2>&1; then
+              echo "$pkg@$v sudah ada di npm, dilewati"
+            else
+              npm publish -w "$pkg" --access public --provenance
+            fi
+          done
