@@ -1,4 +1,4 @@
-<p align="center"><img src="https://raw.githubusercontent.com/melkimahdali/zentara-core/main/assets/zentara-logo.png" alt="Zentara Core" width="128"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/melkimahdali/zentara-core/main/assets/zentara-banner.webp" alt="Zentara Core — AI-driven TypeScript web framework from Indonesia" width="100%"></p>
 
 # Zentara Core
 
