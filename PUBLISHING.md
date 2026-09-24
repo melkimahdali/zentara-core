@@ -65,7 +65,7 @@ Lakukan untuk **kedua** paket (`zentara` dan `create-zentara`):
 
 Dengan cara ini:
 - tidak ada token npm yang disimpan di GitHub;
-- setiap rilis punya tanda **provenance**;
+- setiap rilis punya tanda **provenance** (hanya bila repo GitHub **publik**; untuk repo private, workflow otomatis merilis tanpa provenance);
 - walaupun repo GitHub dibobol, versi berbahaya tetap tertahan sampai Anda setujui.
 
 ## D. Rilis berikutnya
@@ -97,6 +97,7 @@ Dengan cara ini:
 | `E403 ... You do not have permission` | nama paket sudah dipakai orang lain, atau Anda bukan pemiliknya |
 | `cannot publish over the previously published versions` | naikkan versi dulu (`node scripts/version.mjs ...`) |
 | Workflow gagal `404`/`E403` saat stage publish | Trusted Publisher belum diatur untuk paket itu, atau nama repo/file workflow tidak sama persis |
+| `422 ... Unsupported GitHub Actions source repository visibility: "private"` | provenance butuh repo publik. Workflow sekarang otomatis mematikan provenance untuk repo private; jadikan repo publik bila ingin provenance |
 | `npm stage`: perintah tidak dikenal | perbarui npm: `npm install -g npm@latest` |
 | Versi tidak muncul di npm setelah rilis | belum disetujui: `npm stage list <paket>` lalu `npm stage approve <stage-id>` |
 | Workflow gagal: tag tidak cocok | tag rilis harus `v` + versi di `package.json`, mis. `v0.6.1` |

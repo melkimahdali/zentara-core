@@ -51,6 +51,9 @@ jobs:
           done
 
       - name: Titipkan (stage) ke npm, menunggu persetujuan pemilik
+        env:
+          # npm hanya bisa membuat provenance untuk repo publik; repo private tetap bisa rilis tanpa provenance.
+          PROVENANCE: ${{ github.event.repository.private && '--no-provenance' || '--provenance' }}
         run: |
           for pkg in zentara create-zentara; do
             v=$(node -p "require('./packages/$pkg/package.json').version")
@@ -59,6 +62,6 @@ jobs:
               continue
             fi
             # npm stage tidak mengenal workspace: jalankan dari folder paketnya.
-            (cd "packages/$pkg" && npm stage publish --access public --provenance)
+            (cd "packages/$pkg" && npm stage publish --access public $PROVENANCE)
             echo "::notice::$pkg@$v dititipkan. Setujui dengan: npm stage list $pkg lalu npm stage approve <stage-id>"
           done
