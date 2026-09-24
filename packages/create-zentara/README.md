@@ -17,4 +17,4 @@ Opsi: `--template api|minimal`, `--no-install`, `--yes` (tanpa pertanyaan). Bila
 
 `create-zentara` membuat `.env` dengan `SESSION_SECRET` acak, memasang dependency, dan (untuk template `api`) langsung menjalankan migrasi dan seed. Setelah itu proyek siap dijalankan dengan `npm run dev`.
 
-Hak cipta © 2026 melkimahdali. Semua hak dilindungi.
+Lisensi Business Source License 1.1 (BSL), lihat [LICENSE](https://github.com/melkimahdali/zentara-core/blob/main/LICENSE). Proyek yang dibuat dengan `create-zentara` adalah milik Anda sepenuhnya.

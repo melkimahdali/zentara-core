@@ -5,7 +5,7 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi
 ## [Belum dirilis]
 
 ### Diubah
-- **Lisensi MIT dicabut.** Berkas `LICENSE` dihapus dan field `license` di kedua paket menjadi `UNLICENSED`: Zentara Core kini berhak cipta penuh milik melkimahdali (semua hak dilindungi). Versi yang sudah terbit sebelumnya (≤ 0.8.6) tetap berlisensi MIT.
+- **Lisensi berganti dari MIT ke Business Source License 1.1** (`BUSL-1.1`) mulai versi 0.9.0. Zentara Core tetap gratis untuk membangun dan menjalankan aplikasi sendiri (termasuk produksi dan komersial); yang dilarang adalah menawarkannya sebagai framework, generator proyek, atau layanan pesaing. Setiap versi otomatis menjadi Apache 2.0 empat tahun setelah terbit. Versi yang sudah terbit (≤ 0.8.6) tetap berlisensi MIT.
 
 ## [0.8.6]
 
