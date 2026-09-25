@@ -1,3 +1,4 @@
+import path from "node:path";
 import readline from "node:readline";
 import readlinePromises from "node:readline/promises";
 import type { ApprovalAnswer } from "../ai/approval.js";
@@ -5,6 +6,7 @@ import { askSecret } from "../ai/setup.js";
 import { accent, c, gold, printApprovalHeader, TerminalUI, type Output } from "../ai/terminal.js";
 import { colorDepth, terminalLogo, visibleWidth } from "../brand/index.js";
 import { t } from "../i18n/index.js";
+import { PUSH_TITLE, RESTORE_TITLE, setTitle } from "../tui/layout.js";
 import { createReplHost, hostCommands, type HostOptions, type HostStatus, type HostUI, type ReplHost, type Tone } from "./host.js";
 import { Keys, select, Spinner, type Choice } from "./widgets.js";
 
@@ -120,6 +122,12 @@ export async function startRepl(options: ReplOptions): Promise<number> {
   }
 
   printBanner(io, host.info, host.status());
+  // Judul tab terminal selama CLI terbuka; dikembalikan saat keluar.
+  const tty = process.stdout.isTTY;
+  if (tty) process.stdout.write(PUSH_TITLE + setTitle(`Zentara Core · ${path.basename(host.info.cwd) || host.info.cwd}`));
+  const restoreTitle = () => {
+    if (tty) process.stdout.write(RESTORE_TITLE);
+  };
 
   const code = await host.startup().catch((err: unknown) => {
     io.out(c.red(`  ✗ ${(err as Error).message}`));
@@ -127,6 +135,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
   });
   if (code !== undefined) {
     await host.close();
+    restoreTitle();
     return code;
   }
 
@@ -212,6 +221,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
   } finally {
     spinner.stop();
     await host.close();
+    restoreTitle();
     io.out(c.dim(`  ${t().tui.goodbye}`));
   }
   return 0;

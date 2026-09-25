@@ -24,13 +24,13 @@ Tampilannya dibangun dengan [Ink](https://github.com/vadimdemedes/ink), bergaya 
 
 ## Layar penuh seperti ruang chat
 
-Saat dibuka, `zentara` membersihkan layar lalu mengambil alih terminal. Layar dibagi tiga:
+Saat dibuka, `zentara` pindah ke layar alternatif terminal (seperti vim atau htop), jadi output sebelumnya, mis. `npm install`, tidak terlihat dan tidak bisa digulir. Judul tab terminal menjadi *Zentara Core · nama-folder*. Layar dibagi tiga:
 
-1. **Header terkunci di atas:** nama dan versi Zentara Core, AI dan mode yang aktif, status server dev, folder proyek, dan garis pembatas. Header tidak ikut bergulir.
+1. **Header berbingkai terkunci di atas:** logo Z kecil, nama dan versi Zentara Core, tagline, AI dan mode yang aktif, dan folder proyek; di terminal lebar juga tips perintah dan status server dev. Di terminal pendek (kurang dari 24 baris) header diringkas menjadi dua baris. Header tidak ikut bergulir.
 2. **Log percakapan di tengah:** pesan baru mendorong pesan lama ke atas. **PgUp/PgDn** untuk menggulir; selama Anda membaca pesan lama, pesan baru tidak menarik layar ke bawah. **Esc** kembali ke pesan terbaru.
 3. **Input di bawah:** kotak input, atau menu dan dialog persetujuan (↑/↓ + Enter).
 
-Hanya baris yang berubah yang digambar ulang, sehingga spinner dan teks yang mengalir tidak membuat layar berkedip. Tampilan ini memakai kode ANSI standar, jadi berjalan di terminal lokal maupun terminal cloud (Codespaces, SSH, terminal web). Saat keluar, seluruh percakapan dicetak ke scrollback terminal, jadi tidak ada yang hilang.
+Hanya baris yang berubah yang digambar ulang, sehingga spinner dan teks yang mengalir tidak membuat layar berkedip. Tampilan ini memakai kode ANSI standar, jadi berjalan di terminal lokal maupun terminal cloud (Codespaces, SSH, terminal web). Saat keluar, layar terminal kembali seperti semula, judul tab dikembalikan, dan seluruh percakapan dicetak ke scrollback, jadi tidak ada yang hilang.
 
 Terminal yang lebih pendek dari 12 baris, atau output yang bukan terminal, otomatis memakai tata letak biasa (riwayat langsung ke scrollback). Untuk memakai tata letak biasa di terminal mana pun:
 

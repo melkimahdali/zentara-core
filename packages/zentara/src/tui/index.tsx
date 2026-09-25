@@ -1,8 +1,9 @@
+import path from "node:path";
 import { render } from "ink";
 import { t } from "../i18n/index.js";
 import { createReplHost, type HostOptions } from "../repl/host.js";
-import { App, type Layout } from "./app.js";
-import { CLEAR_SCREEN, MIN_FULLSCREEN_ROWS } from "./layout.js";
+import { App, Recap, type Layout } from "./app.js";
+import { ENTER_ALT_SCREEN, LEAVE_ALT_SCREEN, MIN_FULLSCREEN_ROWS, PUSH_TITLE, RESTORE_TITLE, setTitle } from "./layout.js";
 import { Store } from "./store.js";
 
 /**
@@ -44,8 +45,22 @@ export async function startInkRepl(options: HostOptions, ink: InkOptions = {}): 
   let resolveExit!: (code: number) => void;
   const exited = new Promise<number>((resolve) => (resolveExit = resolve));
 
-  // Bersihkan layar (log lama) dan pindahkan kursor ke pojok kiri atas sebelum Ink menggambar.
-  if (fullscreen) process.stdout.write(CLEAR_SCREEN);
+  const out = process.stdout;
+  // Judul tab terminal: "Zentara Core · <folder>". Judul semula dikembalikan saat keluar.
+  if (out.isTTY) out.write(PUSH_TITLE + setTitle(`Zentara Core · ${path.basename(host.info.cwd) || host.info.cwd}`));
+  // Layar penuh memakai layar alternatif: output sebelumnya (npm install, dll.) tidak terlihat dan
+  // tidak bisa digulir. Bila proses berakhir tiba-tiba, layar biasa tetap dikembalikan.
+  let inAltScreen = false;
+  const leaveAltScreen = () => {
+    if (!inAltScreen) return;
+    inAltScreen = false;
+    out.write(LEAVE_ALT_SCREEN);
+  };
+  if (fullscreen) {
+    out.write(ENTER_ALT_SCREEN);
+    inAltScreen = true;
+    process.once("exit", leaveAltScreen);
+  }
   const instance = render(<App store={store} host={host} intro={ink.animation ?? true} layout={layout} onExit={(code) => resolveExit(code)} />, {
     exitOnCtrlC: false,
     patchConsole: false,
@@ -80,6 +95,16 @@ export async function startInkRepl(options: HostOptions, ink: InkOptions = {}): 
     await instance.waitUntilRenderFlush();
     instance.unmount();
     await instance.waitUntilExit().catch(() => undefined);
+    if (fullscreen) {
+      // Kembali ke layar biasa, lalu cetak seluruh percakapan ke scrollback agar tidak ada yang hilang.
+      leaveAltScreen();
+      process.off("exit", leaveAltScreen);
+      const recap = render(<Recap items={store.get().items} host={host} />, { exitOnCtrlC: false, patchConsole: false });
+      await recap.waitUntilRenderFlush();
+      recap.unmount();
+      await recap.waitUntilExit().catch(() => undefined);
+    }
+    if (out.isTTY) out.write(RESTORE_TITLE);
   }
 
   if (ink.exitProcess) {

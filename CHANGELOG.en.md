@@ -2,6 +2,15 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.1]
+
+### Fixed
+- **The interactive CLI no longer leaves old output behind.** Full screen now uses the terminal's alternate screen (`\u001b[?1049h`), so earlier output (e.g. `npm create zentara` and `npm install`) is hidden and can't be scrolled to. On exit, the normal screen returns and the conversation recap is printed to the scrollback. Other processes started from the CLI (creating a project, installing OmniRoute) write to the normal screen, and the full screen is redrawn afterwards.
+- **The terminal tab title** becomes *Zentara Core · folder-name* while the CLI is open (Ink and `--classic`), and is restored on exit.
+
+### Changed
+- **A framed header with the logo**, like Claude Code: a small Z logo (teal and gold), name & version, tagline, AI status, and folder on the left; command tips and the dev server status on the right when the terminal is wide enough. Short terminals get a compact two-line header.
+
 ## [0.12.0]
 
 Stage 10 (English) and stage 11 (back-end) ship together. Indonesian stays the default; existing projects keep working as before, apart from the changes listed below.

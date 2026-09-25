@@ -5,7 +5,7 @@ import type { Item } from "./store.js";
  * Perhitungan tata letak layar penuh yang murni (tanpa React), agar bisa diuji langsung.
  *
  * Layar dibagi tiga seksi vertikal:
- *   1. header terkunci (logo ringkas, versi, status AI & server, garis pembatas);
+ *   1. header terkunci dalam bingkai (logo kecil, versi, status AI & server, tips) dan penanda gulir;
  *   2. log percakapan: hanya item yang muat di layar yang dirender, sisanya bisa digulir (PgUp/PgDn);
  *   3. input interaktif (kotak input, menu, atau dialog persetujuan) dan baris status.
  */
@@ -13,8 +13,34 @@ import type { Item } from "./store.js";
 /** Tinggi minimum terminal untuk mode layar penuh; di bawahnya CLI memakai tata letak biasa. */
 export const MIN_FULLSCREEN_ROWS = 12;
 
-/** Karakter ANSI standar: hapus layar lalu pindahkan kursor ke pojok kiri atas. Aman untuk terminal cloud. */
-export const CLEAR_SCREEN = "\u001b[2J\u001b[0;0H";
+/**
+ * Layar alternatif (seperti vim/htop): CLI digambar di layar terpisah tanpa scrollback, jadi output
+ * sebelumnya (mis. npm install) tidak ikut terlihat atau bisa digulir. Saat keluar, layar terminal
+ * kembali seperti semula dan rekap percakapan dicetak di sana.
+ */
+export const ENTER_ALT_SCREEN = "\u001b[?1049h\u001b[2J\u001b[H";
+export const LEAVE_ALT_SCREEN = "\u001b[?1049l";
+
+/** Judul tab/jendela terminal (OSC 0), mis. "Zentara Core · toko-sari". Karakter kontrol dibuang. */
+export function setTitle(title: string): string {
+  return `\u001b]0;${title.replace(/[\u0000-\u001f\u007f]/g, "")}\u0007`;
+}
+/** Simpan judul terminal saat ini (xterm; diabaikan terminal yang tidak mendukung). */
+export const PUSH_TITLE = "\u001b[22;0t";
+/**
+ * Kembalikan judul semula. Judul dikosongkan dulu: terminal yang tidak mendukung tumpukan judul
+ * (mis. Windows Terminal) kembali ke judul bawaan profilnya.
+ */
+export const RESTORE_TITLE = `${setTitle("")}\u001b[23;0t`;
+
+/**
+ * Header terkunci: dengan logo (kotak berbingkai setinggi logo kecil) bila terminal cukup besar,
+ * atau ringkas (dua baris dalam bingkai). Tingginya termasuk satu baris penanda pesan di atas layar.
+ */
+export function headerLayout(rows: number, columns: number): { logo: boolean; height: number } {
+  const logo = rows >= 24 && columns >= 60;
+  return { logo, height: (logo ? 6 : 2) + 2 + 1 };
+}
 
 /**
  * Tinggi frame layar penuh: satu baris lebih pendek dari terminal. Frame yang persis setinggi layar

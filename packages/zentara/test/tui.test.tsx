@@ -4,7 +4,7 @@ import { render } from "ink-testing-library";
 import type { HostStatus, ReplHost } from "../src/repl/host.js";
 import { App } from "../src/tui/app.js";
 import { fullscreenEnabled } from "../src/tui/index.js";
-import { CLEAR_SCREEN, frameHeight, itemHeight, logWindow, scrollDown, scrollUp, wrappedLines } from "../src/tui/layout.js";
+import { ENTER_ALT_SCREEN, frameHeight, headerLayout, LEAVE_ALT_SCREEN, RESTORE_TITLE, setTitle, itemHeight, logWindow, scrollDown, scrollUp, wrappedLines } from "../src/tui/layout.js";
 import { Store, type Item } from "../src/tui/store.js";
 
 const strip = (s: string | undefined) => (s ?? "").replace(/\x1b\[[0-9;]*m/g, "");
@@ -192,9 +192,13 @@ describe("tampilan Ink (CLI interaktif)", () => {
     await tick();
     let lines = strip(ui.lastFrame()).split("\n");
     assert.equal(lines.length, 23, "frame satu baris lebih pendek dari terminal (tanpa kedip)");
-    assert.match(lines[0]!, /◆ Zentara Core v9\.9\.9 {2}OmniRoute \(gratis\) · minta persetujuan +● http:\/\/localhost:3000/);
-    assert.match(lines[1]!, /~\/proyek/);
-    assert.match(lines[2]!, /↑ \d+ pesan sebelumnya · PgUp\/PgDn/);
+    // Header berbingkai dengan logo kecil (6 baris) di kiri dan info di sampingnya.
+    assert.match(lines[0]!, /^╭─+╮$/);
+    assert.match(lines[7]!, /^╰─+╯$/);
+    const header = lines.slice(1, 7).join("\n");
+    for (const re of [/Zentara Core v9\.9\.9/, /Rooted here\. Built for what's next\./, /OmniRoute \(gratis\) · minta persetujuan/, /~\/proyek/, /● http:\/\/localhost:3000/]) assert.match(header, re);
+    assert.match(lines[1]!, /[▀▄█]/, "logo kecil di header");
+    assert.match(lines[8]!, /↑ \d+ pesan sebelumnya · PgUp\/PgDn/);
     assert.match(lines.at(-1)!, /minta persetujuan .*PgUp\/PgDn gulir · Esc keluar/);
     assert.ok(lines.some((l) => /❯ pesan 30/.test(l)) && !lines.some((l) => /❯ pesan 1$/.test(l)), "pesan terbaru di bawah, yang lama di luar layar");
 
@@ -204,7 +208,7 @@ describe("tampilan Ink (CLI interaktif)", () => {
     assert.doesNotMatch(frame, /pesan 30/);
     assert.match(frame, /↓ \d+ pesan lebih baru/);
     lines = frame.split("\n");
-    assert.match(lines[0]!, /Zentara Core/, "header tetap di tempatnya saat menggulir");
+    assert.match(lines.slice(0, 8).join("\n"), /Zentara Core/, "header tetap di tempatnya saat menggulir");
 
     // Pesan baru saat menggulir tidak menarik layar ke bawah; Esc kembali ke pesan terbaru.
     store.push({ kind: "notice", text: "pesan baru", tone: "info" });
@@ -215,6 +219,20 @@ describe("tampilan Ink (CLI interaktif)", () => {
     frame = strip(ui.lastFrame());
     assert.match(frame, /pesan baru/);
     assert.doesNotMatch(frame, /pesan lebih baru/);
+    ui.unmount();
+  });
+
+  it("layar penuh di terminal pendek: header ringkas dua baris dalam bingkai", async () => {
+    const store = new Store({ fullscreen: true });
+    const ui = render(<App store={store} host={fakeHost()} onExit={() => {}} />);
+    resize(ui, 20);
+    store.push({ kind: "notice", text: "halo", tone: "info" });
+    await tick();
+    const lines = strip(ui.lastFrame()).split("\n");
+    assert.equal(lines.length, 19);
+    assert.match(lines[1]!, /◆ Zentara Core v9\.9\.9 {2}OmniRoute \(gratis\) · minta persetujuan +● http:\/\/localhost:3000/);
+    assert.match(lines[2]!, /~\/proyek/);
+    assert.match(lines[3]!, /^╰─+╯$/);
     ui.unmount();
   });
 
@@ -316,7 +334,6 @@ describe("tata letak layar penuh (fungsi murni)", () => {
   const item = (id: number, text: string): Item => ({ id, kind: "notice", text, tone: "info" });
 
   it("tinggi frame, tinggi item, dan pembungkusan baris", () => {
-    assert.equal(CLEAR_SCREEN, "\u001b[2J\u001b[0;0H");
     assert.equal(frameHeight(40), 39);
     assert.equal(frameHeight(5), 11, "minimal tetap bisa digunakan");
     assert.equal(wrappedLines("abc", 10), 1);
@@ -352,5 +369,15 @@ describe("tata letak layar penuh (fungsi murni)", () => {
     assert.equal(fullscreenEnabled(false, { isTTY: true, rows: 40 }, { ZENTARA_FULLSCREEN: "on" }), true);
     assert.equal(fullscreenEnabled(undefined, { isTTY: false, rows: 40 }, {}), false, "bukan TTY (pipa, CI)");
     assert.equal(fullscreenEnabled(undefined, { isTTY: true, rows: 8 }, {}), false, "terminal terlalu pendek");
+  });
+
+  it("header dengan logo hanya di terminal yang cukup besar; layar alternatif & judul tab", () => {
+    assert.deepEqual(headerLayout(30, 120), { logo: true, height: 9 });
+    assert.deepEqual(headerLayout(20, 120), { logo: false, height: 5 });
+    assert.deepEqual(headerLayout(30, 50), { logo: false, height: 5 });
+    assert.equal(ENTER_ALT_SCREEN, "\u001b[?1049h\u001b[2J\u001b[H", "masuk layar alternatif lalu bersihkan");
+    assert.equal(LEAVE_ALT_SCREEN, "\u001b[?1049l");
+    assert.equal(setTitle("Zentara Core · toko\u0007\u001b"), "\u001b]0;Zentara Core · toko\u0007", "karakter kontrol dibuang");
+    assert.ok(RESTORE_TITLE.endsWith("\u001b[23;0t"));
   });
 });
