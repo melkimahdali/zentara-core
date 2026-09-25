@@ -2,6 +2,15 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.1]
+
+### Diperbaiki
+- **CLI interaktif tidak lagi menyisakan output lama.** Layar penuh kini memakai layar alternatif terminal (`\u001b[?1049h`), jadi output sebelumnya (mis. `npm create zentara` dan `npm install`) tidak terlihat dan tidak bisa digulir ke atas. Saat keluar, layar biasa kembali dan rekap percakapan dicetak ke scrollback. Proses lain yang dijalankan dari CLI (buat proyek, pasang OmniRoute) menulis ke layar biasa, dan layar penuh digambar ulang setelahnya.
+- **Judul tab terminal** menjadi *zentara* selama CLI terbuka (Ink maupun `--classic`), lalu dikembalikan saat keluar.
+
+### Diubah
+- **Header berbingkai dengan logo** seperti Claude Code: logo Z kecil (teal dan emas), nama & versi, tagline, status AI, dan folder di kiri; tips perintah dan status server dev di kanan bila terminal cukup lebar. Terminal pendek memakai header ringkas dua baris.
+
 ## [0.12.0]
 
 Tahap 10 (Bahasa Inggris) dan Tahap 11 (Back-End) dirilis bersama. Bahasa Indonesia tetap default; tidak ada perubahan perilaku untuk proyek yang sudah ada selain yang dicatat di bawah.

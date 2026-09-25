@@ -30,5 +30,7 @@ export const tui = {
   busyInput: "Zentara AI sedang bekerja… (Esc untuk menghentikan)",
   placeholder: 'Tulis permintaan, mis. "buatkan halaman portofolio" · /help',
   keys: "PgUp/PgDn gulir · Esc keluar",
+  tipsTitle: "Mulai dari sini",
+  tips: [["/help", "semua perintah"], ["/setup", "atur akses AI"], ["/dev", "server dev di latar belakang"]] as [string, string][],
   goodbye: "Sampai jumpa!",
 };

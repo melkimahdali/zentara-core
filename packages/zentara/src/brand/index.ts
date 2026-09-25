@@ -64,6 +64,31 @@ export function terminalLogo(depth: ColorDepth): string[] {
 }
 
 /**
+ * Logo Z kecil untuk header CLI (6 baris × 16 kolom): logo terminal diperkecil 3×. Tiap blok 3×3
+ * menjadi satu sel bila cukup terisi; emas dipertahankan agar garis inti tetap terlihat.
+ */
+export function terminalLogoMini(depth: ColorDepth): string[] {
+  const f = 3;
+  const grid: string[] = [];
+  for (let y = 0; y < LOGO_TERMINAL.length; y += f) {
+    let row = "";
+    for (let x = 0; x < LOGO_TERMINAL[0]!.length; x += f) {
+      let teal = 0;
+      let gold = 0;
+      for (let dy = 0; dy < f; dy++)
+        for (let dx = 0; dx < f; dx++) {
+          const cell = LOGO_TERMINAL[y + dy]?.[x + dx];
+          if (cell === "T") teal++;
+          else if (cell === "G") gold++;
+        }
+      row += teal + gold < 4 ? "." : gold * 5 >= teal * 3 ? "G" : "T";
+    }
+    grid.push(row);
+  }
+  return renderGrid(grid, depth);
+}
+
+/**
  * Satu frame animasi pembuka logo (progress 0 → 1): logo tersapu muncul mengikuti arah goresan Z
  * (kiri bawah ke kanan atas) dengan kilau Pearl di tepi sapuan, lalu motif emas menyusul.
  * progress >= 1 menghasilkan logo diam yang sama dengan terminalLogo().

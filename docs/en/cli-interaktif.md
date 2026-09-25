@@ -24,13 +24,13 @@ The interface is built with [Ink](https://github.com/vadimdemedes/ink), in the s
 
 ## Full screen, like a chat room
 
-When it opens, `zentara` clears the screen and takes over the terminal. The screen has three sections:
+When it opens, `zentara` switches to the terminal's alternate screen (like vim or htop), so earlier output such as `npm install` is hidden and can't be scrolled to. The terminal tab title becomes *zentara*. The screen has three sections:
 
-1. **A header pinned at the top:** the Zentara Core name and version, the active AI and mode, the dev server status, the project folder, and a divider. The header does not scroll.
+1. **A framed header pinned at the top:** a small Z logo, the Zentara Core name and version, the tagline, the active AI and mode, and the project folder; on wide terminals also command tips and the dev server status. On short terminals (fewer than 24 rows) the header shrinks to two lines. The header does not scroll.
 2. **The conversation log in the middle:** new messages push old ones up. Scroll with **PgUp/PgDn**; while you read older messages, new ones don't pull the screen down. **Esc** jumps back to the latest message.
 3. **Input at the bottom:** the input box, or menus and approval dialogs (↑/↓ + Enter).
 
-Only changed lines are redrawn, so spinners and streaming text don't make the screen flicker. It uses standard ANSI codes, so it works in local terminals and cloud terminals alike (Codespaces, SSH, web terminals). When you exit, the whole conversation is printed to the terminal scrollback, so nothing is lost.
+Only changed lines are redrawn, so spinners and streaming text don't make the screen flicker. It uses standard ANSI codes, so it works in local terminals and cloud terminals alike (Codespaces, SSH, web terminals). When you exit, the terminal screen and tab title are restored, and the whole conversation is printed to the scrollback, so nothing is lost.
 
 Terminals shorter than 12 rows, or output that isn't a terminal, automatically use the plain layout (history goes straight to the scrollback). To use the plain layout in any terminal:
 

@@ -1,8 +1,8 @@
 import { Box, Static, Text, useApp, useInput, usePaste, useStdout, useWindowSize, type Key } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { t } from "../i18n/index.js";
-import { BRAND, colorDepth, formatPreview, hostCommands, terminalLogo, terminalLogoFrame, visibleWidth, type ApprovalAnswer, type HostStatus, type ReplHost, type Tone } from "../repl/host.js";
-import { CLEAR_SCREEN, frameHeight, logWindow, scrollDown, scrollUp } from "./layout.js";
+import { BRAND, colorDepth, formatPreview, hostCommands, TAGLINE, terminalLogo, terminalLogoFrame, terminalLogoMini, visibleWidth, type ApprovalAnswer, type HostStatus, type ReplHost, type Tone } from "../repl/host.js";
+import { ENTER_ALT_SCREEN, frameHeight, headerLayout, LEAVE_ALT_SCREEN, logWindow, scrollDown, scrollUp } from "./layout.js";
 import type { Dialog, Item, Store } from "./store.js";
 
 const TEAL = BRAND.teal;
@@ -99,35 +99,87 @@ function Header({ host, progress = 1 }: { host: ReplHost; progress?: number }) {
 }
 
 /**
- * Seksi 1 (layar penuh): header ringkas yang terkunci di atas. Isinya nama & versi, status AI dan
- * server dev, folder proyek, dan garis pembatas (berisi penanda bila ada pesan di atas layar).
+ * Seksi 1 (layar penuh): header terkunci di atas, dalam bingkai seperti Claude Code. Terminal yang
+ * cukup besar: logo Z kecil, nama & versi, tagline, status AI, dan folder di kiri; tips dan status
+ * server dev di kanan. Terminal kecil: dua baris ringkas. Di bawah bingkai ada penanda pesan sebelumnya.
  */
-function PinnedHeader({ host, status, columns, above }: { host: ReplHost; status: HostStatus; columns: number; above: number }) {
+function PinnedHeader({ host, status, columns, rows, above }: { host: ReplHost; status: HostStatus; columns: number; rows: number; above: number }) {
+  const m = t().tui;
   const server = serverLabel(status);
-  const marker = above > 0 ? t().tui.earlier(above) : "";
-  return (
-    <Box flexDirection="column" flexShrink={0} width={columns}>
-      <Box paddingX={1} gap={2}>
+  const { logo: withLogo } = headerLayout(rows, columns);
+  const depth = colorDepth(process.stdout);
+  const logo = useMemo(() => (withLogo ? terminalLogoMini(depth) : []), [withLogo, depth]);
+  const marker = above > 0 ? m.earlier(above) : "";
+  const inner = columns - 4;
+  const aside = withLogo && inner >= 106;
+  const main = withLogo ? (
+    <Box gap={3} flexGrow={1} flexShrink={1}>
+      <Box width={16} height={6} flexShrink={0}>
+        <Text>{logo.map((l) => l || " ").join("\n")}</Text>
+      </Box>
+      <Box flexDirection="column" justifyContent="center" flexShrink={1}>
+        <BrandName version={host.info.version} />
+        <Text color={GOLD} wrap="truncate-end">
+          {TAGLINE}
+        </Text>
+        <Text color={status.provider ? SLATE : "yellow"} wrap="truncate-end">
+          {aiLabel(status)}
+        </Text>
+        <Text color={SLATE} wrap="truncate-middle">
+          {host.info.shortCwd}
+        </Text>
+      </Box>
+    </Box>
+  ) : (
+    <Box flexDirection="column" flexGrow={1} flexShrink={1}>
+      <Box gap={2}>
         <Box flexGrow={1} flexShrink={1}>
           <Text wrap="truncate-end">
             <Text color={TEAL}>◆ </Text>
             <BrandName version={host.info.version} />
-            <Text color={status.provider ? SLATE : "yellow"}>{"  "}{aiLabel(status)}</Text>
+            <Text color={status.provider ? SLATE : "yellow"}>
+              {"  "}
+              {aiLabel(status)}
+            </Text>
           </Text>
         </Box>
         <Box flexShrink={0}>
           <Text color={server.color}>{server.text}</Text>
         </Box>
       </Box>
-      <Box paddingX={1}>
-        <Text color={SLATE} wrap="truncate-middle">
-          {"  "}
-          {host.info.shortCwd}
-        </Text>
+      <Text color={SLATE} wrap="truncate-middle">
+        {host.info.shortCwd}
+      </Text>
+    </Box>
+  );
+  return (
+    <Box flexDirection="column" flexShrink={0} width={columns}>
+      <Box borderStyle="round" borderColor={TEAL} paddingX={1} gap={2} width={columns}>
+        {main}
+        {aside ? (
+          <Box flexDirection="column" width={40} flexShrink={0} borderStyle="single" borderColor={SLATE} borderTop={false} borderBottom={false} borderRight={false} paddingLeft={2}>
+            <Text color={TEAL} bold>
+              {m.tipsTitle}
+            </Text>
+            {m.tips.map(([cmd, desc]) => (
+              <Text key={cmd} wrap="truncate-end">
+                <Text>{cmd.padEnd(8)}</Text>
+                <Text color={SLATE}>{desc}</Text>
+              </Text>
+            ))}
+            <Text> </Text>
+            <Text color={server.color} wrap="truncate-end">
+              {server.text}
+            </Text>
+          </Box>
+        ) : withLogo ? (
+          <Box flexShrink={0} alignItems="flex-start">
+            <Text color={server.color}>{server.text}</Text>
+          </Box>
+        ) : null}
       </Box>
       <Text color={SLATE} wrap="truncate-end">
-        {marker}
-        {"─".repeat(Math.max(0, columns - visibleWidth(marker)))}
+        {marker || " "}
       </Text>
     </Box>
   );
@@ -464,6 +516,11 @@ export interface AppProps {
   layout?: Layout;
 }
 
+/** Rekap percakapan yang dicetak ke layar biasa (scrollback) setelah layar penuh ditutup. */
+export function Recap({ items, host }: { items: readonly Item[]; host: ReplHost }) {
+  return <Static items={items.filter((item) => item.kind !== "header")}>{(item) => <TranscriptItem key={item.id} item={item} host={host} />}</Static>;
+}
+
 export function App({ store, host, onExit, intro = false, layout = "fullscreen" }: AppProps) {
   const state = useSyncExternalStore(store.subscribe, store.get);
   const app = useApp();
@@ -489,8 +546,13 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
   useEffect(() => {
     store.suspendTerminal = (fn) =>
       app.suspendTerminal(async () => {
-        await fn();
-        if (fullscreen) stdout.write(CLEAR_SCREEN);
+        // Proses lain (npm create, npm install) menulis ke layar biasa, jadi outputnya tetap di scrollback.
+        if (fullscreen) stdout.write(LEAVE_ALT_SCREEN);
+        try {
+          await fn();
+        } finally {
+          if (fullscreen) stdout.write(ENTER_ALT_SCREEN);
+        }
       });
     return () => {
       store.suspendTerminal = undefined;
@@ -541,9 +603,10 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
 
   const editor = useLineEditor(submit, { history, active: !dialog && !running && !state.closing });
   const suggestions = editor.text.startsWith("/") && !editor.text.includes(" ") ? hostCommands().filter(([cmd]) => cmd.startsWith(editor.text)).slice(0, 6) : [];
-  // Tinggi seksi log = frame - header (3 baris) - seksi input (kotak 4 + status 1 + saran, atau dialog).
-  const bottomRows = dialog ? Math.min(height - 6, dialog.kind === "ask" ? 5 : height / 2) : 5 + suggestions.length;
-  const windowOptions = { height: Math.max(1, Math.floor(height - 3 - bottomRows - (scrollEnd === undefined ? 0 : 1))), columns, end: scrollEnd };
+  // Tinggi seksi log = frame - header - seksi input (kotak 4 + status 1 + saran, atau dialog).
+  const headerRows = headerLayout(rows, columns).height;
+  const bottomRows = dialog ? Math.min(height - headerRows - 3, dialog.kind === "ask" ? 5 : height / 2) : 5 + suggestions.length;
+  const windowOptions = { height: Math.max(1, Math.floor(height - headerRows - bottomRows - (scrollEnd === undefined ? 0 : 1))), columns, end: scrollEnd };
 
   useInput(
     (input, key) => {
@@ -579,9 +642,9 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
   );
 
   const onDialogDone = () => store.closeDialog();
-  // Batas isi dialog di layar penuh: header (3) + bingkai dialog, sisakan beberapa baris log.
-  const menuLines = fullscreen ? Math.max(3, height - 12) : undefined;
-  const previewLines = fullscreen ? Math.max(3, height - 16) : undefined;
+  // Batas isi dialog di layar penuh: header + bingkai dialog, sisakan beberapa baris log.
+  const menuLines = fullscreen ? Math.max(3, height - headerRows - 9) : undefined;
+  const previewLines = fullscreen ? Math.max(3, height - headerRows - 13) : undefined;
   const dialogs = (
     <>
       {dialog?.kind === "choose" ? <ChooseDialog key={dialog.question} dialog={dialog} onDone={onDialogDone} maxLines={menuLines} /> : null}
@@ -622,8 +685,9 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
 
   // Keluar: seluruh percakapan dicetak ke scrollback terminal, jadi tidak ada yang hilang.
   if (state.closing) {
-    const recap = fullscreen ? state.items.filter((item) => item.kind !== "header") : state.items;
-    return <Static items={recap}>{(item) => <TranscriptItem key={item.id} item={item} host={host} />}</Static>;
+    // Layar penuh: layar alternatif dikosongkan; rekap dicetak di layar biasa setelah keluar (lihat Recap).
+    if (fullscreen) return null;
+    return <Static items={state.items}>{(item) => <TranscriptItem key={item.id} item={item} host={host} />}</Static>;
   }
 
   if (!fullscreen) {
@@ -653,7 +717,7 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
   return (
     <Box flexDirection="column" height={height} width={columns}>
       {/* Seksi 1: header terkunci. */}
-      <PinnedHeader host={host} status={status} columns={columns} above={win.above} />
+      <PinnedHeader host={host} status={status} columns={columns} rows={rows} above={win.above} />
       {/* Seksi 2: log percakapan. Hanya item yang terlihat dirender; bagian atas yang berlebih dipangkas. */}
       <Box flexDirection="column" flexGrow={1} flexShrink={1} flexBasis={0} overflow="hidden" justifyContent="flex-end">
         <Box flexDirection="column" flexShrink={0}>

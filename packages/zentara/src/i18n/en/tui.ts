@@ -32,5 +32,7 @@ export const tui: Messages["tui"] = {
   busyInput: "Zentara AI is working… (Esc to stop)",
   placeholder: 'Write a request, e.g. "build a portfolio page" · /help',
   keys: "PgUp/PgDn scroll · Esc exit",
+  tipsTitle: "Getting started",
+  tips: [["/help", "all commands"], ["/setup", "set up AI access"], ["/dev", "background dev server"]] as [string, string][],
   goodbye: "See you!",
 };
