@@ -1,4 +1,5 @@
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { t } from "../i18n/index.js";
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
@@ -72,14 +73,14 @@ export class DevServer extends EventEmitter {
     child.stdout?.on("data", (chunk: Buffer) => this.onData(chunk));
     child.stderr?.on("data", (chunk: Buffer) => this.onData(chunk));
     child.on("error", (err) => {
-      this.log(`Gagal menjalankan server: ${err.message}`);
+      this.log(t().dev.server.startFailed(err.message));
       this.emit("problem", err.message);
     });
     child.on("exit", (code) => {
       if (this.child !== child) return;
       this.child = undefined;
       this.state = code === 0 || code === null ? "stopped" : "crashed";
-      this.log(`(server berhenti, kode ${code ?? "-"})`);
+      this.log(t().dev.server.stopped(String(code ?? "-")));
       this.emit("exit", code);
     });
   }

@@ -156,7 +156,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
     try {
       return JSON.parse(body) as unknown;
     } catch (cause) {
-      throw new ProviderUnavailableError(this.name, "respons bukan JSON yang valid", { cause });
+      throw new ProviderUnavailableError(this.name, t().ai.providers.badJson, { cause });
     }
   }
 
@@ -347,7 +347,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         try {
           return JSON.parse(body) as OpenAIResponse;
         } catch (cause) {
-          throw new ProviderUnavailableError(this.name, "respons bukan JSON yang valid", { cause });
+          throw new ProviderUnavailableError(this.name, t().ai.providers.badJson, { cause });
         }
       }
       return this.readStream(res, request.onText!, request.signal);

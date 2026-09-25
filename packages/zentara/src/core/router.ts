@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { t } from "../i18n/index.js";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { HttpError } from "./errors.js";
@@ -47,11 +48,11 @@ function isRouteFile(name: string): boolean {
 function parseSegment(raw: string, file: string): Segment {
   const dynamic = /^\[(\.\.\.)?([^\]]+)\]$/.exec(raw);
   if (!dynamic) {
-    if (raw.includes("[") || raw.includes("]")) throw new Error(`Segmen route tidak valid "${raw}" di ${file}`);
+    if (raw.includes("[") || raw.includes("]")) throw new Error(t().core.segmentInvalid(raw, file));
     return { kind: "static", value: raw };
   }
   const name = dynamic[2]!;
-  if (!PARAM_NAME.test(name)) throw new Error(`Nama parameter tidak valid "${name}" di ${file}`);
+  if (!PARAM_NAME.test(name)) throw new Error(t().core.paramInvalid(name, file));
   return dynamic[1] ? { kind: "catchAll", name } : { kind: "param", name };
 }
 
@@ -63,10 +64,10 @@ export function segmentsFromFile(relativeFile: string): Segment[] {
   const segments = parts.map((p) => parseSegment(p, relativeFile));
   const catchAllIndex = segments.findIndex((s) => s.kind === "catchAll");
   if (catchAllIndex !== -1 && catchAllIndex !== segments.length - 1) {
-    throw new Error(`Catch-all harus menjadi segmen terakhir: ${relativeFile}`);
+    throw new Error(t().core.catchAllLast(relativeFile));
   }
   const names = segments.flatMap((s) => (s.kind === "static" ? [] : [s.name]));
-  if (new Set(names).size !== names.length) throw new Error(`Nama parameter duplikat di ${relativeFile}`);
+  if (new Set(names).size !== names.length) throw new Error(t().core.paramDuplicate(relativeFile));
   return segments;
 }
 
@@ -100,7 +101,7 @@ export function compareRoutes(a: Route, b: Route): number {
 function validateMiddleware(value: unknown, file: string): Middleware[] {
   if (value === undefined) return [];
   if (!Array.isArray(value) || !value.every((m) => typeof m === "function")) {
-    throw new Error(`Export "middleware" di ${file} harus berupa array function`);
+    throw new Error(t().core.middlewareArray(file));
   }
   return value as Middleware[];
 }
@@ -110,11 +111,11 @@ function validateModule(mod: Record<string, unknown>, file: string): RouteModule
   for (const key of [...HTTP_METHODS, "default"] as const) {
     const value = mod[key];
     if (value === undefined) continue;
-    if (typeof value !== "function") throw new Error(`Export "${key}" di ${file} harus berupa function`);
+    if (typeof value !== "function") throw new Error(t().core.exportFunction(key, file));
     out[key] = value as RouteHandler;
   }
   if (Object.keys(out).length === 0) {
-    throw new Error(`File route ${file} tidak meng-export handler (default, GET, POST, ...)`);
+    throw new Error(t().core.noHandler(file));
   }
   return out;
 }
@@ -146,7 +147,7 @@ export class ZenRouter {
 
   async loadRoutes(routesDir: string): Promise<void> {
     if (!fs.existsSync(routesDir)) {
-      this.logger.warn(`Folder route tidak ditemukan: ${routesDir}`);
+      this.logger.warn(t().core.routesDirMissing(routesDir));
       this.routes = [];
       return;
     }
@@ -168,7 +169,7 @@ export class ZenRouter {
       const segments = segmentsFromFile(relative);
       const key = shapeKey(segments);
       const clash = seen.get(key);
-      if (clash) throw new Error(`Route bentrok: ${clash} dan ${relative} memetakan ke ${formatPattern(segments)}`);
+      if (clash) throw new Error(t().core.routeClash(clash, relative, formatPattern(segments)));
       seen.set(key, relative);
 
       const exports = (await import(pathToFileURL(file).href)) as Record<string, unknown>;

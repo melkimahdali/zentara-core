@@ -1,4 +1,5 @@
 import { escapeHtml } from "../view.js";
+import { docsUrl, t } from "../../i18n/index.js";
 import { CHAT_CSS, CHAT_JS } from "./chat.js";
 import { appInfo, devtoolsClient } from "./info.js";
 import { DESCRIPTION, DOCS_URL, TAGLINE } from "../../brand/index.js";
@@ -34,21 +35,15 @@ const WELCOME_CSS = `
 const WELCOME_JS = `
 (function(){
   var data = JSON.parse(document.getElementById("zx-data").textContent);
-  document.querySelectorAll(".zx-copy").forEach(function(b){ b.addEventListener("click", function(){ navigator.clipboard.writeText(b.previousElementSibling.textContent).then(function(){ b.textContent = "✓"; setTimeout(function(){ b.textContent = "Salin"; }, 1400); }); }); });
+  document.querySelectorAll(".zx-copy").forEach(function(b){ b.addEventListener("click", function(){ navigator.clipboard.writeText(b.previousElementSibling.textContent).then(function(){ b.textContent = "✓"; setTimeout(function(){ b.textContent = data.copy; }, 1400); }); }); });
   var box = document.querySelector(".zw-chat-body");
-  if (box && data.devtools) ZentaraChat.mount(box, { port: data.devtools.port, token: data.devtools.token, storageKey: "welcome", emptyText: "Ceritakan apa yang ingin Anda bangun. Zentara AI akan menjelaskan rencananya dan meminta persetujuan sebelum mengubah file.", suggestions: data.suggestions, placeholder: "Mis. buatkan halaman portofolio dengan daftar proyek" });
+  if (box && data.devtools) ZentaraChat.mount(box, { port: data.devtools.port, token: data.devtools.token, storageKey: "welcome", emptyText: data.emptyText, suggestions: data.suggestions, placeholder: data.placeholder, t: data.chat });
 })();
 `;
 
-const SUGGESTIONS = [
-  "Buatkan halaman tentang kami",
-  "Buatkan blog sederhana dengan daftar artikel",
-  "Tambahkan form kontak yang tersimpan di database",
-  "Jelaskan struktur proyek ini",
-];
 
 function cmd(text: string): string {
-  return `<div class="zx-cmd"><span>${escapeHtml(text)}</span><button type="button" class="zx-copy">Salin</button></div>`;
+  return `<div class="zx-cmd"><span>${escapeHtml(text)}</span><button type="button" class="zx-copy">${escapeHtml(t().dev.copy)}</button></div>`;
 }
 
 /**
@@ -64,43 +59,44 @@ export function welcomePage(): string {
   const info = appInfo();
   const devtools = devtoolsClient();
   const debug = info.debug;
+  const m = t().dev.welcome;
 
   const chat = devtools
-    ? `<section class="zx-card zw-chat"><div class="zw-chat-head">${LOGO_SVG}<strong>Zentara AI</strong><span class="zx-muted" style="font-size:13px">asisten pengembang Anda</span></div><div class="zw-chat-body"></div></section>`
-    : `<section class="zx-card zx-pad zw-chat" style="justify-content:center"><div class="zw-chat-head">${LOGO_SVG}<strong>Bangun dengan Zentara AI</strong></div>
-<p class="zx-muted" style="margin:0 0 14px">Tulis apa yang ingin dibuat dalam bahasa sehari-hari, Zentara AI yang mengerjakannya. ${debug ? "Jalankan server lewat Zentara agar bisa chat langsung dari halaman ini:" : "Mulai dari terminal di folder proyek:"}</p>
+    ? `<section class="zx-card zw-chat"><div class="zw-chat-head">${LOGO_SVG}<strong>Zentara AI</strong><span class="zx-muted" style="font-size:13px">${escapeHtml(m.assistant)}</span></div><div class="zw-chat-body"></div></section>`
+    : `<section class="zx-card zx-pad zw-chat" style="justify-content:center"><div class="zw-chat-head">${LOGO_SVG}<strong>${escapeHtml(m.buildWithAi)}</strong></div>
+<p class="zx-muted" style="margin:0 0 14px">${escapeHtml(m.buildLead)} ${escapeHtml(debug ? m.runThroughZentara : m.startFromTerminal)}</p>
 <div class="zw-cmds">${cmd("npx zentara")}${cmd("npx zentara ai:setup")}${debug ? cmd("npx zentara dev") : ""}</div></section>`;
 
   const routes = debug
-    ? `<section class="zx-card zx-pad"><h2>Route aplikasi</h2>${
+    ? `<section class="zx-card zx-pad"><h2>${escapeHtml(m.routes)}</h2>${
         info.routes.length
           ? `<div class="zw-routes">${info.routes.map((r) => `<div><span class="m">${escapeHtml(r.methods.join(" "))}</span><a href="${escapeHtml(/[:*]/.test(r.pattern) ? "#" : r.pattern)}">${escapeHtml(r.pattern)}</a></div>`).join("")}</div>`
-          : `<p class="zx-muted">Belum ada route.</p>`
-      }<p class="zx-muted" style="font-size:13px;margin:12px 0 0">Setiap file di <code>src/app/routes/</code> menjadi satu route.</p></section>`
+          : `<p class="zx-muted">${escapeHtml(m.noRoutes)}</p>`
+      }<p class="zx-muted" style="font-size:13px;margin:12px 0 0">${m.routesNoteHtml}</p></section>`
     : "";
 
   const body = `<div class="zx-wrap">
 <header class="zx-top">${LOGO_SVG}<div class="zx-brand">${WORDMARK}<small>${escapeHtml(info.appName)}</small></div><div class="zx-spacer"></div>${debug ? `<span class="zx-badge"><span class="dot"></span>${escapeHtml(info.env)}</span>` : ""}<span class="zx-badge off"><span class="dot"></span>v${escapeHtml(ZENTARA_VERSION)}</span></header>
 <div class="zw-hero"><section style="padding:18px 4px">${LOGO_SVG.replace('class="zx-logo"', 'class="zx-logo zw-mark"')}<br><span class="zw-kicker">✦ ${escapeHtml(DESCRIPTION)}</span>
-<h1 class="zw-title">Aplikasi Anda <span>sudah berjalan.</span></h1>
+<h1 class="zw-title">${m.titleHtml}</h1>
 <p class="zw-tagline">${escapeHtml(TAGLINE)}</p>
-<p class="zw-lead">Cukup ceritakan apa yang ingin Anda bangun. Zentara AI menyusun rencana, meminta persetujuan, menulis kodenya, lalu mengeceknya untuk Anda.</p>
-<div class="zw-stats"><span class="zx-badge"><span class="dot"></span>Server aktif</span><span class="zx-badge off"><span class="dot"></span>Node ${escapeHtml(process.version)}</span>${debug ? `<span class="zx-badge off"><span class="dot"></span>${info.routes.length} route</span>` : ""}</div></section>
+<p class="zw-lead">${escapeHtml(m.lead)}</p>
+<div class="zw-stats"><span class="zx-badge"><span class="dot"></span>${escapeHtml(m.serverActive)}</span><span class="zx-badge off"><span class="dot"></span>Node ${escapeHtml(process.version)}</span>${debug ? `<span class="zx-badge off"><span class="dot"></span>${escapeHtml(m.routeCount(info.routes.length))}</span>` : ""}</div></section>
 ${chat}</div>
 <div class="zx-grid zw-cards">${routes}
-<section class="zx-card zx-pad"><h2>Perintah penting</h2><div class="zw-cmds"><p>Chat dengan AI di terminal</p>${cmd("npx zentara")}<p>Atur provider AI (Claude, OpenAI, Gemini, ...)</p>${cmd("npx zentara ai:setup")}<p>Batalkan perubahan AI terakhir</p>${cmd("npx zentara undo")}</div></section>
-<section class="zx-card zx-pad"><h2>Pelajari</h2><div class="zw-links">
-<a href="${DOCS_URL}" target="_blank" rel="noopener">Dokumentasi <span>situs resmi →</span></a>
-<a href="${DOCS_URL}mulai-cepat.html" target="_blank" rel="noopener">Mulai cepat <span>panduan →</span></a>
-<a href="https://www.npmjs.com/package/zentara" target="_blank" rel="noopener">Paket npm <span>zentara →</span></a>
-<a href="https://github.com/melkimahdali/zentara-core/issues" target="_blank" rel="noopener">Laporkan masalah <span>GitHub →</span></a></div></section></div>
-<p class="zx-foot">Ganti halaman ini di <code>src/app/routes/index.ts</code> · Zentara Core — Rooted here. Built for what&#39;s next.</p></div>`;
+<section class="zx-card zx-pad"><h2>${escapeHtml(m.commands)}</h2><div class="zw-cmds"><p>${escapeHtml(m.cmdChat)}</p>${cmd("npx zentara")}<p>${escapeHtml(m.cmdSetup)}</p>${cmd("npx zentara ai:setup")}<p>${escapeHtml(m.cmdUndo)}</p>${cmd("npx zentara undo")}</div></section>
+<section class="zx-card zx-pad"><h2>${escapeHtml(m.learn)}</h2><div class="zw-links">
+<a href="${docsUrl()}" target="_blank" rel="noopener">${escapeHtml(m.docs)} <span>${escapeHtml(m.docsHint)}</span></a>
+<a href="${docsUrl("mulai-cepat.html")}" target="_blank" rel="noopener">${escapeHtml(m.quickStart)} <span>${escapeHtml(m.quickStartHint)}</span></a>
+<a href="https://www.npmjs.com/package/zentara" target="_blank" rel="noopener">${escapeHtml(m.npm)} <span>zentara →</span></a>
+<a href="https://github.com/melkimahdali/zentara-core/issues" target="_blank" rel="noopener">${escapeHtml(m.issues)} <span>GitHub →</span></a></div></section></div>
+<p class="zx-foot">${m.footHtml} · Zentara Core — Rooted here. Built for what&#39;s next.</p></div>`;
 
   return renderPage({
     title: info.appName === "Zentara App" ? "Zentara" : info.appName,
     body,
     css: WELCOME_CSS + (devtools ? CHAT_CSS : ""),
-    data: { devtools: devtools ?? null, suggestions: SUGGESTIONS },
+    data: { devtools: devtools ?? null, suggestions: m.suggestions, emptyText: m.emptyText, placeholder: m.placeholder, copy: t().dev.copy, chat: t().dev.chat },
     script: (devtools ? CHAT_JS : "") + WELCOME_JS,
   });
 }

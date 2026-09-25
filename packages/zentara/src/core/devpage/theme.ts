@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { getLocale } from "../../i18n/index.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { BRAND } from "../../brand/index.js";
@@ -81,7 +82,7 @@ export function jsonForScript(value: unknown): string {
 export function renderPage(options: PageOptions): string {
   const data = options.data ? `<script type="application/json" id="zx-data">${jsonForScript(options.data)}</script>` : "";
   const script = options.script ? `<script>${options.script}</script>` : "";
-  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(options.title)}</title><link rel="icon" type="image/png" href="${FAVICON_PNG}"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"><style>${BASE_CSS}${options.css ?? ""}</style></head><body>${options.body}${data}${script}</body></html>`;
+  return `<!doctype html><html lang="${getLocale()}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(options.title)}</title><link rel="icon" type="image/png" href="${FAVICON_PNG}"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"><style>${BASE_CSS}${options.css ?? ""}</style></head><body>${options.body}${data}${script}</body></html>`;
 }
 
 const KEYWORDS = new Set(

@@ -1,4 +1,5 @@
 import type { ServerResponse } from "node:http";
+import { t } from "../i18n/index.js";
 import type { ZenContext } from "./context.js";
 import { HttpError } from "./errors.js";
 import type { Middleware } from "./middleware.js";
@@ -88,7 +89,7 @@ export interface CsrfOptions {
  */
 export function csrf(options: CsrfOptions = {}): Middleware {
   const trusted = new Set(options.trustedOrigins ?? []);
-  const reject = () => new HttpError(403, "Request lintas origin ditolak (proteksi CSRF)");
+  const reject = () => new HttpError(403, t().core.csrf);
 
   return (ctx, next) => {
     if (SAFE_METHODS.has(ctx.method) || options.skip?.(ctx)) return next();

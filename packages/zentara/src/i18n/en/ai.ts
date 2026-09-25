@@ -198,6 +198,7 @@ export const ai: Messages["ai"] = {
     modelNotListed: (model) => `connected, but model "${model}" is not in this account's model list`,
     serverError: (detail) => `server error: ${detail}`,
     noAnswer: "the response contains no answer",
+    badJson: "the response is not valid JSON",
   },
   presets: {
     omniroute: "OmniRoute (free, a gateway to hundreds of AI providers)",

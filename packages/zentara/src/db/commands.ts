@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { t } from "../i18n/index.js";
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -22,9 +23,9 @@ async function findAppModule(root: string, name: string): Promise<string | undef
 
 async function importAppDb(root: string): Promise<unknown> {
   const file = await findAppModule(root, path.join("db", "index"));
-  if (!file) throw new Error("Modul database tidak ditemukan (buat app/db/index.ts yang meng-export `db`)");
+  if (!file) throw new Error(t().dev.db.noModule);
   const mod = (await import(pathToFileURL(file).href)) as { db?: unknown };
-  if (!mod.db) throw new Error(`${path.relative(root, file)} harus meng-export \`db\``);
+  if (!mod.db) throw new Error(t().dev.db.mustExportDb(path.relative(root, file)));
   return mod.db;
 }
 
@@ -38,10 +39,10 @@ export function dbGenerate(root: string, name?: string): Promise<DbCommandResult
     const pkgFile = path.join(dir, "package.json");
     const pkg = JSON.parse(fs.readFileSync(pkgFile, "utf8")) as { bin?: string | Record<string, string> };
     const rel = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.["drizzle-kit"];
-    if (!rel) throw new Error("bin drizzle-kit tidak ditemukan");
+    if (!rel) throw new Error(t().dev.db.noDrizzleBin);
     bin = path.join(path.dirname(pkgFile), rel);
   } catch {
-    return Promise.resolve({ ok: false, output: "drizzle-kit belum dipasang. Jalankan: npm install -D drizzle-kit" });
+    return Promise.resolve({ ok: false, output: t().dev.db.noDrizzle });
   }
   const args = [bin, "generate", ...(name ? ["--name", name] : [])];
   return new Promise((resolve) => {
@@ -58,12 +59,12 @@ export function dbGenerate(root: string, name?: string): Promise<DbCommandResult
 export async function dbMigrate(root: string): Promise<DbCommandResult> {
   const folder = path.join(root, MIGRATIONS_DIR);
   if (!fs.existsSync(path.join(folder, "meta", "_journal.json"))) {
-    return { ok: false, output: `Belum ada migrasi di ${MIGRATIONS_DIR}/. Jalankan dulu: zentara db:generate` };
+    return { ok: false, output: t().dev.db.noMigrations(MIGRATIONS_DIR) };
   }
   const db = await importAppDb(root);
   try {
     await migrateDatabase(db, folder);
-    return { ok: true, output: "Migrasi selesai." };
+    return { ok: true, output: t().dev.db.migrated };
   } finally {
     await closeDatabase(db);
   }
@@ -72,13 +73,13 @@ export async function dbMigrate(root: string): Promise<DbCommandResult> {
 /** Jalankan app/db/seed (default export: async (db) => string | void). */
 export async function dbSeed(root: string): Promise<DbCommandResult> {
   const file = await findAppModule(root, path.join("db", "seed"));
-  if (!file) return { ok: false, output: "File seed tidak ditemukan (buat app/db/seed.ts)" };
+  if (!file) return { ok: false, output: t().dev.db.noSeed };
   const db = await importAppDb(root);
   try {
     const mod = (await import(pathToFileURL(file).href)) as { default?: (db: unknown) => unknown };
-    if (typeof mod.default !== "function") return { ok: false, output: `${path.relative(root, file)} harus meng-export default function` };
+    if (typeof mod.default !== "function") return { ok: false, output: t().dev.db.seedExport(path.relative(root, file)) };
     const message = await mod.default(db);
-    return { ok: true, output: typeof message === "string" ? message : "Seed selesai." };
+    return { ok: true, output: typeof message === "string" ? message : t().dev.db.seeded };
   } finally {
     await closeDatabase(db);
   }

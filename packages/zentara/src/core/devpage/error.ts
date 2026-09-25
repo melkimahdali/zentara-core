@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { t } from "../../i18n/index.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { IncomingMessage } from "node:http";
@@ -148,12 +149,12 @@ const ERROR_JS = `
   var vt = document.querySelector(".ze-vendor-toggle");
   if (vt) vt.addEventListener("click", function(){ document.querySelectorAll(".ze-frame.vendor").forEach(function(f){ f.hidden = !f.hidden; }); });
   var copy = document.querySelector("[data-copy-error]");
-  if (copy) copy.addEventListener("click", function(){ navigator.clipboard.writeText(data.context).then(function(){ copy.textContent = "✓ Tersalin"; setTimeout(function(){ copy.textContent = "Salin error"; }, 1600); }); });
+  if (copy) copy.addEventListener("click", function(){ navigator.clipboard.writeText(data.context).then(function(){ copy.textContent = data.copied; setTimeout(function(){ copy.textContent = data.copyError; }, 1600); }); });
   var drawer = document.querySelector(".ze-drawer"), chat = null;
   function open(first){
     if (!drawer) return;
     drawer.classList.add("open");
-    if (!chat) chat = ZentaraChat.mount(document.querySelector(".ze-drawer-body"), { port: data.devtools.port, token: data.devtools.token, storageKey: "error", context: data.context, placeholder: "Tanyakan sesuatu tentang error ini..." });
+    if (!chat) chat = ZentaraChat.mount(document.querySelector(".ze-drawer-body"), { port: data.devtools.port, token: data.devtools.token, storageKey: "error", context: data.context, placeholder: data.placeholder, t: data.chat });
     if (first && chat.ask) chat.ask(data.askText, data.context);
     if (chat.focus) chat.focus();
   }
@@ -164,29 +165,36 @@ const ERROR_JS = `
 })();
 `;
 
+/** Teks yang dipakai skrip halaman (tombol salin, chat AI), dalam bahasa aktif. */
+function clientText() {
+  const m = t().dev;
+  return { copied: m.copied, copyError: m.error.copyError, placeholder: m.error.askPlaceholder, chat: m.chat };
+}
+
 function header(badge: string): string {
   const info = appInfo();
   return `<header class="zx-top">${LOGO_SVG}<div class="zx-brand">${WORDMARK}<small>${escapeHtml(info.appName)}</small></div><div class="zx-spacer"></div><span class="zx-badge warn"><span class="dot"></span>${escapeHtml(badge)}</span></header>`;
 }
 
 function drawer(): string {
-  return `<aside class="ze-drawer" aria-label="Zentara AI"><div class="ze-drawer-head">${LOGO_SVG}<strong>Zentara AI</strong><div class="zx-spacer"></div><button class="zx-btn small" data-close-drawer>Tutup</button></div><div class="ze-drawer-body"></div></aside>`;
+  return `<aside class="ze-drawer" aria-label="Zentara AI"><div class="ze-drawer-head">${LOGO_SVG}<strong>Zentara AI</strong><div class="zx-spacer"></div><button class="zx-btn small" data-close-drawer>${escapeHtml(t().dev.error.close)}</button></div><div class="ze-drawer-body"></div></aside>`;
 }
 
 /** Ringkasan error dalam teks biasa: untuk tombol salin dan konteks Zentara AI. */
 function errorContext(err: Error, req: IncomingMessage, frames: StackFrame[], snippet: Snippet | undefined): string {
   const first = frames.find((f) => f.app);
+  const m = t().dev.error;
   const lines = [
     `${err.name}: ${err.message}`,
     `Request: ${req.method} ${req.url}`,
-    first ? `Lokasi: ${rel(first.file)}:${first.line}:${first.column}` : "",
+    first ? `${m.location}: ${rel(first.file)}:${first.line}:${first.column}` : "",
   ];
   if (snippet) {
-    lines.push("", "Kode:", ...snippet.lines.map((l, i) => `${String(snippet.start + i).padStart(4)}${snippet.start + i === snippet.highlight ? " >" : "  "} ${l}`));
+    lines.push("", `${m.code}:`, ...snippet.lines.map((l, i) => `${String(snippet.start + i).padStart(4)}${snippet.start + i === snippet.highlight ? " >" : "  "} ${l}`));
   }
   lines.push("", "Stack trace:", ...(err.stack ?? "").split("\n").slice(0, 25));
   let cause = err.cause;
-  for (let depth = 0; cause instanceof Error && depth < 3; depth++, cause = cause.cause) lines.push("", `Disebabkan oleh: ${cause.name}: ${cause.message}`);
+  for (let depth = 0; cause instanceof Error && depth < 3; depth++, cause = cause.cause) lines.push("", `${m.causedBy}: ${cause.name}: ${cause.message}`);
   return lines.filter((l, i) => l !== "" || i > 0).join("\n");
 }
 
@@ -201,11 +209,12 @@ export function renderErrorPage(error: unknown, req: IncomingMessage, status = 5
   const request = requestDetails(req);
   const devtools = devtoolsClient();
   const context = errorContext(err, req, frames, snippets[selected]);
+  const m = t().dev.error;
 
   const frameButtons = frames
     .map((f, i) => {
       const cls = `ze-frame${i === selected ? " on" : ""}${f.app ? "" : " vendor"}`;
-      return `<button type="button" class="${cls}" data-i="${i}"${f.app || i === selected ? "" : " hidden"}><div class="fn">${escapeHtml(f.fn ?? "(anonim)")}</div><div class="fl">${escapeHtml(rel(f.file))}:${f.line}</div></button>`;
+      return `<button type="button" class="${cls}" data-i="${i}"${f.app || i === selected ? "" : " hidden"}><div class="fn">${escapeHtml(f.fn ?? m.anonymous)}</div><div class="fl">${escapeHtml(rel(f.file))}:${f.line}</div></button>`;
     })
     .join("");
   const vendorCount = frames.filter((f, i) => !f.app && i !== selected).length;
@@ -213,7 +222,7 @@ export function renderErrorPage(error: unknown, req: IncomingMessage, status = 5
     .map((f, i) => {
       const snippet = snippets[i];
       if (!snippet && i !== selected) return "";
-      const body = snippet ? codeBlock(snippet) : `<div class="ze-nocode">Kode sumber tidak tersedia untuk frame ini.</div>`;
+      const body = snippet ? codeBlock(snippet) : `<div class="ze-nocode">${escapeHtml(m.noSourceFrame)}</div>`;
       return `<div class="ze-snippet" data-i="${i}"${i === selected ? "" : " hidden"}><div class="ze-code-head"><span>${escapeHtml(rel(f.file))}:${f.line}:${f.column}</span><span class="zx-muted">${escapeHtml(f.fn ?? "")}</span></div>${body}</div>`;
     })
     .join("");
@@ -228,48 +237,36 @@ export function renderErrorPage(error: unknown, req: IncomingMessage, status = 5
 
   const loc = firstApp >= 0 ? `${rel(frames[firstApp]!.file)}:${frames[firstApp]!.line}:${frames[firstApp]!.column}` : "";
   const askButton = devtools
-    ? `<button class="zx-btn primary" data-ask-ai>✦ Tanya Zentara AI</button>`
-    : `<span class="zx-muted" style="align-self:center;font-size:13px">Jalankan lewat <code>npx zentara dev</code> untuk memperbaiki error ini dengan Zentara AI.</span>`;
+    ? `<button class="zx-btn primary" data-ask-ai>${escapeHtml(m.askAi)}</button>`
+    : `<span class="zx-muted" style="align-self:center;font-size:13px">${m.runWithDevHtml}</span>`;
 
-  const body = `<div class="zx-wrap">${header("Mode pengembangan")}
+  const body = `<div class="zx-wrap">${header(m.devMode)}
 <section class="zx-card ze-hero"><span class="ze-chip">${status} · ${escapeHtml(err.name)}</span>
 <h1 class="ze-title">${escapeHtml(err.message || defaultMessage(status))}</h1>
 <div class="ze-loc">${escapeHtml(request.method)} ${escapeHtml(request.url)}${loc ? ` · ${escapeHtml(loc)}` : ""}</div>
-<div class="ze-actions">${askButton}<button class="zx-btn" data-copy-error>Salin error</button><a class="zx-btn" href="${escapeHtml(request.url)}">Muat ulang</a></div></section>
-${causes ? `<section class="zx-card zx-pad ze-sec"><h2>Penyebab</h2>${causes}</section>` : ""}
-<div class="ze-main"><section class="zx-card ze-frames"><h2 style="margin:8px 8px 10px">Stack trace</h2>${frameButtons || `<div class="ze-nocode">Tidak ada stack trace.</div>`}${vendorCount ? `<button type="button" class="zx-btn small ze-vendor-toggle">Tampilkan/sembunyikan ${vendorCount} frame lain</button>` : ""}</section>
-<section class="zx-card ze-code">${codePanels || `<div class="ze-nocode">Kode sumber tidak tersedia.</div>`}</section></div>
+<div class="ze-actions">${askButton}<button class="zx-btn" data-copy-error>${escapeHtml(m.copyError)}</button><a class="zx-btn" href="${escapeHtml(request.url)}">${escapeHtml(m.reload)}</a></div></section>
+${causes ? `<section class="zx-card zx-pad ze-sec"><h2>${escapeHtml(m.causes)}</h2>${causes}</section>` : ""}
+<div class="ze-main"><section class="zx-card ze-frames"><h2 style="margin:8px 8px 10px">Stack trace</h2>${frameButtons || `<div class="ze-nocode">${escapeHtml(m.noStack)}</div>`}${vendorCount ? `<button type="button" class="zx-btn small ze-vendor-toggle">${escapeHtml(m.toggleVendor(vendorCount))}</button>` : ""}</section>
+<section class="zx-card ze-code">${codePanels || `<div class="ze-nocode">${escapeHtml(m.noSource)}</div>`}</section></div>
 <section class="zx-card zx-pad ze-sec"><h2>Request</h2><table class="ze-table"><tr><td>method</td><td>${escapeHtml(request.method)}</td></tr><tr><td>url</td><td>${escapeHtml(request.url)}</td></tr>${request.headers.map(([k, v]) => `<tr><td>${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`).join("")}</table></section>
-<section class="zx-card zx-pad ze-sec"><h2>Lingkungan</h2><dl class="zx-kv"><dt>Zentara</dt><dd>${escapeHtml(ZENTARA_VERSION)}</dd><dt>Node.js</dt><dd>${escapeHtml(process.version)}</dd><dt>Env</dt><dd>${escapeHtml(info.env)}</dd><dt>Folder</dt><dd>${escapeHtml(info.root)}</dd></dl></section>
-<p class="zx-foot">Halaman ini hanya tampil saat pengembangan (debug). Di produksi, pengunjung melihat halaman error biasa tanpa detail.</p></div>${devtools ? drawer() : ""}`;
+<section class="zx-card zx-pad ze-sec"><h2>${escapeHtml(m.environment)}</h2><dl class="zx-kv"><dt>Zentara</dt><dd>${escapeHtml(ZENTARA_VERSION)}</dd><dt>Node.js</dt><dd>${escapeHtml(process.version)}</dd><dt>Env</dt><dd>${escapeHtml(info.env)}</dd><dt>${escapeHtml(m.folder)}</dt><dd>${escapeHtml(info.root)}</dd></dl></section>
+<p class="zx-foot">${escapeHtml(m.foot)}</p></div>${devtools ? drawer() : ""}`;
 
   return renderPage({
     title: `${err.name}: ${err.message}`.slice(0, 120),
     body,
     css: ERROR_CSS + (devtools ? CHAT_CSS : ""),
-    data: { context, devtools: devtools ?? null, askText: "Jelaskan penyebab error ini lalu perbaiki." },
+    data: { context, devtools: devtools ?? null, askText: m.askText, ...clientText() },
     script: (devtools ? CHAT_JS : "") + ERROR_JS,
   });
 }
 
-const STATUS_TEXT: Record<number, [string, string]> = {
-  400: ["Permintaan tidak valid", "Server tidak bisa memproses permintaan ini."],
-  401: ["Perlu masuk", "Silakan masuk terlebih dahulu untuk membuka halaman ini."],
-  403: ["Akses ditolak", "Anda tidak punya izin untuk membuka halaman ini."],
-  404: ["Halaman tidak ditemukan", "Halaman yang Anda cari tidak ada atau sudah dipindahkan."],
-  405: ["Metode tidak diizinkan", "Halaman ini tidak menerima metode request tersebut."],
-  413: ["Data terlalu besar", "Data yang dikirim melebihi batas yang diizinkan."],
-  419: ["Sesi kedaluwarsa", "Muat ulang halaman lalu coba lagi."],
-  422: ["Data tidak valid", "Periksa kembali data yang Anda kirim."],
-  429: ["Terlalu banyak permintaan", "Tunggu sebentar lalu coba lagi."],
-  500: ["Terjadi kesalahan", "Maaf, ada masalah di server. Silakan coba lagi nanti."],
-  503: ["Sedang dalam perbaikan", "Layanan sementara tidak tersedia. Silakan coba lagi nanti."],
-};
 
 /** Halaman status sederhana yang aman untuk produksi (tanpa detail internal). */
 export function renderStatusPage(status: number, message?: string): string {
-  const [title, text] = STATUS_TEXT[status] ?? (status >= 500 ? STATUS_TEXT[500]! : [defaultMessage(status), ""]);
-  const body = `<main class="zs"><div>${LOGO_SVG.replace('class="zx-logo"', 'class="zx-logo" style="width:56px;height:56px;margin-bottom:18px"')}<div class="code-big">${status}</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message && message !== defaultMessage(status) ? message : text)}</p><a class="zx-btn" href="/">← Kembali ke beranda</a></div></main>`;
+  const texts = t().dev.status;
+  const [title, text] = texts[status] ?? (status >= 500 ? texts[500]! : [defaultMessage(status), ""]);
+  const body = `<main class="zs"><div>${LOGO_SVG.replace('class="zx-logo"', 'class="zx-logo" style="width:56px;height:56px;margin-bottom:18px"')}<div class="code-big">${status}</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message && message !== defaultMessage(status) ? message : text)}</p><a class="zx-btn" href="/">${escapeHtml(t().dev.error.backHome)}</a></div></main>`;
   return renderPage({ title: `${status} · ${title}`, body, css: ERROR_CSS });
 }
 
@@ -279,26 +276,28 @@ export function renderNotFoundPage(req: IncomingMessage, routes: RouteInfo[]): s
   const url = req.url ?? "/";
   const pathname = url.split("?")[0] ?? "/";
   const suggestion = pathname.replace(/^\/+|\/+$/g, "") || "index";
+  const m = t().dev.error;
   const list = routes.length
     ? `<div class="ze-routes">${routes.map((r) => `<div><span class="m">${escapeHtml(r.methods.join("|"))}</span><a href="${escapeHtml(r.pattern.includes(":") || r.pattern.includes("*") ? "#" : r.pattern)}">${escapeHtml(r.pattern)}</a><span class="zx-muted">${escapeHtml(r.file)}</span></div>`).join("")}</div>`
-    : `<p class="zx-muted">Belum ada route. Buat file di <code>src/app/routes/</code>.</p>`;
-  const body = `<div class="zx-wrap">${header("Mode pengembangan")}
-<section class="zx-card ze-hero"><span class="ze-chip">404 · Route tidak ditemukan</span>
-<h1 class="ze-title">Tidak ada route untuk <code>${escapeHtml(pathname)}</code></h1>
+    : `<p class="zx-muted">${m.noRoutesHtml}</p>`;
+  const body = `<div class="zx-wrap">${header(m.devMode)}
+<section class="zx-card ze-hero"><span class="ze-chip">${escapeHtml(m.notFoundChip)}</span>
+<h1 class="ze-title">${m.noRouteForHtml(escapeHtml(pathname))}</h1>
 <div class="ze-loc">${escapeHtml(req.method ?? "GET")} ${escapeHtml(url)}</div>
-<div class="ze-actions">${devtools ? `<button class="zx-btn primary" data-ask-ai>✦ Buat halaman ini dengan Zentara AI</button>` : ""}<a class="zx-btn" href="/">← Beranda</a></div></section>
+<div class="ze-actions">${devtools ? `<button class="zx-btn primary" data-ask-ai>${escapeHtml(m.createWithAi)}</button>` : ""}<a class="zx-btn" href="/">${escapeHtml(m.home)}</a></div></section>
 <div class="zx-grid ze-sec" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
-<section class="zx-card zx-pad"><h2>Route yang tersedia</h2>${list}</section>
-<section class="zx-card zx-pad"><h2>Buat manual</h2><p class="zx-muted" style="margin-top:0">Route adalah file di <code>src/app/routes/</code>. Buat route ini dengan:</p><div class="zx-cmd"><span>npx zentara make:route ${escapeHtml(suggestion)}</span></div></section></div>
-<p class="zx-foot">Halaman ini hanya tampil saat pengembangan. Di produksi, pengunjung melihat halaman 404 biasa.</p></div>${devtools ? drawer() : ""}`;
+<section class="zx-card zx-pad"><h2>${escapeHtml(m.availableRoutes)}</h2>${list}</section>
+<section class="zx-card zx-pad"><h2>${escapeHtml(m.createManually)}</h2><p class="zx-muted" style="margin-top:0">${m.createManuallyHtml}</p><div class="zx-cmd"><span>npx zentara make:route ${escapeHtml(suggestion)}</span></div></section></div>
+<p class="zx-foot">${escapeHtml(m.notFoundFoot)}</p></div>${devtools ? drawer() : ""}`;
   return renderPage({
     title: `404 · ${pathname}`,
     body,
     css: ERROR_CSS + (devtools ? CHAT_CSS : ""),
     data: {
-      context: `Pengunjung membuka ${req.method ?? "GET"} ${pathname} dan mendapat 404 karena route-nya belum ada.`,
+      context: m.notFoundContext(req.method ?? "GET", pathname),
       devtools: devtools ?? null,
-      askText: `Buatkan halaman untuk route ${pathname}.`,
+      askText: m.notFoundAsk(pathname),
+      ...clientText(),
     },
     script: (devtools ? CHAT_JS : "") + ERROR_JS,
   });

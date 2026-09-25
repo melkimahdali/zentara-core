@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { t } from "../i18n/index.js";
 import { Cookies } from "./cookies.js";
 import { HttpError } from "./errors.js";
 import type { ZenLogger } from "./logger.js";
@@ -114,7 +115,7 @@ export function createContext(
     logger: options.logger,
     get session(): Session {
       const current = (ctx as unknown as Record<symbol, Session | undefined>)[SESSION_SLOT];
-      if (!current) throw new Error("ctx.session belum tersedia: pasang middleware session() terlebih dahulu");
+      if (!current) throw new Error(t().core.sessionMissing);
       return current;
     },
     body() {

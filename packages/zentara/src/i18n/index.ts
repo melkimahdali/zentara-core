@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DOCS_URL } from "../brand/index.js";
 import { en } from "./en/index.js";
 import { id, type Messages } from "./id/index.js";
 
@@ -52,6 +53,11 @@ export function t(locale: Locale = current): Messages {
 /** Tag bahasa BCP 47 untuk Intl dan atribut `lang` HTML. */
 export function intlLocale(locale: Locale = current): string {
   return locale === "en" ? "en-US" : "id-ID";
+}
+
+/** Alamat dokumentasi dalam bahasa aktif (Bahasa Inggris di /en/), mis. docsUrl("mulai-cepat.html"). */
+export function docsUrl(page = "", locale: Locale = current): string {
+  return `${DOCS_URL}${locale === "en" ? "en/" : ""}${page}`;
 }
 
 // ── Preferensi global ─────────────────────────────────────────────────────

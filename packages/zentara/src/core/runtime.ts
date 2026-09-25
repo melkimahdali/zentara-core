@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { setLocale } from "../i18n/index.js";
+import { t } from "../i18n/index.js";
 import { sendBuiltinAsset } from "./assets.js";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -34,6 +36,7 @@ export class ZenRuntime {
 
   constructor(userConfig: UserConfig = {}) {
     this.config = resolveConfig(userConfig);
+    setLocale(this.config.locale);
     this.logger = new ZenLogger(this.config.logLevel);
     this.router = new ZenRouter(this.logger);
     this.plugins = new ZenPluginManager(this, this.config.plugins);
@@ -42,9 +45,9 @@ export class ZenRuntime {
 
   /** Tambahkan middleware global. Hanya bisa dipanggil sebelum server berjalan (mis. di `setup()` plugin). */
   use(...middleware: Middleware[]): this {
-    if (this.server) throw new Error("runtime.use() harus dipanggil sebelum start()");
+    if (this.server) throw new Error(t().core.useAfterStart);
     for (const m of middleware) {
-      if (typeof m !== "function") throw new Error("runtime.use() hanya menerima function middleware");
+      if (typeof m !== "function") throw new Error(t().core.useFunction);
     }
     this.middleware.push(...middleware);
     return this;
@@ -60,10 +63,10 @@ export class ZenRuntime {
     const mod = (await import(pathToFileURL(file).href)) as { default?: unknown };
     const list = mod.default;
     if (!Array.isArray(list) || !list.every((m) => typeof m === "function")) {
-      throw new Error(`${path.basename(file)} harus meng-export default array middleware`);
+      throw new Error(t().core.middlewareFile(path.basename(file)));
     }
     this.use(...(list as Middleware[]));
-    this.logger.debug(`Loaded ${list.length} middleware dari ${path.basename(file)}`);
+    this.logger.debug(t().core.middlewareLoaded(list.length, path.basename(file)));
   }
 
   async init(): Promise<void> {
@@ -207,7 +210,7 @@ export class ZenRuntime {
       if (this.config.debug && status >= 500) return renderErrorPage(err, req, status);
       return renderStatusPage(status, httpError?.expose ? httpError.message : undefined);
     } catch (renderErr) {
-      this.logger.error("Gagal membuat halaman error", renderErr);
+      this.logger.error(t().core.errorPageFailed, renderErr);
       return `<!doctype html><title>${status}</title><h1>${status}</h1>`;
     }
   }

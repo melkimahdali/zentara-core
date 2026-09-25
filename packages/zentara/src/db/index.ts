@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { t } from "../i18n/index.js";
 import fs from "node:fs";
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
@@ -24,7 +25,7 @@ function attach<T extends object>(db: T, handle: DbHandle): T {
 
 function handleOf(db: unknown): DbHandle {
   const handle = (db as Record<symbol, DbHandle | undefined>)[HANDLE];
-  if (!handle) throw new Error("Objek ini bukan database yang dibuat dengan createSqlite()/createPostgres()");
+  if (!handle) throw new Error(t().dev.db.notDatabase);
   return handle;
 }
 
@@ -160,7 +161,7 @@ export async function createPostgres<S extends Schema>(
   try {
     postgres = (await import("postgres")).default as unknown as typeof import("postgres");
   } catch (cause) {
-    throw new Error("Paket 'postgres' belum dipasang. Jalankan: npm install postgres", { cause });
+    throw new Error(t().dev.db.noPostgres, { cause });
   }
   const { drizzle } = await import("drizzle-orm/postgres-js");
   const client = postgres(url, { max: options.max ?? 10, onnotice: () => {} });

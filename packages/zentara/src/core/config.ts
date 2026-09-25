@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { readSettings, resolveLocale, t, type Locale } from "../i18n/index.js";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { isLogLevel, type LogLevel } from "./logger.js";
@@ -37,6 +38,12 @@ export interface ZenConfig {
    * Default: `app/middleware` di samping folder route. `false` untuk mematikan.
    */
   middlewareFile: string | false;
+  /**
+   * Bahasa Zentara untuk proyek ini: halaman bawaan, pesan error, kit UI, dan CLI ("id" atau "en").
+   * Env ZENTARA_LANG menang. Tanpa ini: preferensi global (`zentara lang`, hanya di luar produksi),
+   * lalu Bahasa Indonesia.
+   */
+  locale: Locale;
 }
 
 /** Pengaturan CLI interaktif `zentara`. */
@@ -50,14 +57,7 @@ export interface CliConfig {
   fullscreen?: boolean;
 }
 
-export type UserConfig = Partial<ZenConfig> & {
-  cli?: CliConfig;
-  /**
-   * Bahasa Zentara untuk proyek ini: CLI, halaman bawaan, pesan error, dan kit UI ("id" atau "en").
-   * Env ZENTARA_LANG menang. Tanpa ini: preferensi global (`zentara lang`), lalu Bahasa Indonesia.
-   */
-  locale?: "id" | "en";
-};
+export type UserConfig = Partial<ZenConfig> & { cli?: CliConfig };
 
 export function defineConfig(config: UserConfig): UserConfig {
   return config;
@@ -74,7 +74,7 @@ const CONFIG_FILES = ["zentara.config.mjs", "zentara.config.js"];
 function parsePort(value: unknown): number {
   const port = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
   if (typeof port !== "number" || !Number.isInteger(port) || port < 0 || port > 65535) {
-    throw new Error(`Invalid port: ${String(value)} (harus bilangan bulat 0-65535)`);
+    throw new Error(t().core.invalidPort(String(value)));
   }
   return port;
 }
@@ -98,7 +98,10 @@ export function resolveConfig(user: UserConfig = {}, env: NodeJS.ProcessEnv = pr
   const explicitDev = env.NODE_ENV ? env.NODE_ENV === "development" : user.env === "development";
   const debug = debugEnv ? ["1", "true", "yes", "on"].includes(debugEnv) : (user.debug ?? explicitDev);
 
+  // Server produksi tidak bergantung pada preferensi di folder home developer.
+  const locale = resolveLocale({ env, config: user.locale, settings: envName === "production" ? {} : readSettings(env) });
   return {
+    locale,
     appName: user.appName ?? "Zentara App",
     env: envName,
     debug,
@@ -127,7 +130,7 @@ export async function loadConfigFile(cwd = process.cwd()): Promise<UserConfig> {
     if (!fs.existsSync(file)) continue;
     const mod = (await import(pathToFileURL(file).href)) as { default?: unknown };
     if (mod.default === undefined || typeof mod.default !== "object" || mod.default === null) {
-      throw new Error(`${name} harus meng-export default sebuah object config`);
+      throw new Error(t().core.configExport(name));
     }
     return mod.default as UserConfig;
   }

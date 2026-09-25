@@ -1,5 +1,6 @@
 import readline from "node:readline/promises";
 import { askSecret, type SetupPrompts } from "../ai/setup.js";
+import { t } from "../i18n/index.js";
 import { Keys, select } from "./widgets.js";
 
 /**
@@ -20,6 +21,6 @@ export function menuPrompts(keys: Keys = new Keys()): SetupPrompts {
     ask: (question) => withReadline(async (rl) => (await rl.question(`  ${question}`)).trim()),
     secret: (question) => withReadline((rl) => askSecret(rl, `  ${question}`)),
     confirm: (question, defaultYes = true) =>
-      select(keys, question, defaultYes ? [{ label: "Ya", value: true }, { label: "Tidak", value: false }] : [{ label: "Tidak", value: false }, { label: "Ya", value: true }], false),
+      select(keys, question, defaultYes ? [{ label: t().host.yes, value: true }, { label: t().host.no, value: false }] : [{ label: t().host.no, value: false }, { label: t().host.yes, value: true }], false),
   };
 }

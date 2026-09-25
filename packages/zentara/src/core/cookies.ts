@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { t } from "../i18n/index.js";
 
 export interface CookieOptions {
   /** Umur cookie dalam detik. */
@@ -39,19 +40,19 @@ export function parseCookieHeader(header: string | undefined): Map<string, strin
 }
 
 export function serializeCookie(name: string, value: string, options: CookieOptions = {}): string {
-  if (!COOKIE_NAME.test(name)) throw new Error(`Nama cookie tidak valid: ${JSON.stringify(name)}`);
+  if (!COOKIE_NAME.test(name)) throw new Error(t().core.cookieName(JSON.stringify(name)));
   const sameSite = options.sameSite ?? "Lax";
   const parts = [`${name}=${encodeURIComponent(value)}`];
 
   const path = options.path ?? "/";
-  if (!ATTR_VALUE.test(path)) throw new Error(`Path cookie tidak valid: ${JSON.stringify(path)}`);
+  if (!ATTR_VALUE.test(path)) throw new Error(t().core.cookiePath(JSON.stringify(path)));
   parts.push(`Path=${path}`);
   if (options.domain !== undefined) {
-    if (!ATTR_VALUE.test(options.domain)) throw new Error(`Domain cookie tidak valid: ${JSON.stringify(options.domain)}`);
+    if (!ATTR_VALUE.test(options.domain)) throw new Error(t().core.cookieDomain(JSON.stringify(options.domain)));
     parts.push(`Domain=${options.domain}`);
   }
   if (options.maxAge !== undefined) {
-    if (!Number.isFinite(options.maxAge)) throw new Error("maxAge cookie harus berupa angka");
+    if (!Number.isFinite(options.maxAge)) throw new Error(t().core.cookieMaxAge);
     parts.push(`Max-Age=${Math.floor(options.maxAge)}`);
   }
   if (options.expires) parts.push(`Expires=${options.expires.toUTCString()}`);
@@ -83,7 +84,7 @@ export class Cookies {
   }
 
   set(name: string, value: string, options: CookieOptions = {}): void {
-    if (this.res.headersSent) throw new Error(`Tidak bisa mengatur cookie "${name}": header respons sudah terkirim`);
+    if (this.res.headersSent) throw new Error(t().core.cookieSent(name));
     // Kunci per name+path+domain agar set berulang dalam satu request tidak menduplikasi header.
     this.pending.set(`${name};${options.path ?? "/"};${options.domain ?? ""}`, serializeCookie(name, value, options));
     this.res.setHeader("Set-Cookie", [...this.pending.values()]);

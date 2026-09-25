@@ -1,3 +1,4 @@
+import { t } from "../i18n/index.js";
 export type Props = Record<string, unknown>;
 export type Component<P extends Props = Props> = (props: P & { children: Child[] }) => Child;
 
@@ -50,7 +51,7 @@ function renderAttrs(props: Props): string {
     if (rawKey === "children" || value === undefined || value === null || value === false) continue;
     if (typeof value === "function") continue;
     const key = rawKey === "className" ? "class" : rawKey === "htmlFor" ? "for" : rawKey;
-    if (!ATTR_NAME.test(key)) throw new Error(`Nama atribut tidak valid: ${JSON.stringify(key)}`);
+    if (!ATTR_NAME.test(key)) throw new Error(t().core.attrInvalid(JSON.stringify(key)));
     out += value === true ? ` ${key}` : ` ${key}="${escapeHtml(String(value))}"`;
   }
   return out;
@@ -69,7 +70,7 @@ export function renderToString(node: Child): string {
   }
 
   const tag = node.type;
-  if (!TAG_NAME.test(tag)) throw new Error(`Nama tag tidak valid: ${JSON.stringify(tag)}`);
+  if (!TAG_NAME.test(tag)) throw new Error(t().core.tagInvalid(JSON.stringify(tag)));
   const attrs = renderAttrs(node.props);
   if (VOID_ELEMENTS.has(tag.toLowerCase())) return `<${tag}${attrs}>`;
   return `<${tag}${attrs}>${renderToString(node.children)}</${tag}>`;

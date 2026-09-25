@@ -1,4 +1,5 @@
 import type { ZenContext } from "./context.js";
+import { t } from "../i18n/index.js";
 import { toQuery } from "./context.js";
 import { HttpError } from "./errors.js";
 
@@ -41,7 +42,7 @@ export async function parse<S extends StandardSchemaV1>(schema: S, value: unknow
   const result = await schema["~standard"].validate(value);
   if (result.issues) {
     const issues: ValidationIssue[] = result.issues.map((i) => ({ path: formatPath(i.path), message: i.message }));
-    throw new HttpError(422, "Validasi gagal", { details: { source, issues } });
+    throw new HttpError(422, t().core.validationFailed, { details: { source, issues } });
   }
   return result.value as InferOutput<S>;
 }

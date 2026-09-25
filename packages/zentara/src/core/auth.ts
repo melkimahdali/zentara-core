@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { t } from "../i18n/index.js";
 import { promisify } from "node:util";
 import type { ZenContext } from "./context.js";
 import { HttpError } from "./errors.js";
@@ -23,8 +24,8 @@ function scryptOptions(N: number, r: number, p: number): crypto.ScryptOptions {
 
 /** Hash password dengan scrypt. Format: `scrypt$N$r$p$salt$hash` (base64url), parameter ikut tersimpan agar bisa dinaikkan. */
 export async function hashPassword(password: string): Promise<string> {
-  if (typeof password !== "string" || password.length === 0) throw new Error("Password tidak boleh kosong");
-  if (password.length > MAX_PASSWORD_LENGTH) throw new Error(`Password maksimal ${MAX_PASSWORD_LENGTH} karakter`);
+  if (typeof password !== "string" || password.length === 0) throw new Error(t().core.passwordEmpty);
+  if (password.length > MAX_PASSWORD_LENGTH) throw new Error(t().core.passwordTooLong(MAX_PASSWORD_LENGTH));
   const { N, r, p } = DEFAULT_PARAMS;
   const salt = crypto.randomBytes(16);
   const hash = await scrypt(password.normalize("NFKC"), salt, KEY_LENGTH, scryptOptions(N, r, p));
@@ -115,7 +116,7 @@ export function requireAuth<U = unknown>(options: RequireAuthOptions<U> = {}): M
     const auth = currentUser(ctx);
     if (!auth) {
       if (options.redirectTo) return toLogin();
-      throw new HttpError(401, "Silakan login terlebih dahulu");
+      throw new HttpError(401, t().core.loginRequired);
     }
 
     let role = auth.role;
@@ -124,7 +125,7 @@ export function requireAuth<U = unknown>(options: RequireAuthOptions<U> = {}): M
       if (user === undefined || user === null) {
         logout(ctx);
         if (options.redirectTo) return toLogin();
-        throw new HttpError(401, "Sesi tidak berlaku lagi, silakan login ulang");
+        throw new HttpError(401, t().core.sessionExpired);
       }
       ctx.state.user = user;
       const fresh = options.roleOf ? options.roleOf(user) : (user as { role?: unknown }).role;
@@ -133,7 +134,7 @@ export function requireAuth<U = unknown>(options: RequireAuthOptions<U> = {}): M
       ctx.state.user = auth;
     }
 
-    if (options.roles && !options.roles.includes(role)) throw new HttpError(403, "Anda tidak punya akses ke fitur ini");
+    if (options.roles && !options.roles.includes(role)) throw new HttpError(403, t().core.forbidden);
     return next();
   };
 }

@@ -91,7 +91,10 @@ export const CHAT_JS = String.raw`
     }).join("\n");
   }
 
+  function fmt(text, values){ return String(text).replace(/\{(\w+)\}/g, function(_, k){ return values[k] == null ? "" : values[k]; }); }
+
   function mount(root, opts){
+    var T = opts.t;
     var base = "http://127.0.0.1:" + opts.port;
     var key = "zentara-chat:" + opts.port + ":" + (opts.storageKey || "main");
     var host = location.hostname;
@@ -101,15 +104,15 @@ export const CHAT_JS = String.raw`
     var log = el("div", "zc-log");
     var suggest = el("div", "zc-suggest");
     var form = el("form", "zc-form");
-    var input = el("textarea"); input.rows = 1; input.placeholder = opts.placeholder || "Tulis permintaan dalam bahasa biasa...";
-    var send = el("button", "zx-btn primary small", "Kirim"); send.type = "submit";
+    var input = el("textarea"); input.rows = 1; input.placeholder = opts.placeholder || T.placeholder;
+    var send = el("button", "zx-btn primary small", esc(T.send)); send.type = "submit";
     form.appendChild(input); form.appendChild(send);
-    var meta = el("div", "zc-meta", '<span class="st">Menghubungkan ke Zentara AI...</span><span><a data-act="reset">Percakapan baru</a></span>');
+    var meta = el("div", "zc-meta", '<span class="st">' + esc(T.connecting) + '</span><span><a data-act="reset">' + esc(T.newChat) + "</a></span>");
     wrap.appendChild(log); wrap.appendChild(suggest); wrap.appendChild(form); wrap.appendChild(meta);
     root.appendChild(wrap);
 
     if (!local) {
-      root.innerHTML = '<div class="zc-off">Chat Zentara AI hanya bisa dipakai dari komputer yang menjalankan server. Buka <code>http://localhost:' + esc(location.port || "80") + esc(location.pathname) + "</code>.</div>";
+      root.innerHTML = '<div class="zc-off">' + fmt(T.localOnlyHtml, { url: esc("http://localhost:" + (location.port || "80") + location.pathname) }) + "</div>";
       return {};
     }
 
@@ -125,24 +128,24 @@ export const CHAT_JS = String.raw`
       if (!log.children.length && opts.emptyText) log.appendChild(el("div", "zc-empty", esc(opts.emptyText)));
     }
     function setBusy(on){
-      busy = on; send.textContent = on ? "Berhenti" : "Kirim"; send.className = "zx-btn small " + (on ? "danger" : "primary");
+      busy = on; send.textContent = on ? T.stop : T.send; send.className = "zx-btn small " + (on ? "danger" : "primary");
       suggest.style.display = on || log.querySelector(".zc-user") ? "none" : "";
     }
     function api(path, body){
       return fetch(base + path, { method: "POST", headers: { "Content-Type": "application/json", "X-Zentara-Token": opts.token }, body: JSON.stringify(body || {}) });
     }
 
-    try { var saved = sessionStorage.getItem(key); if (saved) { log.innerHTML = saved; log.querySelectorAll(".zc-approval:not(.done) .acts, .zc-typing").forEach(function(n){ n.outerHTML = '<div class="res">Kedaluwarsa (halaman dimuat ulang).</div>'; }); log.querySelectorAll(".zc-step.run").forEach(function(n){ n.className = "zc-step err"; n.querySelector(".ic").textContent = "·"; }); } } catch (e) {}
+    try { var saved = sessionStorage.getItem(key); if (saved) { log.innerHTML = saved; log.querySelectorAll(".zc-approval:not(.done) .acts, .zc-typing").forEach(function(n){ n.outerHTML = '<div class="res">' + esc(T.expired) + "</div>"; }); log.querySelectorAll(".zc-step.run").forEach(function(n){ n.className = "zc-step err"; n.querySelector(".ic").textContent = "·"; }); } } catch (e) {}
     empty();
     (opts.suggestions || []).forEach(function(s){ var chip = el("button", "zc-chip", esc(s)); chip.type = "button"; chip.onclick = function(){ ask(s); }; suggest.appendChild(chip); });
     setBusy(false);
 
     fetch(base + "/status", { headers: { "X-Zentara-Token": opts.token } }).then(function(r){ return r.json(); }).then(function(s){
       var st = meta.querySelector(".st");
-      if (!s.providers || !s.providers.length) st.innerHTML = "Belum ada provider AI. Jalankan <code>npx zentara ai:setup</code>";
-      else st.textContent = "● " + s.providers.join(" → ") + " · mode " + (s.mode === "auto" ? "otomatis" : "minta persetujuan") + " · Enter kirim, Shift+Enter baris baru";
+      if (!s.providers || !s.providers.length) st.innerHTML = T.noProviderHtml;
+      else st.textContent = fmt(T.status, { providers: s.providers.join(" → "), mode: s.mode === "auto" ? T.modeAuto : T.modeAsk });
     }).catch(function(){
-      meta.querySelector(".st").innerHTML = "Tidak terhubung ke Zentara AI. Jalankan server dengan <code>npx zentara dev</code> atau <code>npx zentara</code>.";
+      meta.querySelector(".st").innerHTML = T.disconnectedHtml;
     });
 
     var live = null, liveText = "";
@@ -170,23 +173,23 @@ export const CHAT_JS = String.raw`
       else if (ev.type === "approval") {
         var card = el("div", "zc-approval" + (ev.risk === "critical" ? " critical" : ""));
         card.innerHTML = '<div class="t">' + (ev.risk === "critical" ? "⚠ " : "✎ ") + esc(ev.summary) + "</div>" +
-          (ev.reason ? '<div class="r">Perlu persetujuan: ' + esc(ev.reason) + "</div>" : "") +
+          (ev.reason ? '<div class="r">' + esc(T.needsApproval) + esc(ev.reason) + "</div>" : "") +
           (ev.preview ? "<pre>" + diff(ev.preview) + "</pre>" : "") +
-          '<div class="acts"><button type="button" class="zx-btn primary small" data-act="approve" data-id="' + esc(ev.id) + '" data-answer="yes">Setujui</button>' +
-          (ev.risk === "critical" ? "" : '<button type="button" class="zx-btn small" data-act="approve" data-id="' + esc(ev.id) + '" data-answer="all">Setujui semua perubahan biasa</button>') +
-          '<button type="button" class="zx-btn small danger" data-act="approve" data-id="' + esc(ev.id) + '" data-answer="no">Tolak</button></div>';
+          '<div class="acts"><button type="button" class="zx-btn primary small" data-act="approve" data-id="' + esc(ev.id) + '" data-answer="yes">' + esc(T.approve) + "</button>" +
+          (ev.risk === "critical" ? "" : '<button type="button" class="zx-btn small" data-act="approve" data-id="' + esc(ev.id) + '" data-answer="all">' + esc(T.approveAll) + "</button>") +
+          '<button type="button" class="zx-btn small danger" data-act="approve" data-id="' + esc(ev.id) + '" data-answer="no">' + esc(T.reject) + "</button></div>";
         add(card);
       }
       else if (ev.type === "info") add(el("div", "zc-info", esc(ev.text)));
-      else if (ev.type === "fallback") add(el("div", "zc-info warn", "✗ " + esc(ev.from) + " tidak tersedia (" + esc(ev.reason) + ")" + (ev.to ? " → pindah ke " + esc(ev.to) : "")));
+      else if (ev.type === "fallback") add(el("div", "zc-info warn", fmt(T.unavailable, { from: esc(ev.from), reason: esc(ev.reason) }) + (ev.to ? fmt(T.switching, { to: esc(ev.to) }) : "")));
       else if (ev.type === "error") add(el("div", "zc-info err", "✗ " + esc(ev.message)));
       else if (ev.type === "done") {
-        var labels = { done: "✓ Selesai", incomplete: "… Belum selesai (batas langkah)", refused: "✗ Ditolak model", verification_failed: "✗ Verifikasi gagal", interrupted: "■ Dihentikan" };
+        var labels = T.result;
         var box = el("div", "zc-done");
-        var html = "<div>" + esc(labels[ev.status] || ev.status) + ' <span class="zx-muted">· ' + ev.steps + " langkah" + (ev.providers && ev.providers.length ? " · " + esc(ev.providers.join(", ")) : "") + "</span></div>";
+        var html = "<div>" + esc(labels[ev.status] || ev.status) + ' <span class="zx-muted">· ' + fmt(T.steps, { n: ev.steps }) + (ev.providers && ev.providers.length ? " · " + esc(ev.providers.join(", ")) : "") + "</span></div>";
         if (ev.changedFiles && ev.changedFiles.length) {
           html += '<div class="files">' + ev.changedFiles.map(esc).join("<br>") + "</div>" +
-            '<div class="acts"><button type="button" class="zx-btn primary small" data-act="reload">Muat ulang halaman</button><button type="button" class="zx-btn small" data-act="undo">Batalkan perubahan</button></div>';
+            '<div class="acts"><button type="button" class="zx-btn primary small" data-act="reload">' + esc(T.reload) + '</button><button type="button" class="zx-btn small" data-act="undo">' + esc(T.undo) + "</button></div>";
         }
         box.innerHTML = html; add(box);
       }
@@ -196,7 +199,7 @@ export const CHAT_JS = String.raw`
       if (busy || !message.trim()) return;
       var e = log.querySelector(".zc-empty"); if (e) e.remove();
       var bubble = el("div", "zc-msg zc-user"); bubble.textContent = message;
-      if (context) bubble.appendChild(el("span", "zc-att", "📎 detail error terlampir"));
+      if (context) bubble.appendChild(el("span", "zc-att", esc(T.errorAttached)));
       add(bubble);
       setBusy(true); setTyping(true);
       controller = new AbortController();
@@ -215,7 +218,7 @@ export const CHAT_JS = String.raw`
           }
           return pump();
         })
-        .catch(function(err){ if (err && err.name === "AbortError") return; handle({ type: "error", message: "Koneksi ke Zentara AI terputus. Pastikan server Zentara (npx zentara dev) masih berjalan." }); })
+        .catch(function(err){ if (err && err.name === "AbortError") return; handle({ type: "error", message: T.connectionLost }); })
         .then(function(){ setTyping(false); setBusy(false); controller = null; save(); });
     }
 
@@ -233,12 +236,12 @@ export const CHAT_JS = String.raw`
       if (act === "approve") {
         var card = t.closest(".zc-approval"); var answer = t.getAttribute("data-answer");
         card.classList.add("done");
-        card.querySelector(".acts").outerHTML = '<div class="res">' + (answer === "no" ? "Ditolak" : answer === "all" ? "Disetujui (semua perubahan biasa)" : "Disetujui") + "</div>";
+        card.querySelector(".acts").outerHTML = '<div class="res">' + esc(answer === "no" ? T.rejected : answer === "all" ? T.approvedAll : T.approved) + "</div>";
         api("/approve", { id: t.getAttribute("data-id"), answer: answer }); save();
       } else if (act === "reload") location.reload();
       else if (act === "undo") {
         t.disabled = true;
-        api("/undo").then(function(r){ return r.json(); }).then(function(j){ add(el("div", "zc-info", j.ok ? "↶ Perubahan dibatalkan: " + esc(j.files.join(", ")) : esc(j.error || "Tidak ada yang bisa dibatalkan"))); });
+        api("/undo").then(function(r){ return r.json(); }).then(function(j){ add(el("div", "zc-info", j.ok ? esc(T.undone) + esc(j.files.join(", ")) : esc(j.error || T.nothingToUndo))); });
       } else if (act === "reset") {
         if (busy) return;
         api("/reset"); log.innerHTML = ""; save(); empty(); setBusy(false);

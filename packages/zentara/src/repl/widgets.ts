@@ -1,5 +1,6 @@
 import readline from "node:readline";
 import { accent, c } from "../ai/terminal.js";
+import { t } from "../i18n/index.js";
 
 export interface Key {
   name?: string;
@@ -91,7 +92,7 @@ export class Spinner {
     const seconds = Math.floor((Date.now() - this.started) / 1000);
     const glyph = FRAMES[this.frame++ % FRAMES.length]!;
     const width = this.output.columns ?? 80;
-    const text = `${glyph} ${this.label}… (${seconds}s · esc untuk berhenti)`.slice(0, Math.max(10, width - 1));
+    const text = `${glyph} ${t().tui.spinner(this.label, seconds)}`.slice(0, Math.max(10, width - 1));
     this.output.write(`\r\x1b[2K${accent(text.slice(0, 1))}${c.dim(text.slice(1))}`);
     this.visible = true;
   }
@@ -121,15 +122,15 @@ export function select<T>(keys: Keys, question: string, choices: Choice<T>[], ca
       if (index >= list.length) index = Math.max(0, list.length - 1);
       const width = (output.columns ?? 100) - 4;
       const lines = [c.bold(question)];
-      if (filter) lines.push(c.dim(`Cari: ${filter}`));
-      if (list.length === 0) lines.push(c.dim("  (tidak ada yang cocok)"));
+      if (filter) lines.push(c.dim(t().tui.search(filter)));
+      if (list.length === 0) lines.push(c.dim(` ${t().tui.noMatch}`));
       list.forEach((choice, i) => {
         const active = i === index;
         const label = choice.label.padEnd(labelWidth);
         const hint = choice.hint ? choice.hint.slice(0, Math.max(0, width - labelWidth - 2)) : "";
         lines.push(`${active ? accent("→") : " "} ${active ? accent(label) : label}${hint ? (active ? hint : c.dim(hint)) : ""}`);
       });
-      lines.push("", c.dim("↑/↓ pilih · Enter setuju · Esc lewati · ketik untuk mencari"));
+      lines.push("", c.dim(t().tui.menuHelpSkip));
       output.write(lines.map((l) => (l ? `  ${l}` : l)).join("\n") + "\n");
       drawn = lines.length;
     };
@@ -147,7 +148,7 @@ export function select<T>(keys: Keys, question: string, choices: Choice<T>[], ca
         const choice = list[index];
         if (choice) return finish(choice.value, choice.label);
         return;
-      } else if (key.name === "escape" || (key.ctrl && key.name === "c")) return finish(cancel, "dilewati");
+      } else if (key.name === "escape" || (key.ctrl && key.name === "c")) return finish(cancel, t().tui.skipped);
       else if (key.name === "backspace") filter = filter.slice(0, -1);
       else if (!filter && str && /^[1-9]$/.test(str) && Number(str) <= list.length) {
         const choice = list[Number(str) - 1]!;

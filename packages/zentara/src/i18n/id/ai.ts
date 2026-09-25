@@ -197,6 +197,7 @@ export const ai = {
     modelNotListed: (model: string) => `terhubung, tapi model "${model}" tidak ada di daftar model akun ini`,
     serverError: (detail: string) => `error dari server: ${detail}`,
     noAnswer: "respons tidak berisi jawaban",
+    badJson: "respons bukan JSON yang valid",
   },
   presets: {
     omniroute: "OmniRoute (gratis, gateway ke ratusan provider AI)",
