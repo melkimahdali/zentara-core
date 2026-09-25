@@ -18,7 +18,7 @@ import { menuPrompts } from "./repl/prompts.js";
 import { banner, colorDepth } from "./brand/index.js";
 import { checkForUpdate } from "./update.js";
 import { ProviderUnavailableError } from "./ai/types.js";
-import { defaultAppDir, loadConfigFile, resolveConfig } from "./core/config.js";
+import { defaultAppDir, loadConfigFile, resolveConfig, type UserConfig } from "./core/config.js";
 import type { DbCommandResult } from "./db/commands.js";
 import { ZenLogger } from "./core/logger.js";
 import { allowedMethods, HTTP_METHODS, segmentsFromFile, ZenRouter } from "./core/router.js";
@@ -297,8 +297,10 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
 async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): Promise<number> {
   await ensureTypeScriptLoader(io.cwd);
   let appPort = 3000;
+  let userConfig: UserConfig = {};
   try {
-    appPort = resolveConfig(await loadConfigFile(io.cwd), serverEnv, io.cwd).port;
+    userConfig = await loadConfigFile(io.cwd);
+    appPort = resolveConfig(userConfig, serverEnv, io.cwd).port;
   } catch {
     // Config rusak: AI tetap bisa dipakai untuk memperbaikinya.
   }
@@ -327,9 +329,18 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     } catch (err) {
       io.err(c.yellow(`Tampilan Ink gagal dimuat (${(err as Error).message}); memakai CLI klasik.`));
     }
-    if (ink) return ink.startInkRepl(options);
+    if (ink) return ink.startInkRepl(options, { animation: animationEnabled(userConfig.cli?.animation) });
   }
   return startRepl({ ...options, io });
+}
+
+/** Animasi logo pembuka: mati bila ZENTARA_ANIMATION=off/0/false, di CI, atau `cli.animation: false`. */
+export function animationEnabled(configured: boolean | undefined, env: NodeJS.ProcessEnv = process.env): boolean {
+  const flag = env.ZENTARA_ANIMATION?.trim().toLowerCase();
+  if (flag && ["0", "off", "false", "no", "tidak"].includes(flag)) return false;
+  if (flag && ["1", "on", "true", "yes", "ya"].includes(flag)) return true;
+  if (env.CI && env.CI !== "false" && env.CI !== "0") return false;
+  return configured !== false;
 }
 
 async function aiStatus(args: ParsedArgs, io: CliIO): Promise<number> {

@@ -678,5 +678,5 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
 // Bahan untuk tampilan: tipe kejadian agen, logo & warna brand, pratinjau persetujuan berwarna.
 export type { ApprovalAnswer, PendingAction } from "../ai/approval.js";
 export type { ToolCall, ToolResult } from "../ai/types.js";
-export { BRAND, colorDepth, terminalLogo, visibleWidth, TAGLINE, type ColorDepth } from "../brand/index.js";
+export { BRAND, colorDepth, terminalLogo, terminalLogoFrame, visibleWidth, TAGLINE, type ColorDepth } from "../brand/index.js";
 export { formatPreview, MarkdownLines, renderMarkdown } from "../ai/terminal.js";

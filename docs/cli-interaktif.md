@@ -24,6 +24,17 @@ Tampilannya dibangun dengan [Ink](https://github.com/vadimdemedes/ink), bergaya 
 
 `zentara --classic` (atau `ZENTARA_UI=classic`) memakai CLI klasik tanpa Ink.
 
+Saat dibuka, logo Zentara Core muncul dengan animasi singkat (±1 detik): tersapu mengikuti goresan Z dengan kilau Pearl, lalu motif emas menyusul. Animasi ini otomatis mati di CI. Untuk mematikannya:
+
+```js
+// zentara.config.mjs
+export default {
+  cli: { animation: false },
+};
+```
+
+Atau untuk sementara: `ZENTARA_ANIMATION=off zentara` (PowerShell: `$env:ZENTARA_ANIMATION="off"; zentara`).
+
 Saat dibuka, Zentara menampilkan logo Zentara Core beserta versi, AI yang aktif, mode, dan folder, seperti Claude Code. Kolom input ada di antara dua garis, dengan baris mode di bawahnya (**Shift+Tab** untuk mengganti mode). Lalu:
 - **Belum ada AI yang siap:** muncul layar sambutan untuk memilih cara mengakses model, yaitu *OmniRoute (gratis)*, *Masukkan API key*, *Provider kustom*, atau *Lewati dulu*. Menu dipilih dengan ↑/↓ + Enter, atau ketik untuk mencari.
 - **Di luar folder proyek:** muncul pilihan *Buat proyek baru* (menjalankan `npm create zentara` lalu langsung membuka proyeknya), *Chat di folder ini*, atau *Buka dokumentasi*.

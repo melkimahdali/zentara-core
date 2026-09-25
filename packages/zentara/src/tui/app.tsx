@@ -1,6 +1,6 @@
 import { Box, Static, Text, useApp, useInput, usePaste, useWindowSize } from "ink";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { BRAND, colorDepth, formatPreview, HOST_COMMANDS, terminalLogo, visibleWidth, type ApprovalAnswer, type HostStatus, type ReplHost, type Tone } from "../repl/host.js";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { BRAND, colorDepth, formatPreview, HOST_COMMANDS, terminalLogo, terminalLogoFrame, visibleWidth, type ApprovalAnswer, type HostStatus, type ReplHost, type Tone } from "../repl/host.js";
 import type { Dialog, Item, Store } from "./store.js";
 
 const TEAL = BRAND.teal;
@@ -9,13 +9,24 @@ const SLATE = BRAND.slate;
 const FRAMES = ["·", "✢", "✳", "✶", "✻", "✽", "✻", "✶", "✳", "✢"];
 const TONE_COLOR: Record<Tone, string | undefined> = { info: undefined, ok: "green", warn: "yellow", error: "red", dim: SLATE };
 
-function Header({ host }: { host: ReplHost }) {
+/** Lama animasi logo pembuka dan jumlah frame-nya. */
+const INTRO_MS = 1100;
+const INTRO_FRAMES = 26;
+
+/**
+ * Header: logo Zentara Core di kiri, info di kanan. `progress` < 1 = frame animasi pembuka
+ * (logo tersapu muncul dengan kilau, info muncul menjelang akhir).
+ */
+function Header({ host, progress = 1 }: { host: ReplHost; progress?: number }) {
   const { columns } = useWindowSize();
   const status = host.status();
-  const logo = useMemo(() => (columns >= 56 ? terminalLogo(colorDepth(process.stdout)) : []), [columns]);
+  const depth = colorDepth(process.stdout);
+  const full = useMemo(() => (columns >= 56 ? terminalLogo(depth) : []), [columns, depth]);
+  const logo = progress < 1 && full.length ? terminalLogoFrame(depth, progress) : full;
   const aiLine = status.provider ? `${status.provider === "omniroute" ? "OmniRoute (gratis)" : status.provider} · ${status.mode === "auto" ? "mode otomatis" : "minta persetujuan"}` : "AI belum diatur · /setup";
-  const logoWidth = logo.length ? Math.max(...logo.map(visibleWidth)) : 0;
-  const sideBySide = logo.length > 0 && columns >= logoWidth + 4 + 44;
+  const logoWidth = full.length ? Math.max(...full.map(visibleWidth)) : 0;
+  const sideBySide = full.length > 0 && columns >= logoWidth + 4 + 44;
+  const showInfo = progress >= 0.7;
   const info = (
     <Box flexDirection="column" marginTop={logo.length ? 1 : 0} width={sideBySide ? columns - logoWidth - 6 : columns - 2}>
       <Text>
@@ -33,10 +44,28 @@ function Header({ host }: { host: ReplHost }) {
   );
   return (
     <Box flexDirection={sideBySide ? "row" : "column"} paddingX={1} marginBottom={1} gap={sideBySide ? 3 : 1}>
-      {logo.length ? <Text>{logo.join("\n")}</Text> : null}
-      {info}
+      {full.length ? (
+        <Box width={logoWidth} height={full.length} flexShrink={0}>
+          {/* Baris kosong diisi spasi agar Ink tidak memangkasnya (logo tetap di posisinya saat animasi). */}
+          <Text>{logo.map((l) => l || " ").join("\n")}</Text>
+        </Box>
+      ) : null}
+      {showInfo ? info : null}
     </Box>
   );
+}
+
+/** Animasi logo pembuka; memanggil onDone saat selesai (atau langsung bila logo tidak tampil). */
+function Intro({ host, onDone }: { host: ReplHost; onDone: () => void }) {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setFrame((f) => f + 1), INTRO_MS / INTRO_FRAMES);
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (frame >= INTRO_FRAMES) onDone();
+  }, [frame, onDone]);
+  return <Header host={host} progress={Math.min(1, frame / INTRO_FRAMES)} />;
 }
 
 function TranscriptItem({ item, host }: { item: Item; host: ReplHost }) {
@@ -327,8 +356,11 @@ function Footer({ status, hint }: { status: HostStatus; hint?: string }) {
   );
 }
 
-export function App({ store, host, onExit }: { store: Store; host: ReplHost; onExit: (code: number) => void }) {
+export function App({ store, host, onExit, intro = false }: { store: Store; host: ReplHost; onExit: (code: number) => void; intro?: boolean }) {
   const state = useSyncExternalStore(store.subscribe, store.get);
+  // Selama animasi pembuka, header digambar di bagian dinamis; riwayat (diawali header diam) menyusul.
+  const [introDone, setIntroDone] = useState(!intro);
+  const finishIntro = useCallback(() => setIntroDone(true), []);
   const app = useApp();
   const [history, setHistory] = useState<string[]>([]);
   const [hint, setHint] = useState<string>();
@@ -391,11 +423,13 @@ export function App({ store, host, onExit }: { store: Store; host: ReplHost; onE
   const onDialogDone = () => store.closeDialog();
   const dialog = state.dialog;
 
+  const transcript = introDone ? state.items : [];
   if (state.closing) return <Static items={state.items}>{(item) => <TranscriptItem key={item.id} item={item} host={host} />}</Static>;
 
   return (
     <>
-      <Static items={state.items}>{(item) => <TranscriptItem key={item.id} item={item} host={host} />}</Static>
+      <Static items={transcript}>{(item) => <TranscriptItem key={item.id} item={item} host={host} />}</Static>
+      {!introDone ? <Intro host={host} onDone={finishIntro} /> : null}
       {state.live ? (
         <Text>
           {"  "}

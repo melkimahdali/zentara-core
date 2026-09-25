@@ -61,16 +61,40 @@ export function terminalLogo(depth: ColorDepth): string[] {
   return renderGrid(LOGO_TERMINAL, depth);
 }
 
+/**
+ * Satu frame animasi pembuka logo (progress 0 → 1): logo tersapu muncul mengikuti arah goresan Z
+ * (kiri bawah ke kanan atas) dengan kilau Pearl di tepi sapuan, lalu motif emas menyusul.
+ * progress >= 1 menghasilkan logo diam yang sama dengan terminalLogo().
+ */
+export function terminalLogoFrame(depth: ColorDepth, progress: number): string[] {
+  if (progress >= 1) return terminalLogo(depth);
+  const h = LOGO_TERMINAL.length;
+  const w = LOGO_TERMINAL[0]!.length;
+  const edge = Math.max(0, progress) * 1.3 - 0.1;
+  const goldEdge = edge - 0.3;
+  const SHINE = 0.07;
+  const grid = LOGO_TERMINAL.map((row, y) =>
+    [...row]
+      .map((cell, x) => {
+        if (cell === ".") return ".";
+        // Posisi sepanjang diagonal: 0 di kiri bawah, 1 di kanan atas.
+        const d = (x / (w - 1)) * 0.6 + ((h - 1 - y) / (h - 1)) * 0.4;
+        const front = cell === "G" ? goldEdge : edge;
+        if (d > front) return ".";
+        return front - d < SHINE ? "W" : cell;
+      })
+      .join(""),
+  );
+  return renderGrid(grid, depth);
+}
+
+/** Warna tiap jenis sel grid logo: T = teal, G = emas, W = kilau Pearl (animasi). */
+const CELL_HEX: Record<string, string> = { T: BRAND.teal, G: BRAND.gold, W: BRAND.pearl };
+const CELL_BASIC: Record<string, string> = { T: "36", G: "33", W: "97" };
+
 function renderGrid(grid: readonly string[], depth: ColorDepth): string[] {
-  const color = (cell: string): string | undefined => {
-    if (cell === ".") return undefined;
-    const gold = cell === "G";
-    if (depth === "basic") return gold ? "33" : "36";
-    return gold ? hexToRgb(BRAND.gold).join(";") : hexToRgb(BRAND.teal).join(";");
-  };
-  const fgCode = (cell: string) => (depth === "basic" ? color(cell)! : depth === "truecolor" ? `38;2;${color(cell)}` : `38;5;${to256(hexToRgb(cell === "G" ? BRAND.gold : BRAND.teal))}`);
-  const bgCode = (cell: string) =>
-    depth === "basic" ? String(Number(color(cell)) + 10) : depth === "truecolor" ? `48;2;${color(cell)}` : `48;5;${to256(hexToRgb(cell === "G" ? BRAND.gold : BRAND.teal))}`;
+  const fgCode = (cell: string) => (depth === "basic" ? CELL_BASIC[cell]! : fg(hexToRgb(CELL_HEX[cell]!), depth));
+  const bgCode = (cell: string) => (depth === "basic" ? String(Number(CELL_BASIC[cell]) + 10) : bg(hexToRgb(CELL_HEX[cell]!), depth));
 
   const lines: string[] = [];
   for (let y = 0; y < grid.length; y += 2) {

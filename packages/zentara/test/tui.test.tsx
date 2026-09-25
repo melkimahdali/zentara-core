@@ -52,6 +52,21 @@ describe("tampilan Ink (CLI interaktif)", () => {
     ui.unmount();
   });
 
+  it("animasi logo pembuka: info muncul di akhir, lalu header masuk ke riwayat", async () => {
+    const store = new Store();
+    store.ui.notice("pemberitahuan awal");
+    const ui = render(<App store={store} host={fakeHost()} onExit={() => {}} intro />);
+    await tick(60);
+    assert.doesNotMatch(strip(ui.lastFrame()), /Zentara Core v9/, "info belum tampil di awal animasi");
+    assert.doesNotMatch(strip(ui.lastFrame()), /pemberitahuan awal/, "riwayat menunggu animasi selesai");
+    await tick(1400);
+    const frame = strip(ui.lastFrame());
+    assert.match(frame, /Zentara Core v9\.9\.9/);
+    assert.match(frame, /pemberitahuan awal/);
+    assert.equal(frame.match(/Zentara Core v9/g)?.length, 1, "header tidak tergambar dua kali");
+    ui.unmount();
+  });
+
   it("mengetik lalu Enter mengirim ke host; saran perintah garis miring; Esc & Shift+Tab", async () => {
     const store = new Store();
     const host = fakeHost();
