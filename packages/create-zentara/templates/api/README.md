@@ -21,6 +21,15 @@ Database SQLite ada di `data/app.db`. Akun admin untuk pengembangan: `admin@zent
 
 Semua dibuat dengan kit UI `zentara/ui` (lihat https://zentara-core.morixa.id/ui.html). Nama aplikasi dan menu navigasi ada di `src/app/lib/ui.ts`.
 
+## Job & email
+
+Setelah mendaftar, pengguna baru mendapat email sambutan lewat job di `src/app/jobs/welcome-email.ts`. Job dijalankan di latar belakang, dicoba ulang bila gagal, dan antreannya disimpan di `data/jobs.db`. Saat pengembangan, email tidak dikirim tetapi dicetak ke log dan disimpan di `.zentara/mail/`. Untuk mengirim sungguhan, isi `MAIL_URL` dan `MAIL_FROM` di `.env`.
+
+```bash
+npx zentara jobs                          # daftar job & jadwal
+npx zentara make:job laporan-harian --schedule "0 7 * * *"
+```
+
 ## Bicara dengan Zentara AI
 
 ```bash
@@ -60,6 +69,7 @@ src/app/routes/      route (file = URL)
 src/app/middleware.ts middleware global
 src/app/db/          schema, koneksi, seed
 src/app/lib/         helper: auth (requireUser, requireUserPage, ...) dan ui (appPage)
+src/app/jobs/        job latar belakang (file = job)
 drizzle/             file migrasi SQL
 test/                test
 ```

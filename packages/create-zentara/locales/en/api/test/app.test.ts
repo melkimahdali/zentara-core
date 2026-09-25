@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { ZenRuntime } from "zentara";
+import { jobs, outbox, ZenRuntime } from "zentara";
 
 // Tests for the example app (src/app) with an in-memory SQLite database.
 process.env.DATABASE_URL = ":memory:";
@@ -18,7 +18,7 @@ describe("example app: auth + notes", () => {
     await migrateDatabase(db, path.join(ROOT, "drizzle"));
     const seed = (await import("../src/app/db/seed.js")).default;
     await seed(db);
-    runtime = new ZenRuntime({ port: 0, host: "127.0.0.1", logLevel: "silent", publicDir: false, locale: "en" });
+    runtime = new ZenRuntime({ port: 0, host: "127.0.0.1", logLevel: "silent", publicDir: false, locale: "en", jobs: { store: "memory" }, mail: { url: "memory" } });
     const { port } = await runtime.start();
     base = `http://127.0.0.1:${port}`;
   });
@@ -39,6 +39,11 @@ describe("example app: auth + notes", () => {
     assert.equal((await post("/api/auth/register", { name: "Sarah", email: "sarah@mail.test", password: "secret123" })).status, 409);
     const out = await post("/api/auth/logout", {}, cookie);
     assert.equal(out.status, 204);
+
+    // The welcome email is sent by a background job.
+    await jobs.drain();
+    const welcome = outbox.find((m) => m.to.includes("sarah@mail.test"));
+    assert.match(welcome?.subject ?? "", /Welcome to Zentara App/);
   });
 
   it("notes API: sign-in required, own notes only, filters, partial updates", async () => {

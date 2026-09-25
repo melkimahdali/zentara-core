@@ -21,6 +21,15 @@ The SQLite database lives in `data/app.db`. Development admin account: `admin@ze
 
 All of them use the `zentara/ui` kit (see https://zentara-core.morixa.id/en/ui.html). The app name and navigation live in `src/app/lib/ui.ts`.
 
+## Jobs & email
+
+New users get a welcome email after signing up, sent by the job in `src/app/jobs/welcome-email.ts`. Jobs run in the background, are retried on failure, and the queue is stored in `data/jobs.db`. During development emails are not sent: they are printed to the log and saved in `.zentara/mail/`. To send real email, set `MAIL_URL` and `MAIL_FROM` in `.env`.
+
+```bash
+npx zentara jobs                          # list jobs & schedules
+npx zentara make:job daily-report --schedule "0 7 * * *"
+```
+
 ## Talk to Zentara AI
 
 ```bash
@@ -59,6 +68,7 @@ Or ask Zentara AI: `npx zentara "remove the notes feature, then build ..."`.
 src/app/routes/      routes (file = URL)
 src/app/middleware.ts global middleware
 src/app/db/          schema, connection, seed
+src/app/jobs/        background jobs (file = job)
 src/app/lib/         helpers: auth (requireUser, requireUserPage, ...) and ui (appPage)
 drizzle/             SQL migrations
 test/                tests

@@ -17,7 +17,8 @@ import { t } from "../i18n/index.js";
  *   - smtps://user:pass@smtp.example.com:465 (TLS langsung)
  *   - log     (bawaan saat pengembangan: email dicetak ke log dan disimpan di .zentara/mail/*.eml)
  *   - memory  (bawaan saat NODE_ENV=test: email dikumpulkan di `outbox` untuk diperiksa test)
- * Alamat pengirim: env `MAIL_FROM` (mis. "Toko Sari <halo@toko.id>") atau `from` di setiap pesan.
+ * Alamat pengirim: env `MAIL_FROM` (mis. "Tim Sari <halo@sari.id>"), `mail.from` di config, atau `from` di setiap pesan
+ * (wajib untuk SMTP; untuk log/memory bawaannya "Zentara <noreply@localhost>").
  * Di produksi tanpa MAIL_URL, sendMail() melempar error agar email tidak hilang diam-diam.
  */
 
@@ -284,13 +285,14 @@ function transportUrl(): string {
 }
 
 export async function sendMail(message: MailMessage): Promise<SentMail> {
-  const from = message.from ?? config.from ?? process.env.MAIL_FROM;
+  const url = transportUrl();
+  // Email yang tidak benar-benar dikirim (log/memory) boleh tanpa pengirim; SMTP wajib punya.
+  const from = message.from ?? config.from ?? process.env.MAIL_FROM ?? (url === "log" || url === "memory" ? "Zentara <noreply@localhost>" : undefined);
   if (!from) throw new Error(t().backend.mailNoFrom);
   const id = randomUUID();
   const raw = buildMessage(message, from, id);
   const to = list(message.to);
   const recipients = [...to, ...list(message.cc), ...list(message.bcc)];
-  const url = transportUrl();
   const sent = (transport: SentMail["transport"]): SentMail => ({ id, transport, from, to, subject: message.subject, text: message.text, html: message.html, raw });
 
   if (url === "memory") {

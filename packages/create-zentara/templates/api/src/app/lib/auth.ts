@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { fakeVerify, hashPassword, needsRehash, requireAuth, verifyPassword } from "zentara";
+import { enqueue, fakeVerify, hashPassword, needsRehash, requireAuth, verifyPassword } from "zentara";
 import { db } from "../db/index.js";
 import { users, type User } from "../db/schema.js";
 
@@ -46,6 +46,8 @@ export async function registerUser(input: { name: string; email: string; passwor
     .insert(users)
     .values({ name: input.name, email: input.email, passwordHash: await hashPassword(input.password) })
     .returning();
+  // Kirim email sambutan di latar belakang (src/app/jobs/welcome-email.ts), jadi pendaftaran tidak menunggu SMTP.
+  if (user) await enqueue("welcome-email", { userId: user.id });
   return user;
 }
 

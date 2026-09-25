@@ -227,10 +227,14 @@ describe("email", () => {
     assert.equal((await sendMail({ to: "a@mail.test", subject: "Log", text: "Isi" })).transport, "log");
     assert.equal(fs.readdirSync(dir).filter((f) => f.endsWith(".eml")).length, 1);
     fs.rmSync(dir, { recursive: true, force: true });
-    configureMail({ url: undefined, from: undefined });
     const prev = process.env.MAIL_FROM;
     delete process.env.MAIL_FROM;
+    // Tanpa pengirim: log/memory memakai alamat bawaan, SMTP menolak sebelum menyambung.
+    configureMail({ url: "memory", from: undefined });
+    assert.match((await sendMail({ to: "a@mail.test", subject: "x", text: "x" })).from, /noreply@localhost/);
+    configureMail({ url: "smtp://127.0.0.1:1", from: undefined });
     await assert.rejects(sendMail({ to: "a@mail.test", subject: "x", text: "x" }), /MAIL_FROM/);
+    configureMail({ url: undefined, from: undefined });
     if (prev !== undefined) process.env.MAIL_FROM = prev;
   });
 
