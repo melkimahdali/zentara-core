@@ -277,7 +277,8 @@ describe("email", () => {
       assert.equal(sent.transport, "smtp");
       assert.ok(commands.includes(`AUTH PLAIN ${Buffer.from("\0user\0rahasia").toString("base64")}`));
       assert.deepEqual(commands.filter((c) => /^(MAIL|RCPT)/.test(c)), ["MAIL FROM:<app@mail.test>", "RCPT TO:<a@mail.test>", "RCPT TO:<b@mail.test>"]);
-      assert.doesNotMatch(data, /b@mail\.test/, "bcc tidak muncul di header");
+      // Alamat utuh saja: Message-ID acak bisa berakhir dengan "...b@mail.test".
+      assert.doesNotMatch(data, /^Bcc:|(^|[\s<,:])b@mail\.test/im, "bcc tidak muncul di header");
       assert.match(data, /Subject: SMTP/);
     } finally {
       server.close();
