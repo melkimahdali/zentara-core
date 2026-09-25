@@ -27,4 +27,4 @@ npx zentara db:migrate
 pm2 start npm --name aplikasi -- start
 ```
 
-Adapter deploy (Docker, Vercel, Cloudflare, dan lainnya) ada di peta jalan Tahap 13.
+Adapter deploy (Docker, Vercel, Cloudflare, dan lainnya) ada di [peta jalan](peta-jalan.html) Tahap 14.
