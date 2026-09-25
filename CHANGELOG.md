@@ -11,6 +11,7 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi
   - setelah selesai, Zentara langsung terbuka di proyek baru;
   - **Esc** membatalkan pembuatan proyek dan menghapus folder yang setengah jadi. Bila gagal, pesan error ditampilkan dan Anda tetap di Zentara.
 - Nama folder proyek dibuat aman: spasi dan karakter lain menjadi `-` (mis. "hub tiket transportasi" menjadi `hub-tiket-transportasi`). Folder yang sudah berisi tidak ditimpa.
+- **Pemilihan bahasa tetap ada:** saat `zentara` pertama kali dibuka (belum ada pilihan bahasa dari `ZENTARA_LANG`, `locale` di config, atau `zentara lang`), bahasa ditanyakan lebih dulu lalu disimpan ke `~/.zentara/settings.json`; *Buat proyek baru* juga menanyakan bahasa aplikasi (pilihan yang disorot adalah bahasa yang sedang dipakai).
 - **Perintah database dari CLI global tidak lagi gagal karena drizzle-orm.** `zentara db:generate`, `db:migrate`, dan `db:seed`, termasuk yang dijalankan Zentara AI di terminal maupun di browser, kini otomatis memakai zentara milik proyek (`node_modules/zentara`), yang punya drizzle-orm dan drizzle-kit. Bila dependency proyek belum terpasang, pesannya jelas: jalankan `npm install`.
 - **`list_routes` Zentara AI selalu membaca kode terbaru.** Route dimuat di proses baru, jadi route dan schema yang baru diubah (mis. tabel `bookings` baru) tidak lagi gagal dengan "does not provide an export named ..." karena cache modul lama.
 

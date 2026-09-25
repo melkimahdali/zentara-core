@@ -17,7 +17,7 @@ import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
 import { BackgroundProcess, DevServer, isServerUp, killTree, openBrowser, waitForUrl } from "../dev/server.js";
 import { platformCommand } from "../process.js";
 import { DOCS_URL } from "../brand/index.js";
-import { getLocale, LOCALE_NAMES, parseLocale, setLocale, t, writeSettings } from "../i18n/index.js";
+import { getLocale, LOCALE_NAMES, parseLocale, setLocale, t, writeSettings, type Locale } from "../i18n/index.js";
 
 /**
  * Inti CLI interaktif tanpa tampilan: sesi AI, server dev, OmniRoute, dan perintah garis miring.
@@ -77,6 +77,8 @@ export interface HostOptions {
   runSetup: (prompts: SetupPrompts, preset?: string, io?: Output) => Promise<number>;
   dryRun?: boolean;
   continueLast?: boolean;
+  /** Bahasa belum pernah dipilih (tanpa ZENTARA_LANG, `locale` di config, atau `zentara lang`): tanyakan saat dibuka. */
+  askLanguage?: boolean;
 }
 
 export interface HostStatus {
@@ -327,10 +329,31 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
    * lalu create-zentara berjalan di latar belakang (tanpa pertanyaan) dengan progres di spinner.
    * Setelah selesai, Zentara dibuka di folder proyek baru. undefined = batal, lanjut di folder ini.
    */
+  /** Pilih bahasa (dua bahasa sekaligus di pertanyaannya) dan simpan sebagai preferensi global. */
+  async function chooseLanguage(): Promise<Locale> {
+    const chosen = await ui.choose<Locale>("Bahasa / Language", [
+      { label: "Bahasa Indonesia", value: "id", hint: "id" },
+      { label: "English", value: "en", hint: "en" },
+    ], getLocale());
+    setLocale(chosen);
+    try {
+      writeSettings({ locale: chosen });
+    } catch {
+      // Folder pengaturan tidak bisa ditulis: bahasa tetap dipakai untuk sesi ini.
+    }
+    return chosen;
+  }
+
   /** Proses create-zentara yang sedang berjalan (Esc membatalkannya). */
   let creation: { child: ChildProcess | undefined; cancelled: boolean } | undefined;
 
   async function createProject(): Promise<number | undefined> {
+    // Bahasa yang sedang dipakai ditaruh paling atas (pilihan yang disorot).
+    const langs: { label: string; value: Locale; hint: string }[] = [
+      { label: "Bahasa Indonesia", value: "id", hint: t().host.projectLanguageHint },
+      { label: "English", value: "en", hint: t().host.projectLanguageHint },
+    ];
+    const lang = await ui.choose<Locale>(t().host.projectLanguage, [...langs.filter((l) => l.value === getLocale()), ...langs.filter((l) => l.value !== getLocale())], getLocale());
     const m = t().host;
     const answer = await ui.ask(m.projectFolder, { placeholder: "zentara-app" });
     if (answer === undefined) return undefined;
@@ -352,7 +375,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     creation = { child: undefined, cancelled: false };
     const code = await new Promise<number>((resolve) => {
       // npx --yes: tanpa pertanyaan "Ok to proceed?"; create-zentara --yes: tanpa pertanyaan lanjutan.
-      const cmd = platformCommand("npx", ["--yes", "create-zentara@latest", name, "--template", template, "--lang", getLocale(), "--yes"]);
+      const cmd = platformCommand("npx", ["--yes", "create-zentara@latest", name, "--template", template, "--lang", lang, "--yes"]);
       // detached (selain Windows): Esc menghentikan seluruh grup proses (npx, npm install, ...).
       const child = spawn(cmd.command, cmd.args, { cwd, stdio: ["ignore", "pipe", "pipe"], shell: cmd.shell, detached: process.platform !== "win32", env: { ...process.env, FORCE_COLOR: "0" } });
       creation!.child = child;
@@ -636,6 +659,11 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
         ui.notice(t().host.newVersion(newer, options.version), "warn");
       }
       if (options.dryRun) ui.notice(t().host.dryRun, "warn");
+      // Pertama kali dibuka: pilih bahasa lebih dulu, lalu simpan sebagai preferensi global.
+      if (options.askLanguage) {
+        await chooseLanguage();
+        ui.changed();
+      }
 
       if (!isProject) {
         const m = t().host.start;

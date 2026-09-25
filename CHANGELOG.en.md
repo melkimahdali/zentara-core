@@ -11,6 +11,7 @@ English release notes start at 0.12.0. Earlier versions are described in Indones
   - when done, Zentara opens in the new project right away;
   - **Esc** cancels project creation and removes the half-created folder. If it fails, the error is shown and you stay in Zentara.
 - Project folder names are made safe: spaces and other characters become `-` (e.g. "hub tiket transportasi" becomes `hub-tiket-transportasi`). A folder that already has files is never overwritten.
+- **Language selection stays:** the first time `zentara` opens (no language chosen yet via `ZENTARA_LANG`, `locale` in the config, or `zentara lang`), it asks for the language first and saves it to `~/.zentara/settings.json`; *Create a new project* also asks for the app language (the current language is highlighted).
 - **Database commands from the global CLI no longer fail on drizzle-orm.** `zentara db:generate`, `db:migrate`, and `db:seed`, including the ones Zentara AI runs in the terminal and in the browser, now use the project's own zentara (`node_modules/zentara`), which has drizzle-orm and drizzle-kit. If the project's dependencies are missing, the message says so clearly: run `npm install`.
 - **Zentara AI's `list_routes` always reads the latest code.** Routes are loaded in a fresh process, so routes and schema that were just changed (e.g. a new `bookings` table) no longer fail with "does not provide an export named ..." because of a stale module cache.
 

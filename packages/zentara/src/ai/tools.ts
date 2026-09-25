@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import { t } from "../i18n/index.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -547,7 +548,8 @@ function absoluteLoaders(execArgv: readonly string[]): string[] {
     if (/^[a-z]+:/i.test(arg)) return arg;
     if (arg.startsWith(".") || path.isAbsolute(arg)) return pathToFileURL(path.resolve(arg)).href;
     try {
-      return import.meta.resolve(arg);
+      // Dicari dari cwd proses ini (tempat loader terpasang), bukan dari folder proyek tujuan.
+      return pathToFileURL(createRequire(path.join(process.cwd(), "noop.js")).resolve(arg)).href;
     } catch {
       return arg;
     }

@@ -11,6 +11,8 @@ Zentara is available in Indonesian (`id`, the default) and English (`en`). The c
 
 ## Choosing the language
 
+The first time `zentara` opens (no language chosen yet), Zentara asks for the language first and saves it. To change it any time:
+
 ```bash
 npx zentara lang          # show the active language
 npx zentara lang en       # save the choice for all projects (~/.zentara/settings.json)
@@ -36,7 +38,7 @@ Precedence:
 
 ## New projects
 
-`npm create zentara` asks for the language first, or choose it directly:
+`npm create zentara` asks for the language first, and so does *Create a new project* in the interactive CLI. Or choose it directly:
 
 ```bash
 npm create zentara@latest my-app -- --lang en

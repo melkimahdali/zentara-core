@@ -38,6 +38,8 @@ export const host: Messages["host"] = {
   omnirouteInstallFailed: "⚠ Installing OmniRoute failed. Try it yourself: npm install -g omniroute (on Windows you may need an Administrator terminal).",
   omnirouteInstalled: "✓ OmniRoute installed.",
   projectFolder: "Project folder name",
+  projectLanguage: "App language (page text, messages, and README)",
+  projectLanguageHint: "can be changed later with locale in zentara.config.mjs",
   projectTemplate: "Choose a template",
   templateApi: "sign-in, dashboard, database (SQLite), CRUD example",
   templateMinimal: "a simple page & API, no database",

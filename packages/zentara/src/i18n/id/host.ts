@@ -36,6 +36,8 @@ export const host = {
   omnirouteInstallFailed: "⚠ Pemasangan OmniRoute gagal. Coba jalankan sendiri: npm install -g omniroute (di Windows mungkin perlu terminal Administrator).",
   omnirouteInstalled: "✓ OmniRoute terpasang.",
   projectFolder: "Nama folder proyek",
+  projectLanguage: "Bahasa aplikasi (teks halaman, pesan, dan README)",
+  projectLanguageHint: "bisa diganti nanti lewat locale di zentara.config.mjs",
   projectTemplate: "Pilih template",
   templateApi: "login, dasbor, database (SQLite), contoh CRUD",
   templateMinimal: "halaman & API sederhana, tanpa database",

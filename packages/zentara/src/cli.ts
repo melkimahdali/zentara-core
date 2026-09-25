@@ -411,7 +411,7 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
 }
 
 /** Mode obrolan interaktif (gaya Claude Code). */
-async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): Promise<number> {
+async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv, askLanguage = false): Promise<number> {
   await ensureTypeScriptLoader(io.cwd);
   let appPort = 3000;
   let userConfig: UserConfig = {};
@@ -432,6 +432,7 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     offerDevServer: args.flags["no-dev"] !== true,
     dryRun: args.flags["dry-run"] === true,
     continueLast: args.flags.continue === true,
+    askLanguage,
     runSetup: async (prompts, preset, setupIo) => {
       const user = (await loadConfigFile(io.cwd)) as { ai?: AiUserConfig };
       return interactiveSetup({ root: io.cwd, prompts, io: setupIo ?? io, preset, configProviders: user.ai?.providers });
@@ -661,7 +662,7 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
     case "start":
       return start(io);
     case undefined:
-      if (io.interactive) return repl(args, io, serverEnv);
+      if (io.interactive) return repl(args, io, serverEnv, source === "default");
       io.out(t().cli.help);
       return 0;
     case "help":
@@ -673,7 +674,7 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return 0;
     case "ai": {
       const task = args.positional.slice(1).join(" ") || undefined;
-      if (!task && io.interactive) return repl(args, io, serverEnv);
+      if (!task && io.interactive) return repl(args, io, serverEnv, source === "default");
       return runAi(task, args, io);
     }
     case "ai:status":
