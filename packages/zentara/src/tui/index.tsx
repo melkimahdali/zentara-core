@@ -7,12 +7,17 @@ import { Store } from "./store.js";
  * CLI interaktif `zentara` dengan tampilan Ink (gaya Claude Code). Dimuat hanya saat CLI interaktif
  * dibuka, jadi perintah lain (dev, build, start, db:*) tidak ikut memuat React.
  */
-export async function startInkRepl(options: HostOptions): Promise<number> {
+export interface InkOptions {
+  /** Animasi logo pembuka (default true). */
+  animation?: boolean;
+}
+
+export async function startInkRepl(options: HostOptions, ink: InkOptions = {}): Promise<number> {
   const store = new Store();
   const host = await createReplHost(options, store.ui);
   let resolveExit!: (code: number) => void;
   const exited = new Promise<number>((resolve) => (resolveExit = resolve));
-  const instance = render(<App store={store} host={host} onExit={(code) => resolveExit(code)} />, { exitOnCtrlC: false, patchConsole: false });
+  const instance = render(<App store={store} host={host} intro={ink.animation ?? true} onExit={(code) => resolveExit(code)} />, { exitOnCtrlC: false, patchConsole: false });
 
   const code = await host.startup().catch((err: unknown) => {
     store.ui.notice(`✗ ${(err as Error).message}`, "error");

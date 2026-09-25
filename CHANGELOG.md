@@ -2,6 +2,18 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.10.1]
+
+### Ditambahkan
+- **Animasi logo saat CLI interaktif dibuka** (±1 detik). Logo Zentara Core tersapu muncul mengikuti arah goresan Z, dari kiri bawah ke kanan atas, dengan kilau Pearl di tepi sapuan. Motif emas Nusantara menyusul, lalu info versi, AI, dan folder muncul di akhir. Frame terakhir sama persis dengan logo diam.
+- Mematikan animasi: `cli: { animation: false }` di `zentara.config.mjs`, atau env `ZENTARA_ANIMATION=off`. Animasi otomatis mati di CI.
+- `terminalLogoFrame(depth, progress)` di `zentara/host` untuk tampilan lain.
+- **Situs dokumentasi pindah ke https://zentara-core.morixa.id/** (GitHub Pages dengan domain kustom lewat Cloudflare).
+  - Semua tautan dokumentasi (CLI, halaman sambutan, README, template, `homepage` paket) memakai domain baru; alamatnya disimpan di satu konstanta `DOCS_URL`.
+  - Situs memuat `CNAME`, tautan kanonis, `sitemap.xml`, dan `robots.txt` untuk domain tersebut.
+  - Halaman **Catatan rilis** dibuat otomatis dari CHANGELOG.md, dan lencana versi di header menautkannya.
+  - Situs diterbitkan ulang setiap ada perubahan di `main` (serta saat GitHub Release terbit), sehingga versi, catatan rilis, dan dokumentasi selalu mengikuti versi terbaru.
+
 ## [0.10.0]
 
 Tahap 9: Front-End, ditambah CLI berbasis Ink.

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { parseArgs, run } from "../src/cli.js";
+import { animationEnabled, parseArgs, run } from "../src/cli.js";
 import { FIXTURES } from "./helpers.js";
 
 function io(cwd: string) {
@@ -71,5 +71,16 @@ describe("cli", () => {
   it("perintah tidak dikenal -> exit 1", async () => {
     const t = io(dir);
     assert.equal(await run(["deploy"], t.io), 1);
+  });
+});
+
+describe("animasi logo CLI interaktif", () => {
+  it("aktif secara default; mati lewat config, ZENTARA_ANIMATION, atau di CI", () => {
+    assert.equal(animationEnabled(undefined, {}), true);
+    assert.equal(animationEnabled(false, {}), false);
+    assert.equal(animationEnabled(undefined, { ZENTARA_ANIMATION: "off" }), false);
+    assert.equal(animationEnabled(undefined, { CI: "true" }), false);
+    assert.equal(animationEnabled(undefined, { CI: "true", ZENTARA_ANIMATION: "on" }), true, "env eksplisit menang");
+    assert.equal(animationEnabled(false, { ZENTARA_ANIMATION: "1" }), true);
   });
 });

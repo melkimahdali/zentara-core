@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { FAVICON_PNG, LOGO_TERMINAL, LOGO_WEBP } from "../src/brand/assets.js";
-import { banner, BRAND, colorDepth, terminalLogo, to256, visibleWidth } from "../src/brand/index.js";
+import { banner, BRAND, colorDepth, terminalLogo, terminalLogoFrame, to256, visibleWidth } from "../src/brand/index.js";
 
 const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
 const tty = (depth: number) => ({ isTTY: true, getColorDepth: () => depth }) as unknown as NodeJS.WriteStream;
@@ -36,6 +36,17 @@ describe("brand Zentara Core", () => {
     assert.ok(plain.every((l) => !l.includes("\x1b")));
     assert.ok(Math.max(...plain.map(visibleWidth)) <= 48);
     assert.match(terminalLogo("truecolor").join(""), /38;2;\d+;\d+;\d+/);
+  });
+
+  it("animasi logo: kosong di awal, tersapu dari kiri bawah dengan kilau, dan berakhir sama dengan logo diam", () => {
+    assert.ok(terminalLogoFrame("none", 0).every((l) => l === ""));
+    const mid = terminalLogoFrame("none", 0.4);
+    assert.equal(mid.length, terminalLogo("none").length, "tinggi tetap selama animasi");
+    assert.ok(mid.at(-1)!.trim() !== "" && mid[0]!.trim() === "", "bawah muncul lebih dulu dari atas");
+    assert.match(terminalLogoFrame("truecolor", 0.5).join(""), /38;2;242;244;240/, "kilau Pearl di tepi sapuan");
+    assert.deepEqual(terminalLogoFrame("truecolor", 1), terminalLogo("truecolor"));
+    const cells = (p: number) => terminalLogoFrame("none", p).join("").replace(/\s/g, "").length;
+    assert.ok(cells(0.2) < cells(0.5) && cells(0.5) < cells(0.9), "makin lama makin lengkap");
   });
 
   it("banner: logo + teks berdampingan, logo di atas teks, teks saja, atau satu baris sesuai lebar terminal", () => {

@@ -12,7 +12,7 @@ export {
   type RequireAuthOptions,
 } from "./auth.js";
 export { clientIp, rateLimit, type RateLimitOptions } from "./ratelimit.js";
-export { defineConfig, loadConfigFile, resolveConfig, type UserConfig, type ZenConfig } from "./config.js";
+export { defineConfig, loadConfigFile, resolveConfig, type CliConfig, type UserConfig, type ZenConfig } from "./config.js";
 export type { ZenContext, Query } from "./context.js";
 export { Cookies, parseCookieHeader, serializeCookie, type CookieOptions } from "./cookies.js";
 export { HttpError } from "./errors.js";

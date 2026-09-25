@@ -39,7 +39,13 @@ export interface ZenConfig {
   middlewareFile: string | false;
 }
 
-export type UserConfig = Partial<ZenConfig>;
+/** Pengaturan CLI interaktif `zentara`. */
+export interface CliConfig {
+  /** Animasi logo saat CLI dibuka (default true; env ZENTARA_ANIMATION=off mematikan). */
+  animation?: boolean;
+}
+
+export type UserConfig = Partial<ZenConfig> & { cli?: CliConfig };
 
 export function defineConfig(config: UserConfig): UserConfig {
   return config;

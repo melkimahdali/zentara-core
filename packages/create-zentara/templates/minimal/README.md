@@ -12,4 +12,4 @@ npm run build && npm start                   # produksi
 
 Butuh database dan login? Buat proyek baru dengan template **api**: `npm create zentara@latest -- --template api`.
 
-Dokumentasi: https://melkimahdali.github.io/zentara-core/
+Dokumentasi: https://zentara-core.morixa.id/

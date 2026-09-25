@@ -16,6 +16,7 @@ import { ProviderUnavailableError, type ToolCall, type ToolResult } from "../ai/
 import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
 import { BackgroundProcess, DevServer, isServerUp, openBrowser, waitForUrl } from "../dev/server.js";
 import { platformCommand } from "../process.js";
+import { DOCS_URL } from "../brand/index.js";
 
 /**
  * Inti CLI interaktif tanpa tampilan: sesi AI, server dev, OmniRoute, dan perintah garis miring.
@@ -587,7 +588,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
         ], "chat");
         if (choice === "exit") return 0;
         if (choice === "docs") {
-          openBrowser("https://melkimahdali.github.io/zentara-core/");
+          openBrowser(DOCS_URL);
           ui.notice("Membuka dokumentasi di browser...", "dim");
         }
         if (choice === "create") return createProject();
@@ -678,5 +679,5 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
 // Bahan untuk tampilan: tipe kejadian agen, logo & warna brand, pratinjau persetujuan berwarna.
 export type { ApprovalAnswer, PendingAction } from "../ai/approval.js";
 export type { ToolCall, ToolResult } from "../ai/types.js";
-export { BRAND, colorDepth, terminalLogo, visibleWidth, TAGLINE, type ColorDepth } from "../brand/index.js";
+export { BRAND, colorDepth, terminalLogo, terminalLogoFrame, visibleWidth, TAGLINE, type ColorDepth } from "../brand/index.js";
 export { formatPreview, MarkdownLines, renderMarkdown } from "../ai/terminal.js";
