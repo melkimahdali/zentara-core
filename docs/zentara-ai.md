@@ -36,6 +36,14 @@ Yang **tidak pernah** bisa dilakukan AI:
 - menulis ke `.git/`, `node_modules/` (termasuk framework Zentara), atau `dist/`;
 - menyentuh file di luar folder proyek, termasuk lewat symlink.
 
+## Tampilan halaman
+
+Halaman yang dibuat Zentara AI memakai layout aplikasi yang sudah ada, bukan tampilan baru:
+
+- Halaman untuk user yang login dibungkus `appPage()` dari `src/app/lib/ui.ts`, dan halaman publik memakai `page()` dari [kit UI](ui.html).
+- Sebelum membuat halaman, AI membaca satu halaman serupa lalu mengikuti strukturnya. Halaman baru ditambahkan ke menu navigasi di `navFor()`.
+- AI tidak menulis `<html>`, `<style>`, file CSS, atau navigasi sendiri, kecuali Anda memintanya secara jelas. Bila sebuah route ternyata membuat dokumen HTML atau CSS sendiri, AI langsung diberi catatan untuk memperbaikinya.
+
 ## Perintah terminal
 
 AI bisa menjalankan **satu perintah terminal** di folder proyek (tool `run_command`), mis. `git diff --stat` atau `npx eslint src`. Aturannya:

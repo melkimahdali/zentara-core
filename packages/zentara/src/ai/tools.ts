@@ -9,9 +9,16 @@ import { allowedMethods, ZenRouter } from "../core/router.js";
 import { platformCommand } from "../process.js";
 import type { ApprovalPolicy, PendingAction, Risk } from "./approval.js";
 import type { Journal } from "./journal.js";
+import { layoutWarning } from "./layout.js";
 import type { ToolSpec } from "./types.js";
 import { unifiedDiff } from "./diff.js";
 import { classifyCommand, CommandRejected, parseCommand, redactSecrets, secretValues } from "./command.js";
+
+/** Hasil tool ditambah catatan bila route yang ditulis membuat layout HTML/CSS sendiri. */
+function withLayoutWarning(result: string, root: string, rel: string, content: string): string {
+  const note = layoutWarning(root, rel, content);
+  return note ? `${result}\n${note}` : result;
+}
 
 export interface ToolContext {
   root: string;
@@ -249,7 +256,7 @@ export const agentTools: AgentTool[] = [
       ctx.journal.record(rel);
       fs.mkdirSync(path.dirname(abs), { recursive: true });
       fs.writeFileSync(abs, content);
-      return t().ai.tools.written(exists, rel);
+      return withLayoutWarning(t().ai.tools.written(exists, rel), ctx.root, rel, content);
     },
   },
   {
@@ -280,7 +287,7 @@ export const agentTools: AgentTool[] = [
       if (ctx.dryRun) return t().ai.tools.dryRunNotEdited(rel);
       ctx.journal.record(rel);
       fs.writeFileSync(abs, updated);
-      return t().ai.tools.edited(rel);
+      return withLayoutWarning(t().ai.tools.edited(rel), ctx.root, rel, updated);
     },
   },
   {

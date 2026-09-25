@@ -36,6 +36,14 @@ What the AI can **never** do:
 - write to `.git/`, `node_modules/` (including the Zentara framework), or `dist/`;
 - touch files outside the project folder, including through symlinks.
 
+## Page layout
+
+Pages built by Zentara AI use the app's existing layout instead of a new design:
+
+- Pages for signed-in users are wrapped in `appPage()` from `src/app/lib/ui.ts`, and public pages use `page()` from the [UI kit](ui.html).
+- Before creating a page, the AI reads a similar page and follows its structure. New pages are added to the navigation menu in `navFor()`.
+- The AI does not write its own `<html>`, `<style>`, CSS files, or navigation unless you clearly ask for it. If a route turns out to build its own HTML document or CSS, the AI immediately gets a note telling it to fix that.
+
 ## Terminal commands
 
 The AI can run **one terminal command** in the project folder (the `run_command` tool), e.g. `git diff --stat` or `npx eslint src`. The rules:

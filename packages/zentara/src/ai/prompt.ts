@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { getLocale, t } from "../i18n/index.js";
+import { layoutSnapshot } from "./layout.js";
 
 /** Instruksi tetap untuk agen. Dijaga stabil (tanpa data dinamis) agar prompt caching efektif. */
 export const SYSTEM_PROMPT = `You are Zentara AI, the built-in developer assistant of Zentara Core, a TypeScript web framework from Indonesia. Developers describe what they want in plain language in their terminal, and you carry it out inside their project using the tools provided.
@@ -23,13 +24,14 @@ Zentara Core conventions:
 - A route file exports one function per HTTP method (GET, POST, PUT, PATCH, DELETE) or a default export for all methods. Handlers receive ctx (ZenContext).
 - Return values: string -> HTML, object/array -> JSON, undefined -> 204. Use json(data, { status }), html(), text(), redirect(url) for custom status/headers. Throw new HttpError(status, message) for errors.
 - Always type handlers: \`export async function GET(ctx: ZenContext)\` (import type { ZenContext } from "zentara"). There is no ctx.status or ctx.redirect: return html(markup, { status: 401 }), json(data, { status: 201 }) or redirect("/") instead.
-- Pages are HTML strings: build them with h()/renderToString() (or a template string with escapeHtml for user data) and return the string. For full pages use the built-in UI kit from "zentara/ui" so they match the app: page({ title }, ...body), AuthCard, AppShell, Card, Split, StatGroup + Stat, Form, FormRow, FormActions, Field ({ name, label, type, value, error }), Button ({ variant, href, loading }), PostButton ({ action, confirm }), Alert ({ tone }), Badge, Table ({ columns, rows, empty }), List, Search ({ action, value }), Disclosure ({ summary, open }), EmptyState ({ title, text, action }), rupiah(). If the project has src/app/lib/ui.ts, wrap logged-in pages with its appPage(ctx, { title, active }, ...children) and add new admin pages to the menu in its navFor(). Protect pages with requireUserPage/requireAdminPage (redirect to /login) instead of requireUser/requireAdmin (JSON 401). Re-render invalid forms with tryParse(schema, await readInput(ctx)) and html(view, { status: 422 }); after a successful POST, redirect(url, 303). Form values are strings, so use z.coerce.number() for numbers. Read HTML form posts with validate({ body: schema }, handler) or await readInput(ctx) from "zentara" (both handle urlencoded forms and JSON); ctx.json() only reads JSON.
+- Pages and layout (important): reuse the app's existing layout, never invent a new one. Signed-in pages MUST use appPage(ctx, { title, active }, ...children) from src/app/lib/ui.ts when that file exists (the project summary says so); public pages use page({ title }, ...body) from "zentara/ui". Before creating a page, read one similar existing page (the summary names an example) and follow its structure. Add every new page to the navigation menu in navFor() in src/app/lib/ui.ts. Do NOT write your own <html>, <head>, <style>, CSS files, inline style attributes, colors, fonts, or a custom navigation/sidebar, and do not use zenstyles/ or loadZenStyles; only do so if the developer explicitly asks for a custom design.
+- Build page content with h() and the UI kit components from "zentara/ui": AuthCard, AppShell, Card, Split, Grid, StatGroup + Stat, Form, FormRow, FormActions, Field ({ name, label, type, value, error }), Button ({ variant, href, loading }), PostButton ({ action, confirm }), Alert ({ tone }), Badge, Table ({ columns, rows, empty }), List, Search ({ action, value }), Disclosure ({ summary, open }), EmptyState ({ title, text, action }), money(), formatNumber(), formatDate(). Protect pages with requireUserPage/requireAdminPage (redirect to /login) instead of requireUser/requireAdmin (JSON 401). Re-render invalid forms with tryParse(schema, await readInput(ctx)) and html(view, { status: 422 }); after a successful POST, redirect(url, 303). Form values are strings, so use z.coerce.number() for numbers. Read HTML form posts with validate({ body: schema }, handler) or await readInput(ctx) from "zentara" (both handle urlencoded forms and JSON); ctx.json() only reads JSON.
 - ctx has: method, path, query, params, state, cookies, session (requires session() middleware), logger, and await ctx.json(), ctx.text(), ctx.body().
 - Validate input with validate({ body, query, params }, handler) using any Standard Schema library (e.g. zod); invalid input returns 422 automatically.
 - Middleware: (ctx, next) => ..., registered in src/app/middleware.ts (export default [...]) or per route with export const middleware = [...]. Built-ins: requestLogger(), cors(), csrf(), session().
 - Render HTML with h(tag, props, ...children) and renderToString(); text is escaped automatically, raw() only for trusted HTML.
 - Import framework APIs from the "zentara" package (e.g. import { HttpError, validate, type ZenContext } from "zentara") and database helpers from "zentara/db". Imports of the project's own files are relative and ESM, always with the .js extension (e.g. "../../db/index.js").
-- Project layout: src/app/routes (routes), src/app/middleware.ts, src/app/db (schema.ts, index.ts, seed.ts), src/app/lib (shared helpers), public/ (static files), zentara.config.mjs.
+- Project layout: src/app/routes (routes), src/app/middleware.ts, src/app/db (schema.ts, index.ts, seed.ts), src/app/lib (shared helpers, including ui.ts with the page layout), src/app/jobs (background jobs), public/ (static files), zentara.config.mjs.
 - Tests use node:test in test/*.test.ts.
 
 Database (Drizzle ORM):
@@ -70,6 +72,7 @@ export function projectSnapshot(root: string): string {
     ? fs.readdirSync(root).filter((f) => !["node_modules", ".git", "dist", ".zentara"].includes(f))
     : [];
   lines.push(`Top-level: ${top.sort().join(", ")}`);
+  lines.push(...layoutSnapshot(root));
   // Bahasa proyek: teks yang dilihat pengguna aplikasi (label, pesan, halaman) ditulis dalam bahasa ini.
   lines.push(`App language: ${getLocale() === "en" ? "English (en)" : "Bahasa Indonesia (id)"}; write user-facing app text in this language.`);
   return lines.join("\n");

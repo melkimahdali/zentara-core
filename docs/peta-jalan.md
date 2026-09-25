@@ -33,10 +33,17 @@ Tahap 10 dan 11 dirilis bersama di 0.12.
 
 | Tahap | Versi | Isi |
 |---|---|---|
-| 12 | 0.13 | Data dan panel admin: CRUD otomatis dari schema, relasi, paginasi, filter |
+| 12 | 0.13 | Data dan panel admin: CRUD otomatis dari schema, relasi, paginasi, filter, dan interaksi tanpa muat ulang halaman dengan [htmx](https://htmx.org) |
 | 13 | 0.14 | Testing: helper uji route dan halaman, data uji (factory), laporan cakupan |
 | 14 | 0.15 | Deploy: adapter Docker, Vercel, Cloudflare, dan panduan server sendiri |
-| 15 | 1.0 | Ekosistem: plugin, MCP, subagent, language server, API stabil |
+| 15 | 1.0 | Ekosistem: katalog plugin resmi yang bisa ditawarkan Zentara AI sebagai pilihan, MCP, subagent, language server, API stabil |
+
+## Integrasi framework lain
+
+Zentara tetap memakai satu sistem tampilan, yaitu kit UI `zentara/ui`, supaya semua halaman (termasuk yang dibuat Zentara AI) seragam dan tanpa build step.
+
+- **Tahap 12:** [htmx](https://htmx.org) masuk inti untuk paginasi, filter, dan simpan formulir tanpa memuat ulang halaman. Server tetap mengirim HTML.
+- **Tahap 15:** Tailwind, grafik, editor teks, peta, pembayaran, login Google/GitHub, dan "island" React/Preact menjadi plugin opsional dari katalog resmi (`zentara add <plugin>`). Zentara AI hanya menawarkannya sebagai pilihan saat permintaan memang membutuhkannya, dengan opsi "tanpa plugin" sebagai default, dan pemasangannya selalu meminta persetujuan.
 
 ## Tahap 10: Bahasa Inggris (selesai)
 

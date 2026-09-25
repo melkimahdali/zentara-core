@@ -2,6 +2,18 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.2]
+
+### Diperbaiki
+- **Zentara AI memakai layout aplikasi yang sudah ada** saat diminta membuat halaman, bukan membuat tampilan sendiri.
+  - Ringkasan proyek yang dikirim ke AI kini menyebut `src/app/lib/ui.ts` beserta ekspornya (`appPage`, `APP_NAME`, ...), satu halaman contoh yang sudah memakai `appPage()`, dan daftar route.
+  - Instruksi AI mewajibkan `appPage()` untuk halaman user login dan `page()` untuk halaman publik, meminta membaca halaman serupa lebih dulu, menambahkan halaman baru ke menu `navFor()`, dan melarang `<html>`, `<style>`, CSS, atau navigasi buatan sendiri kecuali diminta.
+  - Bila `write_file`/`edit_file` menulis route yang membuat dokumen HTML atau CSS sendiri, hasil tool memberi catatan agar AI langsung memperbaikinya.
+- Template `api` dan `minimal` tidak lagi membawa folder `zenstyles/` (stylesheet lama bergaya berbeda yang tidak dipakai halaman mana pun dan membingungkan AI). `loadZenStyles()` ditandai usang tetapi tetap ada untuk proyek lama; di proyek lama, AI diberi tahu agar tidak memakainya.
+
+### Ditambahkan
+- Peta jalan: htmx masuk Tahap 12, dan katalog plugin opsional yang bisa ditawarkan Zentara AI sebagai pilihan masuk Tahap 15.
+
 ## [0.12.1]
 
 ### Diperbaiki

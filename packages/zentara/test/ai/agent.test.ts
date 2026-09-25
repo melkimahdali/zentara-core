@@ -89,6 +89,17 @@ describe("keamanan tool", () => {
     assert.equal(found, "Tidak ada hasil.");
   });
 
+  it("write_file/edit_file pada route yang membuat HTML/CSS sendiri menambahkan catatan layout", async () => {
+    fs.mkdirSync(path.join(root, "src", "app", "lib"), { recursive: true });
+    fs.writeFileSync(path.join(root, "src", "app", "lib", "ui.ts"), "export function appPage() {}\n");
+    const ctx = makeContext("auto");
+    const run = (name: string, input: Record<string, unknown>) => agentTools.find((t) => t.spec.name === name)!.run(input, ctx);
+    const written = await run("write_file", { path: "src/app/routes/booking.ts", content: "export const GET = () => `<html><style>b{}</style></html>`;\n" });
+    assert.match(written, /^Dibuat: src\/app\/routes\/booking\.ts\nNote: .*appPage/s);
+    const edited = await run("edit_file", { path: "src/app/routes/booking.ts", old_text: "`<html><style>b{}</style></html>`", new_text: "appPage(ctx, { title: 'Booking', active: '/booking' })" });
+    assert.equal(edited, "Diubah: src/app/routes/booking.ts", "setelah memakai appPage, tidak ada catatan");
+  });
+
   it("edit_file mewajibkan teks yang unik", async () => {
     fs.writeFileSync(path.join(root, "src", "b.ts"), "x\nx\n");
     const ctx = makeContext("auto");
