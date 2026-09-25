@@ -10,7 +10,7 @@ description: Buat proyek Zentara pertama dalam satu menit.
 Butuh Node.js 22 atau lebih baru.
 
 ```bash
-npm create zentara@latest aplikasi-saya     # pilih template: api (login + database) atau minimal
+npm create zentara@latest aplikasi-saya     # pilih bahasa (id/en) dan template: api (login + database) atau minimal
 cd aplikasi-saya
 npx zentara                             # CLI interaktif: chat dengan AI + server dev di latar belakang
 ```
@@ -23,7 +23,8 @@ Atau jalankan server saja dengan `npm run dev` (http://localhost:3000, auto-relo
 | `zentara build` | kompilasi ke `dist/` (memakai `tsconfig.build.json`) |
 | `zentara start` | jalankan hasil build (`dist/app`), default `NODE_ENV=production` |
 | `zentara routes` | daftar route |
-| `zentara make:route <path>` · `make:middleware <nama>` | buat file baru |
+| `zentara make:route <path>` · `make:middleware <nama>` · `make:job <nama>` | buat file baru |
+| `zentara jobs` · `jobs:run <nama>` | job latar belakang |
 | `zentara db:generate` · `db:migrate` · `db:seed` | database |
 | `zentara` | CLI interaktif Zentara AI (gaya Claude Code) |
 | `zentara "<kalimat>"` · `ai:status` · `ai:setup` · `undo` | Zentara AI |
@@ -43,6 +44,7 @@ import { createSqlite, createPostgres } from "zentara/db";
 src/app/routes/       route aplikasi (file = URL)
 src/app/middleware.ts middleware global aplikasi
 src/app/db/           schema, koneksi, dan seed database (template api)
+src/app/jobs/         job latar belakang (file = job, template api)
 src/app/lib/          helper aplikasi (mis. requireUser/requireAdmin)
 public/               file statis
 zenstyles/            CSS aplikasi

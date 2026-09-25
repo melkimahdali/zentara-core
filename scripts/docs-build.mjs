@@ -1,4 +1,4 @@
-// Bangun situs dokumentasi Zentara Core dari docs/*.md menjadi HTML statis di site-dist/.
+// Bangun situs dokumentasi Zentara Core dari docs/*.md (id) dan docs/en/*.md (en) menjadi HTML statis di site-dist/.
 //   npm run docs:build      (butuh `npm run build` lebih dulu: memakai brand & highlighter dari paket zentara)
 //   npm run docs:serve      pratinjau lokal di http://localhost:4173
 // Diterbitkan ke GitHub Pages oleh .github/workflows/docs.yml.
@@ -12,7 +12,41 @@ const DOCS = path.join(ROOT, "docs");
 const OUT = path.join(ROOT, "site-dist");
 const DIST = path.join(ROOT, "packages", "zentara", "dist");
 const REPO = "https://github.com/melkimahdali/zentara-core";
-const GROUPS = ["Memulai", "Zentara AI", "Dasar", "Front-End", "Data & Keamanan", "Referensi"];
+
+/**
+ * Dua bahasa: Indonesia di akar situs (docs/*.md) dan Inggris di /en/ (docs/en/*.md, slug yang sama).
+ * Halaman yang belum diterjemahkan tidak dibuat di /en/; tombol bahasa lalu menuju beranda /en/.
+ */
+const LANGS = {
+  id: {
+    code: "id",
+    dir: DOCS,
+    prefix: "",
+    changelog: "CHANGELOG.md",
+    groups: ["Memulai", "Zentara AI", "Dasar", "Front-End", "Back-End", "Data & Keamanan", "Referensi"],
+    s: {
+      copy: "Salin", copied: "✓ Tersalin", search: "Cari dokumentasi", noResults: "Tidak ada hasil", menu: "Menu", nav: "Navigasi dokumentasi",
+      anchor: "Tautan ke bagian ini", prev: "← Sebelumnya", next: "Berikutnya →", edit: "Perbaiki halaman ini di GitHub", onPage: "Di halaman ini",
+      releases: "Catatan rilis", license: "Lisensi BSL 1.1", switchLabel: "English", switchTitle: "Read the docs in English",
+      releasesDescription: (v) => `Perubahan di setiap versi Zentara Core. Versi terbaru: v${v}.`,
+      releasesIntro: (v) => `Versi terbaru: **v${v}**. Perbarui dengan \`npm install -g zentara@latest\` (CLI) dan \`npm install zentara@latest\` (proyek).`,
+    },
+  },
+  en: {
+    code: "en",
+    dir: path.join(DOCS, "en"),
+    prefix: "en/",
+    changelog: "CHANGELOG.en.md",
+    groups: ["Getting started", "Zentara AI", "Basics", "Front-End", "Back-End", "Data & security", "Reference"],
+    s: {
+      copy: "Copy", copied: "✓ Copied", search: "Search the docs", noResults: "No results", menu: "Menu", nav: "Documentation",
+      anchor: "Link to this section", prev: "← Previous", next: "Next →", edit: "Edit this page on GitHub", onPage: "On this page",
+      releases: "Release notes", license: "BSL 1.1 license", switchLabel: "Bahasa Indonesia", switchTitle: "Baca dokumentasi dalam Bahasa Indonesia",
+      releasesDescription: (v) => `What changed in each Zentara Core version. Latest: v${v}.`,
+      releasesIntro: (v) => `Latest version: **v${v}**. Update with \`npm install -g zentara@latest\` (CLI) and \`npm install zentara@latest\` (projects).`,
+    },
+  },
+};
 
 const load = (rel) => import(pathToFileURL(path.join(DIST, rel)).href);
 if (!fs.existsSync(path.join(DIST, "brand", "assets.js"))) {
@@ -35,41 +69,40 @@ function parse(file) {
     const i = line.indexOf(":");
     if (i > 0) meta[line.slice(0, i).trim()] = line.slice(i + 1).trim();
   }
-  return { slug: path.basename(file, ".md"), title: meta.title, order: Number(meta.order ?? 99), group: meta.group, description: meta.description ?? "", body: raw.slice(m?.[0].length ?? 0) };
+  return { slug: path.basename(file, ".md"), title: meta.title, order: Number(meta.order ?? 99), group: meta.group, description: meta.description ?? "", body: raw.slice(m?.[0].length ?? 0), source: path.relative(ROOT, file).split(path.sep).join("/") };
 }
 /**
- * Halaman "Catatan rilis" dibuat otomatis dari CHANGELOG.md, jadi situs selalu mengikuti versi terbaru
+ * Halaman "Catatan rilis" dibuat otomatis dari CHANGELOG, jadi situs selalu mengikuti versi terbaru
  * setiap kali perubahan (termasuk kenaikan versi) masuk ke main.
  */
-function releaseNotes() {
-  const raw = fs.readFileSync(path.join(ROOT, "CHANGELOG.md"), "utf8");
-  const body = raw
+function releaseNotes(L) {
+  const file = path.join(ROOT, L.changelog);
+  if (!fs.existsSync(file)) return [];
+  const body = fs
+    .readFileSync(file, "utf8")
     .replace(/^# Changelog\s*\n/, "")
     .replace(/^## \[([^\]]+)\]/gm, "## $1");
-  return {
-    slug: "rilis",
-    title: "Catatan rilis",
-    order: 99,
-    group: "Referensi",
-    description: `Perubahan di setiap versi Zentara Core. Versi terbaru: v${ZENTARA_VERSION}.`,
-    body: `# Catatan rilis\n\nVersi terbaru: **v${ZENTARA_VERSION}**. Perbarui dengan \`npm install -g zentara@latest\` (CLI) dan \`npm install zentara@latest\` (proyek).\n\n${body}`,
-    source: "CHANGELOG.md",
-  };
+  const title = L.s.releases;
+  return [{ slug: "rilis", title, order: 99, group: L.groups.at(-1), description: L.s.releasesDescription(ZENTARA_VERSION), body: `# ${title}\n\n${L.s.releasesIntro(ZENTARA_VERSION)}\n\n${body}`, source: L.changelog }];
 }
 
-const pages = [
-  ...fs
-    .readdirSync(DOCS)
-    .filter((f) => f.endsWith(".md"))
-    .map((f) => parse(path.join(DOCS, f))),
-  releaseNotes(),
-]
-  .sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || a.order - b.order);
-for (const p of pages) if (!GROUPS.includes(p.group)) throw new Error(`${p.slug}.md: group tidak dikenal "${p.group}"`);
+function loadPages(L) {
+  const pages = [
+    ...fs
+      .readdirSync(L.dir)
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => parse(path.join(L.dir, f))),
+    ...releaseNotes(L),
+  ].sort((a, b) => L.groups.indexOf(a.group) - L.groups.indexOf(b.group) || a.order - b.order);
+  for (const p of pages) if (!L.groups.includes(p.group)) throw new Error(`${p.source}: group tidak dikenal "${p.group}"`);
+  return pages;
+}
 
 // ── Markdown → HTML ──────────────────────────────────────────────────────
+/** Teks judul dari marked sudah di-escape; kembalikan ke teks biasa sebelum di-escape lagi untuk daftar isi. */
+const decode = (text) => text.replace(/&(amp|lt|gt|quot|#39);/g, (_, e) => ({ amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'" })[e]);
 const slugify = (text) => text.toLowerCase().replace(/<[^>]+>/g, "").replace(/[`*]/g, "").replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
-function render(page) {
+function render(page, L) {
   const toc = [];
   const marked = new Marked({
     gfm: true,
@@ -78,12 +111,12 @@ function render(page) {
         const inner = this.parser.parseInline(tokens);
         if (depth === 1) return `<h1>${inner}</h1>\n`;
         const id = slugify(inner);
-        if (depth === 2) toc.push({ id, text: inner.replace(/<[^>]+>/g, "") });
-        return `<h${depth} id="${id}"><a class="anchor" href="#${id}" aria-label="Tautan ke bagian ini">#</a>${inner}</h${depth}>\n`;
+        if (depth === 2) toc.push({ id, text: decode(inner.replace(/<[^>]+>/g, "")) });
+        return `<h${depth} id="${id}"><a class="anchor" href="#${id}" aria-label="${L.s.anchor}">#</a>${inner}</h${depth}>\n`;
       },
       code({ text, lang }) {
         const code = ["ts", "js", "tsx", "javascript", "typescript"].includes(lang ?? "") ? highlight(text) : escapeHtml(text);
-        return `<div class="code"><button class="copy" type="button">Salin</button><pre><code class="lang-${escapeHtml(lang ?? "")}">${code}</code></pre></div>\n`;
+        return `<div class="code"><button class="copy" type="button">${L.s.copy}</button><pre><code class="lang-${escapeHtml(lang ?? "")}">${code}</code></pre></div>\n`;
       },
       link({ href, title, tokens }) {
         const text = this.parser.parseInline(tokens);
@@ -112,7 +145,8 @@ ${BASE_CSS}
 .results a{display:block;padding:10px 14px;color:var(--text);border-bottom:1px solid var(--border)}
 .results a:hover,.results a.on{background:var(--surface-2);text-decoration:none}
 .results small{display:block;color:var(--muted);font-size:12.5px}
-.doc-top .gh{color:var(--muted);font-size:14px}
+.doc-top .gh,.doc-top .lang{color:var(--muted);font-size:14px}
+.doc-top .lang{border:1px solid var(--border);border-radius:8px;padding:3px 9px;font-weight:600}.doc-top .lang:hover{color:var(--text);border-color:var(--accent);text-decoration:none}.doc-top .lang .short{display:none}
 .menu-btn{display:none}
 .layout{display:grid;grid-template-columns:250px minmax(0,1fr) 200px;gap:36px;max-width:1280px;margin:0 auto;padding:28px 22px 80px}
 .side{position:sticky;top:78px;align-self:start;max-height:calc(100vh - 100px);overflow:auto;font-size:14.5px}
@@ -171,12 +205,12 @@ h2:hover .anchor,h3:hover .anchor{opacity:1}
 .feature .ic{font-size:22px;margin-bottom:8px}
 .foot{border-top:1px solid var(--border);padding:26px 22px;text-align:center;color:var(--muted);font-size:13.5px}
 @media (max-width:1100px){.layout{grid-template-columns:230px minmax(0,1fr)}.toc{display:none}}
-@media (max-width:860px){.layout{grid-template-columns:1fr;padding-top:16px}.side{display:none;position:static;max-height:none}.side.open{display:block}.menu-btn{display:inline-flex}.hero{grid-template-columns:1fr;padding-top:36px}.features{grid-template-columns:1fr}.doc-top .gh,.doc-top .ver{display:none}.search{max-width:none}.doc-top .zx-word{display:none}.anchor{display:none}}
+@media (max-width:860px){.layout{grid-template-columns:1fr;padding-top:16px}.side{display:none;position:static;max-height:none}.side.open{display:block}.menu-btn{display:inline-flex}.hero{grid-template-columns:1fr;padding-top:36px}.features{grid-template-columns:1fr}.doc-top .gh,.doc-top .ver{display:none}.search{max-width:none}.doc-top .zx-word{display:none}.doc-top .lang .long{display:none}.doc-top .lang .short{display:inline}.anchor{display:none}}
 `;
 
-const JS = `
+const JS = (L) => `
 (function(){
-  document.querySelectorAll(".copy").forEach(function(b){ b.addEventListener("click", function(){ navigator.clipboard.writeText(b.nextElementSibling.textContent).then(function(){ b.textContent = "✓ Tersalin"; setTimeout(function(){ b.textContent = "Salin"; }, 1400); }); }); });
+  document.querySelectorAll(".copy").forEach(function(b){ b.addEventListener("click", function(){ navigator.clipboard.writeText(b.nextElementSibling.textContent).then(function(){ b.textContent = ${JSON.stringify(L.s.copied)}; setTimeout(function(){ b.textContent = ${JSON.stringify(L.s.copy)}; }, 1400); }); }); });
   var menu = document.querySelector(".menu-btn"), side = document.querySelector(".side");
   if (menu && side) menu.addEventListener("click", function(){ side.classList.toggle("open"); });
   var input = document.querySelector(".search input"), box = document.querySelector(".results"), index = null, sel = 0;
@@ -192,7 +226,7 @@ const JS = `
         return { it: it, score: score };
       }).filter(Boolean).sort(function(a, b){ return b.score - a.score; }).slice(0, 8);
       sel = 0;
-      box.innerHTML = hits.length ? hits.map(function(h, i){ return '<a href="' + h.it.url + '"' + (i === 0 ? ' class="on"' : "") + '>' + esc(h.it.title) + '<small>' + esc(h.it.description) + '</small></a>'; }).join("") : '<a>Tidak ada hasil</a>';
+      box.innerHTML = hits.length ? hits.map(function(h, i){ return '<a href="' + h.it.url + '"' + (i === 0 ? ' class="on"' : "") + '>' + esc(h.it.title) + '<small>' + esc(h.it.description) + '</small></a>'; }).join("") : '<a>' + ${JSON.stringify(L.s.noResults)} + '</a>';
       box.style.display = "block";
     });
   }
@@ -211,90 +245,145 @@ const JS = `
 `;
 
 const LOGO = `<span class="zx-logo" role="img" aria-label="Zentara Core"></span>`;
-function shell({ title, description, body, active, file }) {
-  const url = new URL(file === "index.html" ? "" : file, SITE).href;
-  return `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+const other = (L) => (L.code === "id" ? LANGS.en : LANGS.id);
+/** Path halaman `file` dalam bahasa `to`, dilihat dari folder bahasa `from`. */
+function hrefFor(file, from, to) {
+  const up = from.prefix ? "../" : "";
+  return `${up}${to.prefix}${file}`;
+}
+
+function shell({ L, title, description, body, file, alternate }) {
+  const url = new URL(L.prefix + (file === "index.html" ? "" : file), SITE).href;
+  const O = other(L);
+  // Tombol bahasa: halaman yang sama bila sudah diterjemahkan, beranda bila belum.
+  const altFile = alternate ? file : "index.html";
+  const alt = new URL(O.prefix + (altFile === "index.html" ? "" : altFile), SITE).href;
+  const hreflang = alternate ? `<link rel="alternate" hreflang="${L.code}" href="${url}"><link rel="alternate" hreflang="${O.code}" href="${alt}">` : "";
+  const s = L.s;
+  return `<!doctype html><html lang="${L.code}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title><meta name="description" content="${escapeHtml(description)}">
-<link rel="canonical" href="${url}"><meta property="og:url" content="${url}"><meta property="og:type" content="website">
+<link rel="canonical" href="${url}">${hreflang}<meta property="og:url" content="${url}"><meta property="og:type" content="website"><meta property="og:locale" content="${L.code === "en" ? "en_US" : "id_ID"}">
 <meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:image" content="https://raw.githubusercontent.com/melkimahdali/zentara-core/main/assets/brand/social/social-preview.jpg"><meta name="theme-color" content="${BRAND.obsidian}">
 <link rel="icon" type="image/png" href="${FAVICON_PNG}"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="style.css"></head><body>
-<header class="doc-top"><button class="zx-btn small menu-btn" type="button" aria-label="Menu">☰</button><a class="brand" href="index.html">${LOGO}<span class="zx-word">Zentara <b>Core</b></span></a><a class="ver" href="rilis.html" title="Catatan rilis">v${escapeHtml(ZENTARA_VERSION)}</a>
-<div class="search"><input type="search" placeholder="Cari dokumentasi…  ( / )" aria-label="Cari dokumentasi"><div class="results"></div></div>
-<a class="gh" href="${REPO}" target="_blank" rel="noopener">GitHub</a><a class="gh" href="https://www.npmjs.com/package/zentara" target="_blank" rel="noopener">npm</a></header>
+<header class="doc-top"><button class="zx-btn small menu-btn" type="button" aria-label="${s.menu}">☰</button><a class="brand" href="index.html">${LOGO}<span class="zx-word">Zentara <b>Core</b></span></a><a class="ver" href="rilis.html" title="${s.releases}">v${escapeHtml(ZENTARA_VERSION)}</a>
+<div class="search"><input type="search" placeholder="${s.search}…  ( / )" aria-label="${s.search}"><div class="results"></div></div>
+<a class="lang" href="${hrefFor(altFile, L, O)}" hreflang="${O.code}" lang="${O.code}" title="${s.switchTitle}"><span class="long">${s.switchLabel}</span><span class="short">${O.code.toUpperCase()}</span></a><a class="gh" href="${REPO}" target="_blank" rel="noopener">GitHub</a><a class="gh" href="https://www.npmjs.com/package/zentara" target="_blank" rel="noopener">npm</a></header>
 ${body}
-<footer class="foot">Zentara Core · ${escapeHtml(TAGLINE)} · Lisensi BSL 1.1 · <a href="${REPO}">GitHub</a></footer>
+<footer class="foot">Zentara Core · ${escapeHtml(TAGLINE)} · ${s.license} · <a href="${REPO}">GitHub</a></footer>
 <script src="app.js"></script></body></html>`;
 }
 
-function sidebar(active) {
-  return GROUPS.map((g) => `<h4>${escapeHtml(g)}</h4>${pages.filter((p) => p.group === g).map((p) => `<a href="${p.slug}.html"${p.slug === active ? ' class="on"' : ""}>${escapeHtml(p.title)}</a>`).join("")}`).join("");
+function sidebar(L, pages, active) {
+  return L.groups
+    .map((g) => [g, pages.filter((p) => p.group === g)])
+    .filter(([, list]) => list.length)
+    .map(([g, list]) => `<h4>${escapeHtml(g)}</h4>${list.map((p) => `<a href="${p.slug}.html"${p.slug === active ? ' class="on"' : ""}>${escapeHtml(p.title)}</a>`).join("")}`)
+    .join("");
+}
+
+// ── Beranda ──────────────────────────────────────────────────────────────
+const feature = (ic, title, text) => `<div class="zx-card feature"><div class="ic">${ic}</div><h3>${title}</h3><p>${text}</p></div>`;
+const HOME = {
+  id: {
+    lead: "Ceritakan apa yang ingin dibangun dalam bahasa sehari-hari; Zentara AI menyusun rencana, meminta persetujuan, menulis kode, lalu mengeceknya.",
+    start: "Mulai cepat →",
+    term: { cwd: "~/aplikasi $", mode: "OmniRoute (gratis) · minta persetujuan", ask: "buatkan halaman portofolio dengan daftar proyek", plan: "Rencana: buat src/app/routes/portofolio.ts\n  pakai kit UI, lalu cek typecheck &amp; test.", write: "Tulis", created: "Dibuat", check: "Cek", passed: "BERHASIL", done: "✓ Selesai", summary: "· 4 langkah · 1 file berubah", file: "portofolio" },
+    features: [
+      ["✦", "Zentara AI", "CLI interaktif gaya Claude Code dan chat di browser. Setiap perubahan ditampilkan sebagai diff dan bisa di-undo."],
+      ["◎", "AI gratis siap pakai", "OmniRoute sebagai default tanpa API key, dengan fallback otomatis ke Claude, OpenAI, Gemini, Groq, dan lainnya."],
+      ["⌁", "Routing berbasis file", "File di src/app/routes menjadi URL. Validasi input dengan zod, valibot, atau arktype."],
+      ["⛁", "Database & auth", "Drizzle ORM (SQLite tanpa instalasi atau PostgreSQL), login dengan scrypt, role, dan rate limit."],
+      ["⏱", "Job, email & unggah file", "Antrean job dengan coba ulang dan jadwal cron, kirim email lewat SMTP, dan unggah file yang aman."],
+      ["⛨", "Aman sejak awal", "Session terenkripsi, CSRF, CORS, halaman error yang tidak membocorkan detail di produksi."],
+    ],
+  },
+  en: {
+    lead: "Describe what you want to build in plain language; Zentara AI plans it, asks for approval, writes the code, then checks it.",
+    start: "Quick start →",
+    term: { cwd: "~/my-app $", mode: "OmniRoute (free) · ask before changes", ask: "build a portfolio page with a list of projects", plan: "Plan: create src/app/routes/portfolio.ts\n  with the UI kit, then run typecheck &amp; tests.", write: "Write", created: "Created", check: "Check", passed: "PASSED", done: "✓ Done", summary: "· 4 steps · 1 file changed", file: "portfolio" },
+    features: [
+      ["✦", "Zentara AI", "A Claude Code–style interactive CLI and an in-browser chat. Every change is shown as a diff and can be undone."],
+      ["◎", "Free AI out of the box", "OmniRoute by default with no API key, with automatic fallback to Claude, OpenAI, Gemini, Groq, and more."],
+      ["⌁", "File-based routing", "Files in src/app/routes become URLs. Validate input with zod, valibot, or arktype."],
+      ["⛁", "Database & auth", "Drizzle ORM (zero-install SQLite or PostgreSQL), scrypt login, roles, and rate limiting."],
+      ["⏱", "Jobs, email & uploads", "A job queue with retries and cron schedules, SMTP email, and safe file uploads."],
+      ["⛨", "Secure by default", "Encrypted sessions, CSRF, CORS, and error pages that never leak details in production."],
+    ],
+  },
+};
+function home(L) {
+  const h = HOME[L.code];
+  const t = h.term;
+  return `<section class="hero"><div>${LOGO.replace('class="zx-logo"', 'class="zx-logo big"')}
+<h1>Zentara <b>Core</b></h1><p class="tag">${escapeHtml(TAGLINE)}</p>
+<p class="lead">${escapeHtml(DESCRIPTION)}. ${escapeHtml(h.lead)}</p>
+<div class="cta"><a class="zx-btn primary" href="mulai-cepat.html">${h.start}</a><a class="zx-btn" href="${REPO}" target="_blank" rel="noopener">GitHub</a></div>
+<div class="zx-cmd install"><span>npm install -g zentara</span><button type="button" class="zx-copy" onclick="navigator.clipboard.writeText('npm install -g zentara');this.textContent='✓'">${L.s.copy}</button></div></div>
+<div class="term"><div class="bar"><i></i><i></i><i></i></div><pre><span class="t-dim">${t.cwd}</span> zentara
+<span class="t-teal">◆ Zentara Core</span> <span class="t-dim">v${escapeHtml(ZENTARA_VERSION)}</span>
+<span class="t-dim">${t.mode}</span>
+
+<span class="t-teal">❯</span> ${t.ask}
+
+<span class="t-teal">⏺</span> ${t.plan}
+<span class="t-dim">⏺</span> <b>${t.write}</b>(src/app/routes/${t.file}.ts)
+  <span class="t-dim">⎿  ${t.created}</span>
+<span class="t-dim">⏺</span> <b>${t.check}</b>(typecheck)
+  <span class="t-dim">⎿  ${t.passed}</span>
+
+<span class="t-ok">${t.done}</span> <span class="t-dim">${t.summary}</span></pre></div></section>
+<section class="features">
+${h.features.map((f) => feature(...f)).join("\n")}
+</section>`;
 }
 
 // ── Tulis situs ──────────────────────────────────────────────────────────
 fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
-fs.writeFileSync(path.join(OUT, "style.css"), CSS);
-fs.writeFileSync(path.join(OUT, "app.js"), JS);
 fs.writeFileSync(path.join(OUT, ".nojekyll"), "");
 
-const index = [];
-pages.forEach((page, i) => {
-  const { html, toc } = render(page);
-  const prev = pages[i - 1];
-  const next = pages[i + 1];
-  const withLead = html.replace(/<\/h1>\n/, `</h1>\n${page.description ? `<p class="lead">${escapeHtml(page.description)}</p>` : ""}`);
-  const body = `<div class="layout"><nav class="side" aria-label="Navigasi dokumentasi">${sidebar(page.slug)}</nav>
+const all = Object.fromEntries(Object.values(LANGS).map((L) => [L.code, loadPages(L)]));
+const sitemap = [];
+for (const L of Object.values(LANGS)) {
+  const out = path.join(OUT, L.prefix);
+  fs.mkdirSync(out, { recursive: true });
+  fs.writeFileSync(path.join(out, "style.css"), CSS);
+  fs.writeFileSync(path.join(out, "app.js"), JS(L));
+  const pages = all[L.code];
+  const translated = new Set(all[other(L).code].map((p) => p.slug));
+  const s = L.s;
+  const index = [];
+  pages.forEach((page, i) => {
+    const { html, toc } = render(page, L);
+    const prev = pages[i - 1];
+    const next = pages[i + 1];
+    const withLead = html.replace(/<\/h1>\n/, `</h1>\n${page.description ? `<p class="lead">${escapeHtml(page.description)}</p>` : ""}`);
+    const body = `<div class="layout"><nav class="side" aria-label="${s.nav}">${sidebar(L, pages, page.slug)}</nav>
 <main class="content">${withLead}
-<div class="pager">${prev ? `<a class="prev" href="${prev.slug}.html"><small>← Sebelumnya</small>${escapeHtml(prev.title)}</a>` : ""}${next ? `<a class="next" href="${next.slug}.html"><small>Berikutnya →</small>${escapeHtml(next.title)}</a>` : ""}</div>
-<p class="edit"><a href="${REPO}/edit/main/${page.source ?? `docs/${page.slug}.md`}" target="_blank" rel="noopener">Perbaiki halaman ini di GitHub</a></p></main>
-<aside class="toc">${toc.length ? `<h4>Di halaman ini</h4>${toc.map((t) => `<a href="#${t.id}">${escapeHtml(t.text)}</a>`).join("")}` : ""}</aside></div>`;
-  fs.writeFileSync(path.join(OUT, `${page.slug}.html`), shell({ title: `${page.title} · Zentara Core`, description: page.description, body, active: page.slug, file: `${page.slug}.html` }));
-  index.push({
-    url: `${page.slug}.html`,
-    title: page.title,
-    description: page.description,
-    headings: toc.map((t) => t.text),
-    text: page.body.replace(/```[\s\S]*?```/g, " ").replace(/[#*`|>\-\[\]()]/g, " ").replace(/\s+/g, " ").slice(0, 4000),
+<div class="pager">${prev ? `<a class="prev" href="${prev.slug}.html"><small>${s.prev}</small>${escapeHtml(prev.title)}</a>` : ""}${next ? `<a class="next" href="${next.slug}.html"><small>${s.next}</small>${escapeHtml(next.title)}</a>` : ""}</div>
+<p class="edit"><a href="${REPO}/edit/main/${page.source}" target="_blank" rel="noopener">${s.edit}</a></p></main>
+<aside class="toc">${toc.length ? `<h4>${s.onPage}</h4>${toc.map((t) => `<a href="#${t.id}">${escapeHtml(t.text)}</a>`).join("")}` : ""}</aside></div>`;
+    const file = `${page.slug}.html`;
+    fs.writeFileSync(path.join(out, file), shell({ L, title: `${page.title} · Zentara Core`, description: page.description, body, file, alternate: translated.has(page.slug) }));
+    sitemap.push(L.prefix + file);
+    index.push({
+      url: file,
+      title: page.title,
+      description: page.description,
+      headings: toc.map((t) => t.text),
+      text: page.body.replace(/```[\s\S]*?```/g, " ").replace(/[#*`|>\-\[\]()]/g, " ").replace(/\s+/g, " ").slice(0, 4000),
+    });
   });
-});
-fs.writeFileSync(path.join(OUT, "search-index.json"), JSON.stringify(index));
-
-// Beranda
-const feature = (ic, title, text) => `<div class="zx-card feature"><div class="ic">${ic}</div><h3>${title}</h3><p>${text}</p></div>`;
-const home = `<section class="hero"><div>${LOGO.replace('class="zx-logo"', 'class="zx-logo big"')}
-<h1>Zentara <b>Core</b></h1><p class="tag">${escapeHtml(TAGLINE)}</p>
-<p class="lead">${escapeHtml(DESCRIPTION)}. Ceritakan apa yang ingin dibangun dalam bahasa sehari-hari; Zentara AI menyusun rencana, meminta persetujuan, menulis kode, lalu mengeceknya.</p>
-<div class="cta"><a class="zx-btn primary" href="mulai-cepat.html">Mulai cepat →</a><a class="zx-btn" href="${REPO}" target="_blank" rel="noopener">GitHub</a></div>
-<div class="zx-cmd install"><span>npm install -g zentara</span><button type="button" class="zx-copy" onclick="navigator.clipboard.writeText('npm install -g zentara');this.textContent='✓'">Salin</button></div></div>
-<div class="term"><div class="bar"><i></i><i></i><i></i></div><pre><span class="t-dim">~/aplikasi $</span> zentara
-<span class="t-teal">◆ Zentara Core</span> <span class="t-dim">v${escapeHtml(ZENTARA_VERSION)}</span>
-<span class="t-dim">OmniRoute (gratis) · minta persetujuan</span>
-
-<span class="t-teal">❯</span> buatkan halaman portofolio dengan daftar proyek
-
-<span class="t-teal">⏺</span> Rencana: buat src/app/routes/portofolio.ts
-  pakai kit UI, lalu cek typecheck &amp; test.
-<span class="t-dim">⏺</span> <b>Tulis</b>(src/app/routes/portofolio.ts)
-  <span class="t-dim">⎿  Dibuat</span>
-<span class="t-dim">⏺</span> <b>Cek</b>(typecheck)
-  <span class="t-dim">⎿  BERHASIL</span>
-
-<span class="t-ok">✓ Selesai</span> <span class="t-dim">· 4 langkah · 1 file berubah</span></pre></div></section>
-<section class="features">
-${feature("✦", "Zentara AI", "CLI interaktif gaya Claude Code dan chat di browser. Setiap perubahan ditampilkan sebagai diff dan bisa di-undo.")}
-${feature("◎", "AI gratis siap pakai", "OmniRoute sebagai default tanpa API key, dengan fallback otomatis ke Claude, OpenAI, Gemini, Groq, dan lainnya.")}
-${feature("⌁", "Routing berbasis file", "File di src/app/routes menjadi URL. Validasi input dengan zod, valibot, atau arktype.")}
-${feature("⛁", "Database & auth", "Drizzle ORM (SQLite tanpa instalasi atau PostgreSQL), login dengan scrypt, role, dan rate limit.")}
-${feature("⛨", "Aman sejak awal", "Session terenkripsi, CSRF, CORS, halaman error yang tidak membocorkan detail di produksi.")}
-${feature("❖", "Halaman error yang membantu", "Stack trace dengan potongan kode dan tombol \"Tanya Zentara AI\" untuk memperbaikinya.")}
-</section>`;
-fs.writeFileSync(path.join(OUT, "index.html"), shell({ title: `Zentara Core · ${DESCRIPTION}`, description: `${DESCRIPTION}. ${TAGLINE}`, body: home, file: "index.html" }));
+  fs.writeFileSync(path.join(out, "search-index.json"), JSON.stringify(index));
+  fs.writeFileSync(path.join(out, "index.html"), shell({ L, title: `Zentara Core · ${DESCRIPTION}`, description: `${DESCRIPTION}. ${TAGLINE}`, body: home(L), file: "index.html", alternate: true }));
+  sitemap.push(L.prefix);
+  console.log(`Dokumentasi (${L.code}): ${pages.length} halaman + beranda → ${path.relative(ROOT, out) || "."}/`);
+}
 
 // Domain kustom & mesin pencari. CNAME ikut diterbitkan agar domain tidak hilang saat deploy.
 fs.writeFileSync(path.join(OUT, "CNAME"), `${SITE.hostname}\n`);
 const today = new Date().toISOString().slice(0, 10);
-const urls = ["", ...pages.map((p) => `${p.slug}.html`)].map((f) => `  <url><loc>${new URL(f, SITE).href}</loc><lastmod>${today}</lastmod></url>`);
+const urls = sitemap.map((f) => `  <url><loc>${new URL(f, SITE).href}</loc><lastmod>${today}</lastmod></url>`);
 fs.writeFileSync(path.join(OUT, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`);
 fs.writeFileSync(path.join(OUT, "robots.txt"), `User-agent: *\nAllow: /\nSitemap: ${new URL("sitemap.xml", SITE).href}\n`);
-console.log(`Dokumentasi: ${pages.length} halaman + beranda → ${path.relative(ROOT, OUT)}/`);

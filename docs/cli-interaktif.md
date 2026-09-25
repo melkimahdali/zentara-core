@@ -85,5 +85,6 @@ Fitur sesi interaktif:
 | `/compact` | ringkas percakapan agar hemat token |
 | `/status` · `/setup` (alias `/login`) | cek atau atur akses AI; `/setup openai` langsung ke provider tertentu |
 | `/omniroute` | OmniRoute (AI gratis): status, `install`, `start`, `stop` |
+| `/lang` | lihat bahasa; `/lang en` atau `/lang id` untuk mengganti |
 | `/clear` | mulai percakapan baru (layar penuh: log dikosongkan) |
 | `/exit` | keluar |

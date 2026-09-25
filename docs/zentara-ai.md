@@ -15,7 +15,7 @@ npx zentara "buatkan API buku tamu dengan nama, pesan, dan tanggal, lengkap deng
 npx zentara undo                  # batalkan perubahan AI terakhir
 ```
 
-
+Zentara AI membalas dalam bahasa yang Anda pakai saat menulis.
 
 ## Persetujuan
 

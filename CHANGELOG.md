@@ -2,6 +2,33 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.0]
+
+Tahap 10 (Bahasa Inggris) dan Tahap 11 (Back-End) dirilis bersama. Bahasa Indonesia tetap default; tidak ada perubahan perilaku untuk proyek yang sudah ada selain yang dicatat di bawah.
+
+### Ditambahkan
+- **Zentara dalam Bahasa Inggris.** Semua teks CLI (Ink dan klasik), `ai:setup`, Zentara AI, halaman sambutan/error/404, pesan error bawaan, kit UI `zentara/ui`, dan `create-zentara` tersedia dalam `id` dan `en`. Katalog bertipe: kunci yang hilang di salah satu bahasa menjadi error TypeScript.
+  - Pilih dengan `zentara lang en` (global, `~/.zentara/settings.json`), `/lang en` di CLI interaktif, `locale: "en"` di `zentara.config.mjs`, atau env `ZENTARA_LANG`.
+  - Zentara AI membalas dalam bahasa pengguna dan menulis teks aplikasi sesuai `locale` proyek. Deskripsi tool untuk model kini berbahasa Inggris.
+  - Kit UI: `money()`, `formatNumber()`, dan `formatDate()` memakai `Intl` sesuai bahasa; `page({ lang })` untuk satu halaman.
+  - `npm create zentara` menanyakan bahasa lebih dulu, atau `--lang en`. Template `api` dan `minimal` tersedia dalam dua bahasa dengan kode yang identik (dijaga oleh test).
+  - Dokumentasi Bahasa Inggris di https://zentara-core.morixa.id/en/ dengan tombol pindah bahasa, README paket npm dua bahasa, dan catatan rilis Bahasa Inggris (`CHANGELOG.en.md`).
+- **Job latar belakang & jadwal cron.** Setiap file di `src/app/jobs/` adalah satu job; masukkan ke antrean dengan `enqueue(nama, data, { delay, runAt, retries })`.
+  - Antrean disimpan di SQLite (`data/jobs.db`), tahan restart dan aman dipakai beberapa proses; job yang gagal dicoba ulang dengan jeda 10 detik, 20 detik, ... sampai 1 jam.
+  - `export const schedule = "0 7 * * *"` menjalankan job sesuai cron (5 kolom, nama hari/bulan, `@daily` dan sejenisnya), sekali per menit walau ada beberapa server.
+  - CLI: `zentara make:job <nama> [--schedule]`, `zentara jobs [--json]`, `zentara jobs:run <nama> [--data]`. Config `jobs` dan env `ZENTARA_JOBS=off`.
+  - Test: antrean di memori saat `NODE_ENV=test`, dan `jobs.drain()` menjalankan semua job yang sudah waktunya.
+- **Email dengan `sendMail()`**: SMTP bawaan tanpa dependency (STARTTLS, `smtps://`, AUTH PLAIN/LOGIN), lampiran, cc/bcc. Diatur dengan `MAIL_URL`/`MAIL_FROM` atau config `mail`. Saat pengembangan email dicetak ke log dan disimpan di `.zentara/mail/`; saat test dikumpulkan di `outbox`; di produksi tanpa `MAIL_URL` melempar error.
+- **Unggah file** dengan `readForm()` (multipart/urlencoded/JSON sebagai `FormData`) dan `saveUpload()`: nama file acak, tipe dari ekstensi, ekstensi berbahaya ditolak, isi gambar/PDF diperiksa, batas ukuran. `readInput()` kini juga membaca multipart.
+- **Cache** di memori: `cache.get/set/has/delete/clear(prefix)` dan `cache.remember(key, ttl, fn)` (permintaan bersamaan hanya menghitung sekali), plus `MemoryCache` dengan TTL dan batas LRU.
+- Template `api`: job `welcome-email` yang mengirim email sambutan setelah mendaftar, beserta testnya.
+- Dokumentasi baru: Job & jadwal, Email, Unggah file, Cache, dan Bahasa.
+
+### Diubah
+- CLI klasik (`--classic`) kini berjalan di atas host yang sama dengan CLI Ink, jadi perilaku keduanya selalu sama.
+- Template `api`: route hapus catatan menjadi `/notes/:id/delete`, dan pesan di URL memakai kode netral (`?msg=created`, `?new=1`) agar sama di kedua bahasa.
+- README paket `zentara` dan `create-zentara` diringkas menjadi dua bahasa dan merujuk ke situs dokumentasi.
+
 ## [0.10.3]
 
 ### Diubah

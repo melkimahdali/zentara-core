@@ -32,6 +32,7 @@ export function GET(ctx: ZenContext) {
 Setiap halaman dari `page()` juga sudah punya:
 
 - **Font Plus Jakarta Sans yang di-host sendiri** di `/_zentara/fonts/` (subset latin dan latin-ext, lisensi SIL OFL di `/_zentara/fonts/LICENSE.txt`). Tidak ada permintaan ke Google Fonts atau CDN lain.
+- **Teks bawaan mengikuti bahasa aktif** (`id` atau `en`), atau `page({ lang })` untuk satu halaman. Lihat [Bahasa](bahasa.html).
 - **Tautan "Lewati ke konten"** untuk pengguna keyboard, menuju elemen `#konten`.
 - **Status memuat pada formulir.** Saat formulir dikirim, tombolnya dinonaktifkan dan diberi `aria-busy`, sehingga tidak terkirim dua kali. Jika tombol punya `loading`, teksnya berganti, mis. `h(Button, { loading: "Menyimpan…" }, "Simpan")`. Skrip kecil ini bisa dimatikan dengan `page({ title, script: false })`; halaman tetap berfungsi tanpanya.
 - Animasi masuk yang halus, otomatis mati untuk pengguna yang memilih *reduced motion*.
@@ -50,7 +51,8 @@ Setiap halaman dari `page()` juga sudah punya:
 | `Search` · `Disclosure` | kolom cari (GET, `?q=`, dengan tautan *Hapus*), dan bagian buka-tutup tanpa JavaScript, mis. formulir tambah data |
 | `Alert` · `Badge` | pesan (`info`, `success`, `error`, `warn`) dan label kecil bersudut (`accent`, `ok`, `warn`, `danger`) |
 | `Table` · `List` · `EmptyState` | tabel data (kolom `align: "num"` untuk angka, `"end"` untuk rata kanan), daftar ringkas dua sisi, dan tampilan saat data kosong dengan saran langkah berikutnya |
-| `Avatar` · `Brand` · `rupiah()` | inisial nama, logo dengan nama aplikasi, dan format `Rp45.000` |
+| `Avatar` · `Brand` | inisial nama dan logo dengan nama aplikasi |
+| `money()` · `formatNumber()` · `formatDate()` · `rupiah()` | format uang, angka, dan tanggal sesuai [bahasa](bahasa.html) aktif; `rupiah(45000)` selalu `Rp45.000` |
 
 Semua warna berupa variabel CSS (`--zu-accent`, `--zu-bg`, `--zu-surface`, dan seterusnya). Ubah tema dengan menimpanya lewat `head`:
 
@@ -67,7 +69,7 @@ import { html, readInput, redirect, tryParse } from "zentara";
 
 export async function POST(ctx: ZenContext) {
   const raw = await readInput(ctx); // form HTML maupun JSON
-  const input = await tryParse(ProductForm, raw);
+  const input = await tryParse(NoteForm, raw);
   if (!input.ok) return html(view({ values: raw, errors: input.errors }), { status: 422 });
   await db.insert(notes).values({ ...input.data, userId: (ctx.state.user as User).id });
   return redirect("/notes?msg=created", 303);
@@ -98,6 +100,5 @@ Proyek baru dari `npm create zentara` (template **api**) langsung punya:
 | `/notes` | contoh fitur milik user: tulis, cari, dan daftar catatan (setiap user hanya melihat catatannya sendiri) |
 | `/notes/:id` | ubah dan hapus catatan |
 | `/admin/users` | daftar pengguna dan perannya (khusus admin) |
-| `/admin/users` | daftar pengguna dan perannya |
 
 Semua halaman ini ada di `src/app/routes/` dan boleh diubah sesuka Anda. `src/app/lib/ui.ts` berisi `appPage()` (kerangka dengan navigasi atas) dan `APP_NAME`. Zentara AI juga memakai kit ini saat Anda meminta halaman baru, mis. *"buatkan halaman jadwal booking untuk user yang login"*.

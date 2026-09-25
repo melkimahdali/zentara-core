@@ -23,7 +23,11 @@ npm install -g zentara
 | `zentara routes [--json]` | daftar route |
 | `zentara make:route <path> [--methods GET,POST]` | buat file route, mis. `api/events/[id]` |
 | `zentara make:middleware <nama>` | buat file middleware |
+| `zentara make:job <nama> [--schedule "0 7 * * *"]` | buat file [job](jobs.html), opsional dengan jadwal cron |
+| `zentara jobs [--json]` | daftar job, jadwal, jalan berikutnya, dan isi antrean |
+| `zentara jobs:run <nama> [--data <json>]` | jalankan satu job sekarang, tanpa antrean |
 | `zentara db:generate` · `db:migrate` · `db:seed` | database (Drizzle) |
+| `zentara lang [id\|en]` | lihat atau ganti [bahasa](bahasa.html) Zentara |
 
 ## Zentara AI
 
@@ -51,6 +55,7 @@ npm install -g zentara
 | `/compact` | ringkas percakapan |
 | `/status` · `/setup [provider]` (alias `/login`) | cek atau atur akses AI |
 | `/omniroute [install\|start\|stop]` | OmniRoute (AI gratis) |
+| `/lang [id\|en]` | ganti bahasa |
 | `/clear` | percakapan baru |
 | `/exit` | keluar |
 
@@ -66,3 +71,4 @@ npm install -g zentara
 | `--continue` | CLI interaktif melanjutkan percakapan terakhir |
 | `--no-ai` | `zentara dev` tanpa chat AI di browser |
 | `--force` | timpa file saat `make:*` |
+| `--lang id\|en` | bahasa untuk `npm create zentara` |

@@ -19,6 +19,10 @@ import { rateLimit } from "zentara";
 export const middleware = [rateLimit({ windowMs: 15 * 60_000, max: 10 })];
 ```
 
+## Unggah file
+
+`saveUpload()` menyimpan file dengan nama acak, menentukan tipe dari ekstensi (bukan dari klaim browser), menolak ekstensi yang bisa dijalankan (`.html`, `.svg`, `.js`, `.php`, ...), dan memeriksa isi file gambar/PDF. [Rinciannya](upload.html#keamanan).
+
 ## Halaman error & mode debug
 
 Saat pengembangan (`NODE_ENV=development`, otomatis lewat `zentara dev`), browser menampilkan halaman error lengkap: stack trace, potongan kode, dan detail request (header rahasia disembunyikan). Di produksi, pengunjung hanya melihat halaman status sederhana tanpa detail internal. Atur manual dengan `debug` di `zentara.config.mjs` atau env `ZENTARA_DEBUG`, tapi jangan aktifkan di produksi.
