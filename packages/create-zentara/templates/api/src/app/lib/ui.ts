@@ -2,10 +2,10 @@ import { h, type Child, type ZenContext } from "zentara";
 import { AppShell, page, type NavItem } from "zentara/ui";
 import type { User } from "../db/schema.js";
 
-/** Nama aplikasi di judul halaman dan sidebar. */
+/** Nama aplikasi di judul halaman dan navigasi atas. */
 export const APP_NAME = "Zentara App";
 
-/** Menu sidebar; bagian "Kelola" hanya untuk admin. */
+/** Menu navigasi atas; bagian "Kelola" hanya untuk admin. */
 function navFor(user: User): NavItem[] {
   const nav: NavItem[] = [{ href: "/dashboard", label: "Dasbor" }];
   if (user.role === "admin") {
@@ -17,7 +17,7 @@ function navFor(user: User): NavItem[] {
 export interface AppPageOptions {
   title: string;
   subtitle?: string;
-  /** href menu yang aktif di sidebar. */
+  /** href menu yang aktif di navigasi. */
   active: string;
   actions?: Child;
 }
@@ -47,4 +47,9 @@ export function appPage(ctx: ZenContext, options: AppPageOptions, ...children: C
 export function flash(ctx: ZenContext, messages: Record<string, string>): string | undefined {
   const code = ctx.query.pesan;
   return typeof code === "string" ? messages[code] : undefined;
+}
+
+/** Tanggal hari ini dalam bahasa Indonesia, mis. "Kamis, 25 September 2026". */
+export function today(): string {
+  return new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(new Date());
 }

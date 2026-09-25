@@ -2,8 +2,9 @@ import { ZENTARA_VERSION } from "../core/devpage/theme.js";
 import { escapeHtml, h, raw, renderToString, type Child } from "../core/view.js";
 
 /**
- * Kit UI Zentara: komponen HTML server-side bergaya brand Zentara Core (teal/emas, mode gelap/terang).
- * Semua teks di-escape otomatis. Stylesheet disajikan framework di /_zentara/ui.css.
+ * Kit UI Zentara: komponen HTML server-side bergaya brand Zentara Core (Zentara Teal, mode gelap/terang,
+ * font Plus Jakarta Sans). Semua teks di-escape otomatis. Stylesheet dan font disajikan framework di
+ * /_zentara/*, tanpa build step dan tanpa layanan pihak ketiga.
  *
  *   import { page, AuthCard, Field, Button } from "zentara/ui";
  *   export const GET = () => page({ title: "Masuk" }, h(AuthCard, { title: "Masuk" }, ...));
@@ -16,42 +17,79 @@ export interface PageOptions {
   description?: string;
   /** Elemen tambahan di <head>, mis. stylesheet aplikasi. */
   head?: Child;
+  /**
+   * Skrip kecil kit UI (default true): tombol kirim berubah jadi "Menyimpan…" dan terkunci selama
+   * formulir dikirim (mencegah kirim ganda). Halaman tetap berfungsi penuh tanpa JavaScript.
+   */
+  script?: boolean;
 }
 
-/** Dokumen HTML lengkap (dengan doctype) yang memuat stylesheet kit UI. */
+/** Tombol kirim terkunci selama formulir dikirim; dipulihkan bila halaman dikembalikan dari cache (tombol Back). */
+const FORM_SCRIPT = `document.addEventListener("submit",function(e){var b=e.submitter||e.target.querySelector("button[type=submit]");if(!b||b.getAttribute("aria-busy")==="true"||e.defaultPrevented)return;b.setAttribute("aria-busy","true");if(b.dataset.loading){b.dataset.label=b.textContent;b.textContent=b.dataset.loading}setTimeout(function(){b.disabled=true})});addEventListener("pageshow",function(e){if(!e.persisted)return;document.querySelectorAll("button[aria-busy=true]").forEach(function(b){b.disabled=false;b.removeAttribute("aria-busy");if(b.dataset.label)b.textContent=b.dataset.label})});`;
+
+/** Dokumen HTML lengkap (dengan doctype) yang memuat stylesheet dan font kit UI. */
 export function page(options: PageOptions, ...body: Child[]): string {
   const head = [
     h("meta", { charset: "utf-8" }),
     h("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),
     h("title", null, options.title),
     options.description ? h("meta", { name: "description", content: options.description }) : null,
+    h("meta", { name: "color-scheme", content: "light dark" }),
+    h("meta", { name: "theme-color", content: "#f3f5f3", media: "(prefers-color-scheme: light)" }),
+    h("meta", { name: "theme-color", content: "#0d1719", media: "(prefers-color-scheme: dark)" }),
     h("link", { rel: "icon", href: "/_zentara/favicon.png" }),
+    h("link", { rel: "preload", href: "/_zentara/fonts/plus-jakarta-sans-latin.woff2", as: "font", type: "font/woff2", crossorigin: "anonymous" }),
     h("link", { rel: "stylesheet", href: `/_zentara/ui.css?v=${ZENTARA_VERSION}` }),
     options.head,
   ];
-  return `<!doctype html>${renderToString(h("html", { lang: options.lang ?? "id" }, h("head", null, head), h("body", { class: "zu" }, body)))}`;
+  const skip = h("a", { class: "zu-skip", href: "#konten" }, "Lewati ke konten");
+  const script = options.script === false ? null : h("script", null, raw(FORM_SCRIPT));
+  return `<!doctype html>${renderToString(h("html", { lang: options.lang ?? "id" }, h("head", null, head), h("body", { class: "zu" }, skip, body, script)))}`;
 }
 
 type WithChildren<P> = P & { children: Child[] };
 
-/** Logo Zentara + nama aplikasi ("Zentara" biasa, kata terakhir berwarna aksen). */
+/** Logo Zentara + nama aplikasi (kata terakhir berwarna aksen, mis. "Toko <b>Sari</b>"). */
 export function Brand({ name = "Zentara Core", href = "/" }: WithChildren<{ name?: string; href?: string }>): Child {
   const words = name.trim().split(/\s+/);
   const last = words.length > 1 ? words.pop()! : undefined;
   return h("a", { class: "zu-brand", href }, h("span", { class: "zu-logo", "aria-hidden": "true" }), h("span", null, words.join(" "), last ? [" ", h("b", null, last)] : null));
 }
 
-/** Kartu di tengah layar untuk halaman masuk, daftar, lupa password. */
-export function AuthCard({ title, subtitle, footer, appName, children }: WithChildren<{ title: string; subtitle?: string; footer?: Child; appName?: string }>): Child {
+export interface AuthAside {
+  /** Kalimat utama di panel brand (layar lebar), mis. "Kelola toko Anda dari satu tempat". */
+  title: string;
+  text?: string;
+}
+
+/**
+ * Halaman masuk/daftar: panel brand di kiri (layar lebar) dan formulir di kanan. Di layar sempit hanya
+ * formulir dengan logo di atasnya.
+ */
+export function AuthCard({
+  title,
+  subtitle,
+  footer,
+  appName,
+  aside,
+  children,
+}: WithChildren<{ title: string; subtitle?: string; footer?: Child; appName?: string; aside?: AuthAside }>): Child {
+  const name = appName ?? "Zentara Core";
+  const panel = aside ?? { title: name, text: "Dibangun dengan Zentara Core." };
   return h(
-    "main",
+    "div",
     { class: "zu-auth" },
+    h("aside", { class: "zu-auth-aside" }, h(Brand, { name }), h("div", null, h("h2", null, panel.title), panel.text ? h("p", null, panel.text) : null)),
     h(
-      "div",
-      { class: "zu-auth-box" },
-      h("div", { class: "zu-auth-head" }, h("span", { class: "zu-logo", role: "img", "aria-label": appName ?? "Zentara" }), h("h1", null, title), subtitle ? h("p", { class: "zu-muted" }, subtitle) : null),
-      h("div", { class: "zu-card" }, children),
-      footer ? h("p", { class: "zu-auth-foot" }, footer) : null,
+      "main",
+      { class: "zu-auth-main", id: "konten" },
+      h(
+        "div",
+        { class: "zu-auth-box" },
+        h("div", { class: "zu-auth-head" }, h("span", { class: "zu-logo", role: "img", "aria-label": name }), h("h1", null, title), subtitle ? h("p", null, subtitle) : null),
+        children,
+        footer ? h("p", { class: "zu-auth-foot" }, footer) : null,
+      ),
     ),
   );
 }
@@ -59,7 +97,7 @@ export function AuthCard({ title, subtitle, footer, appName, children }: WithChi
 export interface NavItem {
   href: string;
   label: string;
-  /** Judul kelompok yang ditampilkan di atas item ini. */
+  /** Awal kelompok menu baru (ditandai garis pemisah tipis sebelum item ini). */
   section?: string;
 }
 
@@ -70,7 +108,7 @@ export interface ShellUser {
 }
 
 /**
- * Kerangka halaman aplikasi: sidebar (logo, navigasi, user + tombol keluar) dan konten.
+ * Kerangka halaman aplikasi: bilah navigasi atas (logo, menu, user + tombol keluar) dan konten.
  * `active` = href menu yang sedang dibuka. Tombol keluar mengirim POST ke `logoutAction` (default /logout).
  */
 export function AppShell({
@@ -85,41 +123,40 @@ export function AppShell({
   children,
 }: WithChildren<{ appName?: string; nav: NavItem[]; active?: string; user?: ShellUser; title: string; subtitle?: string; actions?: Child; logoutAction?: string }>): Child {
   const links: Child[] = [];
-  for (const item of nav) {
-    if (item.section) links.push(h("div", { class: "zu-nav-label" }, item.section));
+  nav.forEach((item, i) => {
+    if (item.section && i > 0) links.push(h("span", { class: "zu-nav-sep", role: "presentation", title: item.section }));
     links.push(h("a", { href: item.href, "aria-current": item.href === active ? "page" : undefined }, item.label));
-  }
-  return h(
-    "div",
-    { class: "zu-shell" },
+  });
+  return [
     h(
-      "aside",
-      { class: "zu-side" },
-      h(Brand, { name: appName }),
-      h("nav", { class: "zu-nav", "aria-label": "Navigasi utama" }, links),
-      user
-        ? h(
-            "div",
-            { class: "zu-side-foot" },
-            h("div", { class: "zu-user" }, h(Avatar, { name: user.name }), h("div", { class: "zu-user-text" }, h("b", null, user.name), h("small", null, user.email ?? user.role ?? ""))),
-            h("form", { method: "post", action: logoutAction }, h(Button, { variant: "ghost", small: true, block: true }, "Keluar")),
-          )
-        : null,
+      "header",
+      { class: "zu-top" },
+      h(
+        "div",
+        { class: "zu-top-in" },
+        h(Brand, { name: appName, href: nav[0]?.href ?? "/" }),
+        h("nav", { class: "zu-nav", "aria-label": "Navigasi utama" }, links),
+        user
+          ? h(
+              "div",
+              { class: "zu-user" },
+              h("div", { class: "zu-user-text" }, h("b", null, user.name), h("small", null, user.email ?? user.role ?? "")),
+              h(Avatar, { name: user.name }),
+              h("form", { method: "post", action: logoutAction }, h(Button, { variant: "ghost", small: true }, "Keluar")),
+            )
+          : null,
+      ),
     ),
     h(
       "main",
-      { class: "zu-main" },
-      h(
-        "div",
-        { class: "zu-main-inner" },
-        h("div", { class: "zu-head" }, h("div", null, h("h1", null, title), subtitle ? h("p", null, subtitle) : null), actions ?? null),
-        children,
-      ),
+      { class: "zu-main", id: "konten" },
+      h("div", { class: "zu-head" }, h("div", null, h("h1", null, title), subtitle ? h("p", null, subtitle) : null), actions ?? null),
+      children,
     ),
-  );
+  ];
 }
 
-/** Lingkaran berisi inisial nama. */
+/** Inisial nama dalam kotak bersudut lembut. */
 export function Avatar({ name }: WithChildren<{ name: string }>): Child {
   const initials = name
     .trim()
@@ -130,17 +167,29 @@ export function Avatar({ name }: WithChildren<{ name: string }>): Child {
   return h("span", { class: "zu-avatar", "aria-hidden": "true" }, initials || "?");
 }
 
+/** Panel berjudul. Pakai hanya bila isinya memang satu kelompok (tabel, formulir); selebihnya cukup jarak. */
 export function Card({ title, actions, flush, children }: WithChildren<{ title?: string; actions?: Child; flush?: boolean }>): Child {
   return h("section", { class: flush ? "zu-card flush" : "zu-card" }, title || actions ? h("div", { class: "zu-card-head" }, h("h2", null, title ?? ""), actions ?? null) : null, children);
 }
 
-/** Grid responsif (kartu statistik, dsb.). */
+/** Grid responsif untuk kartu yang setara. */
 export function Grid({ children }: WithChildren<object>): Child {
   return h("div", { class: "zu-grid" }, children);
 }
 
+/** Dua kolom tidak simetris (2:1), menumpuk di layar sempit. Isi dengan dua anak. */
+export function Split({ children }: WithChildren<object>): Child {
+  return h("div", { class: "zu-split" }, children);
+}
+
+/** Satu angka ringkasan. Kumpulkan beberapa di dalam StatGroup agar tampil sebagai satu strip bersekat. */
 export function Stat({ label, value, hint }: WithChildren<{ label: string; value: string | number; hint?: string }>): Child {
-  return h(Card, null, h("div", { class: "zu-stat" }, h("span", null, label), h("b", null, value), hint ? h("small", null, hint) : null));
+  return h("div", { class: "zu-stat" }, h("span", null, label), h("b", null, value), hint ? h("small", null, hint) : null);
+}
+
+/** Strip angka ringkasan dengan pemisah tipis, pengganti deretan kartu kembar. */
+export function StatGroup({ children }: WithChildren<object>): Child {
+  return h("section", { class: "zu-stats", "aria-label": "Ringkasan" }, children);
 }
 
 export interface FieldProps {
@@ -157,6 +206,7 @@ export interface FieldProps {
   max?: number;
   step?: number | "any";
   autofocus?: boolean;
+  inputmode?: "numeric" | "decimal" | "email" | "tel" | "url" | "search" | "text";
 }
 
 /** Label + input + pesan error/petunjuk, dengan atribut aksesibilitas yang benar. */
@@ -179,6 +229,7 @@ export function Field(props: WithChildren<FieldProps>): Child {
       min: props.min,
       max: props.max,
       step: props.step,
+      inputmode: props.inputmode,
       autofocus: props.autofocus,
       "aria-invalid": props.error ? "true" : undefined,
       "aria-describedby": describedBy,
@@ -197,6 +248,11 @@ export function FormRow({ children }: WithChildren<object>): Child {
   return h("div", { class: "zu-form-row" }, children);
 }
 
+/** Baris tombol di akhir formulir. */
+export function FormActions({ children }: WithChildren<object>): Child {
+  return h("div", { class: "zu-form-actions" }, children);
+}
+
 export function Button({
   variant = "primary",
   type = "submit",
@@ -205,10 +261,21 @@ export function Button({
   block,
   name,
   value,
+  loading,
   children,
-}: WithChildren<{ variant?: "primary" | "secondary" | "ghost" | "danger"; type?: "submit" | "button"; href?: string; small?: boolean; block?: boolean; name?: string; value?: string }>): Child {
+}: WithChildren<{
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  type?: "submit" | "button";
+  href?: string;
+  small?: boolean;
+  block?: boolean;
+  name?: string;
+  value?: string;
+  /** Label selama formulir dikirim, mis. "Menyimpan…" (butuh skrip bawaan page()). */
+  loading?: string;
+}>): Child {
   const cls = ["zu-btn", variant, small ? "small" : "", block ? "block" : ""].filter(Boolean).join(" ");
-  return href ? h("a", { class: cls, href }, children) : h("button", { class: cls, type, name, value }, children);
+  return href ? h("a", { class: cls, href }, children) : h("button", { class: cls, type, name, value, "data-loading": loading }, children);
 }
 
 /**
@@ -227,14 +294,14 @@ export function Alert({ tone = "info", children }: WithChildren<{ tone?: "info" 
   return h("div", { class: `zu-alert ${tone}`, role: tone === "error" ? "alert" : "status" }, children);
 }
 
-export function Badge({ tone, children }: WithChildren<{ tone?: "accent" | "gold" | "danger" | "ok" }>): Child {
+export function Badge({ tone, children }: WithChildren<{ tone?: "accent" | "gold" | "danger" | "ok" | "warn" }>): Child {
   return h("span", { class: tone ? `zu-badge ${tone}` : "zu-badge" }, children);
 }
 
 export interface Column {
   label: string;
-  /** "num" = rata kanan dengan angka tabular. */
-  align?: "num";
+  /** "num" = rata kanan dengan angka tabular; "end" = kolom aksi rapat di kanan. */
+  align?: "num" | "end";
 }
 
 /** Tabel data. Tanpa baris, menampilkan `empty` (atau teks default). */
@@ -246,14 +313,41 @@ export function Table({ columns, rows, empty }: WithChildren<{ columns: Column[]
     h(
       "table",
       { class: "zu-table" },
-      h("thead", null, h("tr", null, columns.map((c) => h("th", { class: c.align }, c.label)))),
+      h("thead", null, h("tr", null, columns.map((c) => h("th", { class: c.align, scope: "col" }, c.label)))),
       h("tbody", null, rows.map((row) => h("tr", null, row.map((cell, i) => h("td", { class: columns[i]?.align }, cell))))),
     ),
   );
 }
 
+/** Daftar ringkas: setiap item satu baris (label di kiri, nilai/aksi di kanan). */
+export function List({ items }: WithChildren<{ items: Child[][] }>): Child {
+  return h("ul", { class: "zu-list" }, items.map((cells) => h("li", null, cells)));
+}
+
+/** Keadaan kosong yang memberi tahu cara mengisinya. */
 export function EmptyState({ title, text, action }: WithChildren<{ title: string; text?: string; action?: Child }>): Child {
   return h("div", { class: "zu-empty" }, h("b", null, title), text ? h("p", null, text) : null, action ?? null);
+}
+
+/** Kotak pencarian (GET). Menampilkan tautan "Hapus pencarian" bila ada kata kunci. */
+export function Search({
+  action,
+  name = "q",
+  value,
+  label = "Cari",
+  placeholder = "Cari…",
+}: WithChildren<{ action: string; name?: string; value?: string; label?: string; placeholder?: string }>): Child {
+  return h(
+    "form",
+    { class: "zu-search", method: "get", action, role: "search" },
+    h("input", { class: "zu-input", type: "search", name, value, placeholder, "aria-label": label }),
+    value ? h("a", { class: "zu-link", href: action }, "Hapus") : null,
+  );
+}
+
+/** Isi yang bisa dibuka-tutup tanpa JavaScript (mis. formulir tambah data). */
+export function Disclosure({ summary, open, children }: WithChildren<{ summary: string; open?: boolean }>): Child {
+  return h("details", { class: "zu-disclosure", open }, h("summary", null, summary), h("div", null, children));
 }
 
 /** Format rupiah, mis. 45000 -> "Rp45.000". */

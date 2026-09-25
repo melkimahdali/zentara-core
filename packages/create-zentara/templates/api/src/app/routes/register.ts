@@ -15,7 +15,13 @@ function view({ values = {}, errors = {}, message }: View): string {
     { title: `Daftar · ${APP_NAME}` },
     h(
       AuthCard,
-      { title: "Buat akun", subtitle: "Gratis, hanya butuh satu menit", appName: APP_NAME, footer: ["Sudah punya akun? ", h("a", { href: "/login" }, "Masuk")] },
+      {
+        title: "Buat akun",
+        subtitle: "Isi tiga kolom di bawah, lalu Anda langsung masuk.",
+        appName: APP_NAME,
+        aside: { title: "Mulai kelola toko Anda hari ini.", text: "Akun baru bisa melihat dasbor. Admin menambahkan produk dan mengatur pengguna." },
+        footer: ["Sudah punya akun? ", h("a", { href: "/login" }, "Masuk")],
+      },
       h(
         Form,
         { action: "/register" },
@@ -23,7 +29,7 @@ function view({ values = {}, errors = {}, message }: View): string {
         h(Field, { name: "name", label: "Nama", value: values.name, error: errors.name, autocomplete: "name", required: true, autofocus: true }),
         h(Field, { name: "email", label: "Email", type: "email", value: values.email, error: errors.email, autocomplete: "email", required: true }),
         h(Field, { name: "password", label: "Password", type: "password", error: errors.password, hint: "Minimal 8 karakter", autocomplete: "new-password", required: true }),
-        h(Button, { block: true }, "Daftar"),
+        h(Button, { block: true, loading: "Membuat akun…" }, "Buat akun"),
       ),
     ),
   );

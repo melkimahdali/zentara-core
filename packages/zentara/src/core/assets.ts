@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { FAVICON_PNG, LOGO_WEBP } from "../brand/assets.js";
+import { FONT_LATIN, FONT_LATIN_EXT, FONT_LICENSE } from "../ui/font.js";
 import { UI_CSS } from "../ui/styles.js";
 
 interface Asset {
@@ -13,12 +14,15 @@ function fromDataUri(uri: string): Buffer {
 
 let assets: Map<string, Asset> | undefined;
 
-/** Aset bawaan framework di /_zentara/* (stylesheet kit UI, logo, favicon). Dibuat sekali saat pertama diminta. */
+/** Aset bawaan framework di /_zentara/* (stylesheet kit UI, font brand + lisensinya, logo, favicon). Dibuat sekali saat pertama diminta. */
 function builtinAssets(): Map<string, Asset> {
   assets ??= new Map([
     ["/_zentara/ui.css", { type: "text/css; charset=utf-8", body: Buffer.from(UI_CSS.trim()) }],
     ["/_zentara/logo.webp", { type: "image/webp", body: fromDataUri(LOGO_WEBP) }],
     ["/_zentara/favicon.png", { type: "image/png", body: fromDataUri(FAVICON_PNG) }],
+    ["/_zentara/fonts/plus-jakarta-sans-latin.woff2", { type: "font/woff2", body: Buffer.from(FONT_LATIN, "base64") }],
+    ["/_zentara/fonts/plus-jakarta-sans-latin-ext.woff2", { type: "font/woff2", body: Buffer.from(FONT_LATIN_EXT, "base64") }],
+    ["/_zentara/fonts/LICENSE.txt", { type: "text/plain; charset=utf-8", body: Buffer.from(FONT_LICENSE) }],
   ]);
   return assets;
 }

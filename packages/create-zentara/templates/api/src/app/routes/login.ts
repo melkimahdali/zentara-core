@@ -23,7 +23,13 @@ function view({ email, next, errors = {}, message }: View): string {
     { title: `Masuk · ${APP_NAME}` },
     h(
       AuthCard,
-      { title: "Masuk", subtitle: `Selamat datang kembali di ${APP_NAME}`, appName: APP_NAME, footer: ["Belum punya akun? ", h("a", { href: "/register" }, "Daftar")] },
+      {
+        title: "Masuk",
+        subtitle: "Pakai email dan password akun Anda.",
+        appName: APP_NAME,
+        aside: { title: "Semua data toko Anda, di satu tempat.", text: "Pantau stok, ubah harga, dan kelola pengguna tanpa membuka spreadsheet." },
+        footer: ["Belum punya akun? ", h("a", { href: "/register" }, "Buat akun")],
+      },
       h(
         Form,
         { action },
@@ -31,7 +37,7 @@ function view({ email, next, errors = {}, message }: View): string {
         h(Field, { name: "email", label: "Email", type: "email", value: email, error: errors.email, autocomplete: "email", required: true, autofocus: !email }),
         h(Field, { name: "password", label: "Password", type: "password", error: errors.password, autocomplete: "current-password", required: true, autofocus: Boolean(email) }),
         next ? h("input", { type: "hidden", name: "next", value: next }) : null,
-        h(Button, { block: true }, "Masuk"),
+        h(Button, { block: true, loading: "Memeriksa…" }, "Masuk"),
       ),
     ),
   );
@@ -48,7 +54,7 @@ export const POST = withMiddleware([rateLimit({ windowMs: 15 * 60_000, max: 10 }
   if (!input.ok) return html(view({ errors: input.errors }), { status: 422 });
   const { email, password, next } = input.data;
   const user = await authenticate(email, password);
-  if (!user) return html(view({ email, next, message: "Email atau password salah" }), { status: 401 });
+  if (!user) return html(view({ email, next, message: "Email atau password salah." }), { status: 401 });
   login(ctx, { id: user.id, role: user.role });
   return redirect(safeNext(next), 303);
 });
