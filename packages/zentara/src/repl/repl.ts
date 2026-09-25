@@ -38,7 +38,7 @@ export interface ReplOptions {
   /** false = jangan tawarkan menjalankan server dev (flag --no-dev). */
   offerDevServer: boolean;
   /** Wizard `ai:setup` (dipanggil dari /setup). */
-  runSetup: (prompts: SetupPrompts, preset?: string) => Promise<number>;
+  runSetup: (prompts: SetupPrompts, preset?: string, io?: Output) => Promise<number>;
   dryRun?: boolean;
   /** Lanjutkan percakapan terakhir yang tersimpan (flag --continue). */
   continueLast?: boolean;

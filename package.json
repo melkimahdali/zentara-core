@@ -4,15 +4,16 @@
   "type": "module",
   "workspaces": [
     "packages/zentara",
-    "packages/create-zentara"
+    "packages/create-zentara",
+    "packages/zentara-cli"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "npm run build -w zentara -w create-zentara",
-    "typecheck": "npm run typecheck -w zentara -w create-zentara",
-    "test": "npm test -w zentara -w create-zentara && node --test scripts/release-approve.test.mjs",
+    "build": "npm run build -w zentara -w create-zentara -w zentara-cli",
+    "typecheck": "npm run typecheck -w zentara -w create-zentara -w zentara-cli",
+    "test": "npm test -w zentara -w create-zentara -w zentara-cli && node --test scripts/release-approve.test.mjs",
     "e2e": "node scripts/e2e.mjs",
     "ai-smoke": "node scripts/ai-smoke.mjs",
     "release:approve": "node scripts/release-approve.mjs",

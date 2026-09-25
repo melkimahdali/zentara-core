@@ -1,4 +1,4 @@
-// Naikkan versi kedua paket bersamaan: node scripts/version.mjs 0.6.1
+// Naikkan versi semua paket bersamaan: node scripts/version.mjs 0.6.1
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,6 +21,10 @@ const edit = (file, fn) => {
 console.log(`Versi -> ${version}`);
 edit("packages/zentara/package.json", (p) => (p.version = version));
 edit("packages/create-zentara/package.json", (p) => (p.version = version));
+edit("packages/zentara-cli/package.json", (p) => {
+  p.version = version;
+  p.peerDependencies.zentara = `^${version}`;
+});
 for (const t of fs.readdirSync(path.join(ROOT, "packages/create-zentara/templates"))) {
   edit(`packages/create-zentara/templates/${t}/package.json`, (p) => (p.dependencies.zentara = `^${version}`));
 }

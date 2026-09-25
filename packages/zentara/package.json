@@ -41,6 +41,10 @@
       "types": "./dist/ui/index.d.ts",
       "default": "./dist/ui/index.js"
     },
+    "./host": {
+      "types": "./dist/repl/host.d.ts",
+      "default": "./dist/repl/host.js"
+    },
     "./db": {
       "types": "./dist/db/index.d.ts",
       "default": "./dist/db/index.js"

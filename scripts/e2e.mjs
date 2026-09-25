@@ -77,6 +77,10 @@ try {
   check(!zentara.files.some((f) => /^(src|test)\/|\.env$|\.db$/.test(f)), "paket zentara tanpa source/test/.env/database");
   check(zentara.files.includes("LICENSE") && zentara.files.includes("README.md"), "paket zentara berisi LICENSE & README");
 
+  const inkCli = pack(path.join(ROOT, "packages", "zentara-cli"));
+  check(inkCli.files.includes("dist/index.js") && inkCli.files.includes("LICENSE") && inkCli.files.includes("README.md"), "paket zentara-cli berisi dist, LICENSE, README");
+  check(!inkCli.files.some((f) => /^(src|test)\//.test(f)), "paket zentara-cli tanpa source/test");
+
   const create = pack(path.join(ROOT, "packages", "create-zentara"));
   check(create.files.includes("templates/api/_gitignore"), "template membawa _gitignore");
   check(create.files.includes("dist/index.js"), "paket create-zentara berisi dist/index.js");
