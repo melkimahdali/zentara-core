@@ -1,3 +1,5 @@
+import { t } from "../i18n/index.js";
+
 /**
  * Format percakapan netral yang dipakai agen Zentara. Setiap provider menerjemahkannya
  * ke format API-nya sendiri, sehingga percakapan bisa berpindah provider di tengah tugas.
@@ -90,7 +92,7 @@ export class ProviderUnavailableError extends Error {
 /** Pekerjaan AI dihentikan oleh pengguna. Tidak memicu fallback ke provider lain. */
 export class AbortedError extends Error {
   constructor() {
-    super("Dihentikan oleh pengguna");
+    super(t().ai.agent.interrupted);
     this.name = "AbortedError";
   }
 }

@@ -50,7 +50,14 @@ export interface CliConfig {
   fullscreen?: boolean;
 }
 
-export type UserConfig = Partial<ZenConfig> & { cli?: CliConfig };
+export type UserConfig = Partial<ZenConfig> & {
+  cli?: CliConfig;
+  /**
+   * Bahasa Zentara untuk proyek ini: CLI, halaman bawaan, pesan error, dan kit UI ("id" atau "en").
+   * Env ZENTARA_LANG menang. Tanpa ini: preferensi global (`zentara lang`), lalu Bahasa Indonesia.
+   */
+  locale?: "id" | "en";
+};
 
 export function defineConfig(config: UserConfig): UserConfig {
   return config;

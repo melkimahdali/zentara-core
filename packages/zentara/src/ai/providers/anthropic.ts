@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { t } from "../../i18n/index.js";
 import {
   AbortedError,
   ProviderUnavailableError,
@@ -31,18 +32,19 @@ function hasCredentialEnv(): boolean {
 
 /** Status yang berarti "provider ini sedang tidak bisa dipakai" sehingga agen pindah ke provider berikutnya. */
 function unavailableReason(err: unknown, hasExplicitKey = false): string | undefined {
-  if (err instanceof Anthropic.APIConnectionError) return "tidak bisa terhubung ke API Claude";
-  if (err instanceof Anthropic.AuthenticationError) return "API key tidak ada atau tidak valid (401)";
-  if (err instanceof Anthropic.PermissionDeniedError) return "akses ditolak (403)";
-  if (err instanceof Anthropic.NotFoundError) return "model tidak tersedia untuk akun ini (404)";
-  if (err instanceof Anthropic.RateLimitError) return "batas kuota/rate limit tercapai (429)";
-  if (err instanceof Anthropic.InternalServerError) return `server Claude bermasalah (${err.status})`;
+  const m = t().ai.providers;
+  if (err instanceof Anthropic.APIConnectionError) return m.claudeConnection;
+  if (err instanceof Anthropic.AuthenticationError) return m.badKey;
+  if (err instanceof Anthropic.PermissionDeniedError) return m.forbidden;
+  if (err instanceof Anthropic.NotFoundError) return m.modelMissing;
+  if (err instanceof Anthropic.RateLimitError) return m.rateLimit;
+  if (err instanceof Anthropic.InternalServerError) return m.claudeServer(err.status);
   if (err instanceof Anthropic.APIError) {
-    if (err.status === 402 || err.type === "billing_error") return "kredit habis (402)";
+    if (err.status === 402 || err.type === "billing_error") return m.noCredit;
     return undefined;
   }
   // Error di sisi client sebelum request terkirim (SDK tidak menemukan kredensial apa pun).
-  if (err instanceof Error && !hasExplicitKey && !hasCredentialEnv()) return "API key belum diatur (isi ANTHROPIC_API_KEY di .env)";
+  if (err instanceof Error && !hasExplicitKey && !hasCredentialEnv()) return m.noKey;
   if (err instanceof Anthropic.AnthropicError) return err.message;
   return undefined;
 }

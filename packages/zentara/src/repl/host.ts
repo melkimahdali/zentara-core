@@ -17,6 +17,7 @@ import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
 import { BackgroundProcess, DevServer, isServerUp, openBrowser, waitForUrl } from "../dev/server.js";
 import { platformCommand } from "../process.js";
 import { DOCS_URL } from "../brand/index.js";
+import { getLocale, LOCALE_NAMES, parseLocale, setLocale, t, writeSettings } from "../i18n/index.js";
 
 /**
  * Inti CLI interaktif tanpa tampilan: sesi AI, server dev, OmniRoute, dan perintah garis miring.
@@ -96,21 +97,13 @@ export interface HostInfo {
   dryRun: boolean;
 }
 
-export const HOST_COMMANDS: [string, string][] = [
-  ["/help", "Tampilkan bantuan"],
-  ["/mode", "Ganti mode persetujuan: /mode ask atau /mode auto"],
-  ["/dev", "Server dev: /dev (status), /dev start, /dev stop, /dev restart"],
-  ["/logs", "Lihat log server dev terakhir"],
-  ["/open", "Buka aplikasi di browser"],
-  ["/undo", "Batalkan perubahan AI terakhir"],
-  ["/resume", "Lanjutkan percakapan sebelumnya"],
-  ["/compact", "Ringkas percakapan agar hemat token"],
-  ["/omniroute", "OmniRoute (AI gratis): /omniroute (status), install, start, stop"],
-  ["/status", "Cek provider AI"],
-  ["/setup", "Atur akses AI: provider, API key, model"],
-  ["/clear", "Mulai percakapan baru"],
-  ["/exit", "Keluar"],
-];
+/** Perintah garis miring beserta keterangannya, dalam bahasa aktif. */
+export function hostCommands(): [string, string][] {
+  return t().host.commands;
+}
+
+/** @deprecated Pakai hostCommands() (mengikuti bahasa aktif). */
+export const HOST_COMMANDS: [string, string][] = hostCommands();
 
 export interface ReplHost {
   readonly info: HostInfo;
@@ -134,11 +127,12 @@ function shortPath(p: string): string {
 
 function ago(iso: string): string {
   const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
-  if (minutes < 1) return "baru saja";
-  if (minutes < 60) return `${minutes} menit lalu`;
+  const m = t().host.ago;
+  if (minutes < 1) return m.now;
+  if (minutes < 60) return m.minutes(minutes);
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} jam lalu`;
-  return `${Math.round(hours / 24)} hari lalu`;
+  if (hours < 24) return m.hours(hours);
+  return m.days(Math.round(hours / 24));
 }
 
 export async function createReplHost(options: HostOptions, ui: HostUI): Promise<ReplHost> {
@@ -162,23 +156,23 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
   devServer.on("ready", (url: string) => {
     if (!announcedReady) {
       announcedReady = true;
-      ui.notice(`● Server dev berjalan di ${url}${devtools ? "  ·  chat Zentara AI juga ada di halaman itu" : ""}`, "ok");
+      ui.notice(t().host.serverRunning(url, Boolean(devtools)), "ok");
     }
     ui.changed();
   });
   devServer.on("problem", (line: string) => {
     if (Date.now() - serverNoticeAt < 4000) return;
     serverNoticeAt = Date.now();
-    ui.notice(`⚠ Server: ${line.trim().slice(0, 140)}  (/logs)`, "warn");
+    ui.notice(t().host.serverProblem(line.trim().slice(0, 140)), "warn");
   });
   devServer.on("exit", (code: number | null) => {
     announcedReady = false;
-    if (code) ui.notice(`● Server dev berhenti (kode ${code}). Lihat /logs, jalankan lagi dengan /dev start.`, "error");
+    if (code) ui.notice(t().host.serverStopped(code), "error");
     ui.changed();
   });
 
   async function waitForServer(timeoutMs = 25_000): Promise<string> {
-    if (devServer.state === "running" && devServer.url) return `Server berjalan di ${devServer.url}`;
+    if (devServer.state === "running" && devServer.url) return `Server running at ${devServer.url}`;
     return new Promise((resolve) => {
       const done = (text: string) => {
         clearTimeout(timer);
@@ -186,9 +180,9 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
         devServer.off("exit", onExit);
         resolve(text);
       };
-      const onReady = (url: string) => done(`Server berjalan di ${url}`);
-      const onExit = () => done(`Server berhenti. Log terakhir:\n${devServer.logs(30).join("\n")}`);
-      const timer = setTimeout(() => done(`Server belum siap setelah ${timeoutMs / 1000} detik. Log:\n${devServer.logs(30).join("\n")}`), timeoutMs);
+      const onReady = (url: string) => done(`Server running at ${url}`);
+      const onExit = () => done(`Server stopped. Latest logs:\n${devServer.logs(30).join("\n")}`);
+      const timer = setTimeout(() => done(`Server not ready after ${timeoutMs / 1000} seconds. Logs:\n${devServer.logs(30).join("\n")}`), timeoutMs);
       devServer.on("ready", onReady);
       devServer.on("exit", onExit);
     });
@@ -198,7 +192,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     spec: {
       name: "dev_server",
       description:
-        "Server pengembangan (npm run dev) yang berjalan di latar belakang CLI ini. status = cek apakah jalan & URL-nya; logs = baca log server terakhir (untuk melihat error runtime); start/restart = nyalakan atau mulai ulang (selalu minta persetujuan pengguna). Server otomatis dimuat ulang saat file berubah, jadi biasanya tidak perlu restart.",
+        "The development server (npm run dev) running in the background of this CLI. status = check whether it runs and its URL; logs = read the latest server logs (to see runtime errors); start/restart = start or restart it (always asks the developer). The server reloads automatically when files change, so a restart is rarely needed.",
       inputSchema: {
         type: "object",
         properties: { action: { type: "string", enum: ["status", "logs", "start", "restart"] } },
@@ -209,22 +203,22 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     async run(input, ctx) {
       const action = input.action;
       if (action === "status") {
-        if (externalServer) return `Server sudah dijalankan di terminal lain: ${externalServer} (log tidak tersedia di sini).`;
+        if (externalServer) return `The server already runs in another terminal: ${externalServer} (logs are not available here).`;
         return `state: ${devServer.state}${devServer.url ? `\nurl: ${devServer.url}` : ""}`;
       }
-      if (action === "logs") return externalServer ? "Server berjalan di terminal lain; log tidak tersedia." : devServer.logs(80).join("\n") || "(log kosong)";
-      if (action !== "start" && action !== "restart") throw new ToolError("action harus status, logs, start, atau restart");
-      if (externalServer) throw new ToolError(`Server sudah berjalan di terminal lain (${externalServer}).`);
+      if (action === "logs") return externalServer ? "The server runs in another terminal; logs are not available." : devServer.logs(80).join("\n") || "(empty log)";
+      if (action !== "start" && action !== "restart") throw new ToolError("action must be status, logs, start, or restart");
+      if (externalServer) throw new ToolError(`The server already runs in another terminal (${externalServer}).`);
       const approved = await ctx.approval.approve(
         {
           tool: "dev_server",
           risk: "critical",
-          reason: `menjalankan ${devServer.commandText} di latar belakang`,
-          summary: action === "start" ? `Jalankan ${devServer.commandText} di latar belakang` : "Mulai ulang server dev",
+          reason: t().ai.approval.devServerReason(devServer.commandText),
+          summary: action === "start" ? t().ai.approval.devServerStart(devServer.commandText) : t().ai.approval.devServerRestart,
         },
         ctx.signal,
       );
-      if (!approved) throw new ToolError("Pengguna tidak menyetujui. Jangan ulangi; beri tahu cara menjalankannya sendiri (/dev start).");
+      if (!approved) throw new ToolError("The developer declined. Do not retry; tell them how to start it themselves (/dev start).");
       if (action === "restart") await devServer.stop();
       devServer.start();
       ui.changed();
@@ -239,7 +233,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     toolStart: (call) => ui.toolStart(call, toolTitle(call).replace(/\x1b\[[0-9;]*m/g, "")),
     toolEnd: (call, result) => ui.toolEnd(call, result, toolResultSummary(call, result)),
     info: (m) => ui.notice(m, "dim"),
-    fallback: (from, reason, to) => ui.notice(`✗ ${from} tidak tersedia: ${reason}${to ? ` → pindah ke ${to}` : ""}`, "warn"),
+    fallback: (from, reason, to) => ui.notice(t().host.fallback(from, reason, to), "warn"),
   };
   const newSession = (cfg: AiConfig): AiSession =>
     createAiSession({ root: cwd, config: cfg, ui: sessionUI, prompter: (a, s) => ui.approve(a, s), dryRun: options.dryRun, extraTools: [devServerTool], persist: true });
@@ -249,7 +243,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
   const setupIo: Output = {
     out: (l) => {
       const text = l.replace(/\x1b\[[0-9;]*m/g, "");
-      if (text.trim()) ui.notice(text, /✓/.test(text) ? "ok" : /✗|gagal/i.test(text) ? "error" : "info");
+      if (text.trim()) ui.notice(text, /✓/.test(text) ? "ok" : /✗|gagal|failed/i.test(text) ? "error" : "info");
     },
     err: (l) => ui.notice(l.replace(/\x1b\[[0-9;]*m/g, ""), "error"),
   };
@@ -258,7 +252,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     ask: async (question) => ((await ui.ask(question)) ?? "").trim(),
     secret: async (question) => ((await ui.ask(question, { secret: true })) ?? "").trim(),
     confirm: (question, defaultYes = true) =>
-      ui.choose(question, defaultYes ? [{ label: "Ya", value: true }, { label: "Tidak", value: false }] : [{ label: "Tidak", value: false }, { label: "Ya", value: true }], false),
+      ui.choose(question, defaultYes ? [{ label: t().host.yes, value: true }, { label: t().host.no, value: false }] : [{ label: t().host.no, value: false }, { label: t().host.yes, value: true }], false),
   };
 
   async function runSetupWizard(preset?: string): Promise<void> {
@@ -267,7 +261,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       config = await options.loadConfig();
       session = newSession(config);
       readyProvider = await readiness(config);
-      ui.notice(`Provider: ${config.providers.map((p) => p.name ?? "claude").join(" → ")} (percakapan baru dimulai)`, "dim");
+      ui.notice(t().host.providersNow(config.providers.map((p) => p.name ?? "claude").join(" → ")), "dim");
     } catch (err) {
       ui.notice((err as Error).message, "error");
     }
@@ -298,14 +292,14 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     if (await isServerUp(omniUrl)) return true;
     omniroute = new BackgroundProcess(OMNIROUTE.command, [], { cwd, env: omnirouteEnv(options.serverEnv) });
     omniroute.start();
-    ui.busy("Menyalakan OmniRoute");
+    ui.busy(t().host.busyOmniroute);
     const ok = await waitForUrl(omniUrl, 90_000, () => omniroute!.running);
     ui.busy(undefined);
     if (ok) {
-      ui.notice(`● OmniRoute (AI gratis) berjalan · dashboard ${OMNIROUTE.dashboard}`, "ok");
-      for (const tip of OMNIROUTE_TIPS) ui.notice(`  ${tip}`, "dim");
+      ui.notice(t().host.omnirouteRunning(OMNIROUTE.dashboard), "ok");
+      for (const tip of OMNIROUTE_TIPS()) ui.notice(`  ${tip}`, "dim");
     } else {
-      ui.notice("⚠ OmniRoute belum siap; sementara memakai provider lain yang tersedia. Log terakhir:", "warn");
+      ui.notice(t().host.omnirouteNotReady, "warn");
       for (const line of omniroute.logs(8)) ui.notice(`  │ ${line}`, "dim");
     }
     readyProvider = await readiness(config);
@@ -315,34 +309,34 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
 
   async function installOmni(): Promise<boolean> {
     if (!nodeSupportsOmniRoute()) {
-      ui.notice(`⚠ OmniRoute butuh Node.js 22.22+ atau 24+ (Anda memakai ${process.version}). Perbarui Node.js lalu jalankan: npm install -g omniroute`, "warn");
+      ui.notice(t().host.omnirouteNeedsNode(process.version), "warn");
       return false;
     }
-    ui.notice("$ npm install -g omniroute   (±1–3 menit, sekali saja)", "dim");
+    ui.notice(t().host.omnirouteInstalling, "dim");
     const ok = await ui.suspend(() => installOmniRoute());
     if (!ok || !omnirouteInstalled()) {
-      ui.notice("⚠ Pemasangan OmniRoute gagal. Coba jalankan sendiri: npm install -g omniroute (di Windows mungkin perlu terminal Administrator).", "warn");
+      ui.notice(t().host.omnirouteInstallFailed, "warn");
       return false;
     }
-    ui.notice("✓ OmniRoute terpasang.", "ok");
+    ui.notice(t().host.omnirouteInstalled, "ok");
     return true;
   }
 
   async function createProject(): Promise<number> {
-    const name = ((await ui.ask("Nama folder proyek", { placeholder: "zentara-app" })) ?? "").trim() || "zentara-app";
+    const name = ((await ui.ask(t().host.projectFolder, { placeholder: "zentara-app" })) ?? "").trim() || "zentara-app";
     const target = path.resolve(cwd, name);
     return ui.suspend(async () => {
-      const cmd = platformCommand("npm", ["create", "zentara@latest", name]);
+      const cmd = platformCommand("npm", ["create", "zentara@latest", name, "--", "--lang", getLocale()]);
       const code = await new Promise<number>((resolve) => {
         const child = spawn(cmd.command, cmd.args, { cwd, stdio: "inherit", shell: cmd.shell });
         child.on("error", () => resolve(1));
         child.on("close", (c2) => resolve(c2 ?? 1));
       });
       if (code !== 0 || !fs.existsSync(path.join(target, "src", "app"))) {
-        process.stdout.write("  Proyek belum berhasil dibuat.\n");
+        process.stdout.write(t().host.projectFailed);
         return 1;
       }
-      process.stdout.write(`\n  ✓ Proyek siap. Membuka Zentara di ${shortPath(target)}...\n    (Lain kali: cd ${name} lalu ketik zentara)\n\n`);
+      process.stdout.write(t().host.projectReady(shortPath(target), name));
       await devtools?.close();
       return new Promise<number>((resolve) => {
         const child = spawn(process.execPath, [...process.execArgv, process.argv[1]!], { cwd: target, stdio: "inherit" });
@@ -355,10 +349,10 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
   function resumeSession(id: string): void {
     const saved = loadSession(cwd, id);
     if (!saved || !session.resume(id)) {
-      ui.notice("Percakapan tidak ditemukan.", "warn");
+      ui.notice(t().host.sessionNotFound, "warn");
       return;
     }
-    ui.notice(`↺ Melanjutkan: ${saved.title.slice(0, 80)} (${ago(saved.updatedAt)})`, "ok");
+    ui.notice(t().host.resuming(saved.title.slice(0, 80), ago(saved.updatedAt)), "ok");
     const clip = (t: string) => t.replace(/<project>[\s\S]*?<\/project>\s*/, "").replace(/\s+/g, " ").trim().slice(0, 160);
     const lastUser = [...saved.messages].reverse().find((m) => m.role === "user" && !m.text.startsWith("["));
     const lastAi = [...saved.messages].reverse().find((m) => m.role === "assistant" && m.text.trim());
@@ -367,11 +361,11 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     ui.changed();
   }
 
-  const confirm = (question: string) => ui.choose(question, [{ label: "Ya", value: true }, { label: "Tidak", value: false }], false);
+  const confirm = (question: string) => ui.choose(question, [{ label: t().host.yes, value: true }, { label: t().host.no, value: false }], false);
 
   async function runTask(task: string): Promise<void> {
     if (lock.owner) {
-      ui.notice(`Zentara AI sedang mengerjakan tugas dari ${lock.owner}. Tunggu sampai selesai.`, "warn");
+      ui.notice(t().host.aiBusy(lock.owner === "terminal" ? t().host.terminal : lock.owner), "warn");
       return;
     }
     lock.owner = "terminal";
@@ -389,26 +383,20 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       ui.changed();
     }
     if (!result) return;
-    const label = {
-      done: "✓ Selesai",
-      incomplete: "… Belum selesai (batas langkah)",
-      refused: "✗ Ditolak model",
-      verification_failed: "✗ Verifikasi gagal",
-      interrupted: "■ Dihentikan",
-    }[result.status];
+    const label = t().host.result[result.status];
     const tone: Tone = result.status === "done" ? "ok" : result.status === "verification_failed" ? "error" : "warn";
-    const files = result.changedFiles.length ? ` · ${result.changedFiles.length} file berubah (/undo untuk membatalkan)` : "";
-    ui.notice(`${label} · ${result.steps} langkah${result.providersUsed.length ? ` · ${result.providersUsed.join(", ")}` : ""}${files}`, tone);
-    if (result.changedFiles.length && devServer.url) ui.notice(`  Lihat hasilnya: ${devServer.url}`, "dim");
+    const files = result.changedFiles.length ? t().host.filesChanged(result.changedFiles.length) : "";
+    ui.notice(t().host.steps(label, result.steps, result.providersUsed.join(", "), files), tone);
+    if (result.changedFiles.length && devServer.url) ui.notice(t().host.seeResult(devServer.url), "dim");
   }
 
   function serverLine(): string {
     const s = host.status().server;
     if (s.state === "external" || s.state === "running") return `● ${s.url}`;
-    if (s.state === "starting") return "● server dev dimulai...";
-    if (s.state === "crashed") return "● server dev berhenti (/logs)";
-    if (s.state === "stopped") return "○ server dev mati (/dev start)";
-    return "○ di luar proyek Zentara";
+    if (s.state === "starting") return t().host.server.starting;
+    if (s.state === "crashed") return t().host.server.crashed;
+    if (s.state === "stopped") return t().host.server.stopped;
+    return t().host.server.none;
   }
 
   async function command(line: string): Promise<"exit" | void> {
@@ -417,8 +405,8 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     switch (cmd) {
       case "help":
       case "?":
-        for (const [name, desc] of HOST_COMMANDS) ui.notice(`${name.padEnd(11)} ${desc}`);
-        ui.notice('Selain itu, tulis saja permintaan Anda, mis. "buatkan halaman portofolio dengan daftar proyek".', "dim");
+        for (const [name, desc] of hostCommands()) ui.notice(`${name.padEnd(11)} ${desc}`);
+        ui.notice(t().host.helpFooter, "dim");
         return;
       case "exit":
       case "quit":
@@ -427,66 +415,67 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       case "clear":
         session.reset();
         ui.clear?.();
-        ui.notice("Percakapan baru dimulai.", "dim");
+        ui.notice(t().host.newConversation, "dim");
         ui.changed();
         return;
       case "mode": {
-        const mode = arg === "auto" || arg === "otomatis" ? "auto" : arg === "ask" || arg === "tanya" ? "ask" : session.approval.mode === "auto" ? "ask" : "auto";
+        const m = t().host;
+        const mode = m.modeAutoWords.includes(arg) ? "auto" : m.modeAskWords.includes(arg) ? "ask" : session.approval.mode === "auto" ? "ask" : "auto";
         session.approval.setMode(mode);
-        ui.notice(`Mode: ${mode === "auto" ? "otomatis (perubahan biasa langsung dikerjakan; aksi krusial tetap ditanyakan)" : "minta persetujuan untuk setiap perubahan"}`);
+        ui.notice(m.modeNow(mode === "auto"));
         ui.changed();
         return;
       }
       case "dev": {
-        if (externalServer) return ui.notice(`Server sudah berjalan di terminal lain: ${externalServer}`);
+        if (externalServer) return ui.notice(t().host.serverElsewhere(externalServer));
         if (arg === "stop") {
           await devServer.stop();
-          ui.notice("Server dev dihentikan.");
+          ui.notice(t().host.serverStoppedManual);
         } else if (arg === "start" || arg === "restart") {
-          if (!isProject) return ui.notice("Folder src/app tidak ada: ini bukan proyek Zentara.", "warn");
+          if (!isProject) return ui.notice(t().host.notProject, "warn");
           if (arg === "restart") await devServer.stop();
           if (!devServer.running) {
             devServer.start();
             ui.changed();
-            ui.busy("Menyalakan server");
+            ui.busy(t().host.busyServer);
             const text = await waitForServer();
             ui.busy(undefined);
             ui.notice(text.split("\n")[0]!);
-          } else ui.notice(`Server dev sudah berjalan${devServer.url ? ` di ${devServer.url}` : ""}.`);
+          } else ui.notice(t().host.serverAlready(devServer.url));
         } else ui.notice(serverLine());
         ui.changed();
         return;
       }
       case "logs": {
-        const lines = externalServer ? ["(server berjalan di terminal lain)"] : devServer.logs(Number(arg) || 40);
-        if (!lines.length) ui.notice("(belum ada log)", "dim");
+        const lines = externalServer ? [t().host.logsElsewhere] : devServer.logs(Number(arg) || 40);
+        if (!lines.length) ui.notice(t().host.noLogs, "dim");
         for (const l of lines) ui.notice(`│ ${l}`, "dim");
         return;
       }
       case "open": {
         const url = externalServer ?? devServer.url;
-        if (!url) return ui.notice("Server dev belum berjalan. Jalankan dengan /dev start.", "warn");
+        if (!url) return ui.notice(t().host.serverNotRunning, "warn");
         openBrowser(url + (arg ? `/${arg.replace(/^\/+/, "")}` : ""));
-        ui.notice(`Membuka ${url}...`, "dim");
+        ui.notice(t().host.opening(url), "dim");
         return;
       }
       case "undo": {
         const preview = latestJournal(cwd);
-        if (!preview) return ui.notice("Tidak ada perubahan AI yang bisa dibatalkan.");
-        ui.notice(`Perubahan terakhir: ${preview.task.split("\n")[0]!.slice(0, 80)}`);
-        for (const e of preview.entries) ui.notice(`  ${e.action === "delete" ? "hapus   " : "pulihkan"} ${e.path}`, "dim");
-        if (await confirm("Batalkan perubahan ini?")) {
+        if (!preview) return ui.notice(t().host.nothingToUndo);
+        ui.notice(t().host.lastChange(preview.task.split("\n")[0]!.slice(0, 80)));
+        for (const e of preview.entries) ui.notice(`  ${e.action === "delete" ? t().host.undoDelete : t().host.undoRestore} ${e.path}`, "dim");
+        if (await confirm(t().host.confirmUndo)) {
           undoLatest(cwd);
-          ui.notice("✓ Perubahan dibatalkan.", "ok");
+          ui.notice(t().host.undone, "ok");
         }
         return;
       }
       case "resume": {
         const sessions = listSessions(cwd).filter((s) => s.id !== session.id);
-        if (sessions.length === 0) return ui.notice("Belum ada percakapan tersimpan.");
+        if (sessions.length === 0) return ui.notice(t().host.noSessions);
         const choice = await ui.choose(
-          "Lanjutkan percakapan",
-          sessions.slice(0, 15).map((s) => ({ label: s.title.slice(0, 60) || "(tanpa judul)", value: s.id, hint: `${ago(s.updatedAt)} · ${s.turns} permintaan` })),
+          t().host.resumeTitle,
+          sessions.slice(0, 15).map((s) => ({ label: s.title.slice(0, 60) || t().host.untitled, value: s.id, hint: t().host.sessionHint(ago(s.updatedAt), s.turns) })),
           "",
         );
         if (choice) resumeSession(choice);
@@ -494,14 +483,14 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       }
       case "compact": {
         controller = new AbortController();
-        ui.busy("Meringkas percakapan");
+        ui.busy(t().host.busyCompact);
         try {
           const res = await session.compact({ signal: controller.signal });
           ui.busy(undefined);
-          ui.notice(res ? `✓ Percakapan diringkas (~${res.before} → ~${res.after} token)` : "Percakapan masih pendek, tidak perlu diringkas.", res ? "ok" : "info");
+          ui.notice(res ? t().host.compacted(res.before, res.after) : t().host.compactNotNeeded, res ? "ok" : "info");
         } catch (err) {
           ui.busy(undefined);
-          ui.notice(controller.signal.aborted ? "Dibatalkan." : `✗ Gagal meringkas: ${(err as Error).message}`, controller.signal.aborted ? "warn" : "error");
+          ui.notice(controller.signal.aborted ? t().host.cancelled : t().host.compactFailed((err as Error).message), controller.signal.aborted ? "warn" : "error");
         } finally {
           controller = undefined;
           ui.changed();
@@ -511,13 +500,13 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       case "omniroute": {
         const url = omniUrl ?? `${OMNIROUTE.api}/models`;
         if (arg === "install") {
-          if (omnirouteInstalled()) ui.notice("OmniRoute sudah terpasang.");
-          else if ((await confirm("Pasang OmniRoute sekarang (npm install -g omniroute)?")) && (await installOmni())) {
+          if (omnirouteInstalled()) ui.notice(t().host.omnirouteAlready);
+          else if ((await confirm(t().host.confirmOmnirouteInstall)) && (await installOmni())) {
             omniUrl ??= url;
             await startOmniRoute();
           }
         } else if (arg === "start") {
-          if (!omnirouteInstalled()) ui.notice("OmniRoute belum terpasang. Jalankan: /omniroute install", "warn");
+          if (!omnirouteInstalled()) ui.notice(t().host.omnirouteNotInstalled, "warn");
           else {
             omniUrl ??= url;
             await startOmniRoute();
@@ -525,11 +514,11 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
         } else if (arg === "stop") {
           if (omniroute?.running) {
             await omniroute.stop();
-            ui.notice("OmniRoute dihentikan.");
-          } else ui.notice("OmniRoute tidak dijalankan dari sesi ini.");
+            ui.notice(t().host.omnirouteStopped);
+          } else ui.notice(t().host.omnirouteNotOurs);
         } else {
           const up = await isServerUp(url);
-          ui.notice(`OmniRoute: ${up ? "berjalan" : omnirouteInstalled() ? "terpasang, belum berjalan (/omniroute start)" : "belum terpasang (/omniroute install)"}`, up ? "ok" : "warn");
+          ui.notice(t().host.omnirouteState(up ? "running" : omnirouteInstalled() ? "installed" : "missing"), up ? "ok" : "warn");
           ui.notice(`Dashboard: ${OMNIROUTE.dashboard} · API: ${OMNIROUTE.api} · ${OMNIROUTE.repo}`, "dim");
         }
         if (arg === "install" || arg === "start") session = newSession(config);
@@ -537,7 +526,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
         return;
       }
       case "status": {
-        ui.busy("Mengecek provider");
+        ui.busy(t().host.busyStatus);
         const rows: [string, Tone][] = [];
         for (const provider of createProviders(config.providers)) {
           try {
@@ -554,8 +543,24 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       case "login":
         await runSetupWizard(arg || undefined);
         return;
+      case "lang":
+      case "bahasa":
+      case "language": {
+        if (!arg) return ui.notice(t().host.langNow(LOCALE_NAMES[getLocale()]));
+        const locale = parseLocale(arg);
+        if (!locale) return ui.notice(t().host.langInvalid(arg), "warn");
+        setLocale(locale);
+        try {
+          writeSettings({ locale });
+        } catch {
+          // tidak bisa menulis ~/.zentara: bahasa tetap berlaku untuk sesi ini
+        }
+        ui.notice(t().host.langSaved(LOCALE_NAMES[getLocale()]), "ok");
+        ui.changed();
+        return;
+      }
       default:
-        ui.notice(`Perintah tidak dikenal: /${cmd}. Ketik /help.`, "warn");
+        ui.notice(t().host.unknownCommand(cmd ?? ""), "warn");
         return;
     }
   }
@@ -577,33 +582,35 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     async startup() {
       const newer = await Promise.race([options.checkUpdate?.() ?? Promise.resolve(undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), 1500).unref())]);
       if (newer) {
-        ui.notice(`★ Versi baru v${newer} tersedia (Anda memakai v${options.version}). Perbarui: npm install -g zentara@latest`, "warn");
+        ui.notice(t().host.newVersion(newer, options.version), "warn");
       }
-      if (options.dryRun) ui.notice("Mode dry-run: tidak ada file yang diubah.", "warn");
+      if (options.dryRun) ui.notice(t().host.dryRun, "warn");
 
       if (!isProject) {
-        ui.notice("Folder ini belum berisi proyek Zentara.", "dim");
-        const choice = await ui.choose("Mau mulai dari mana?", [
-          { label: "Buat proyek baru", value: "create", hint: "npm create zentara: template api (login + dasbor + database) atau minimal" },
-          { label: "Chat di folder ini", value: "chat", hint: "Zentara AI bekerja di folder saat ini" },
-          { label: "Buka dokumentasi", value: "docs", hint: "situs dokumentasi Zentara Core" },
-          { label: "Keluar", value: "exit", hint: "" },
+        const m = t().host.start;
+        ui.notice(t().host.noProjectHere, "dim");
+        const choice = await ui.choose(t().host.startWhere, [
+          { label: m.create, value: "create", hint: m.createHint },
+          { label: m.chat, value: "chat", hint: m.chatHint },
+          { label: m.docs, value: "docs", hint: m.docsHint },
+          { label: m.exit, value: "exit", hint: "" },
         ], "chat");
         if (choice === "exit") return 0;
         if (choice === "docs") {
           openBrowser(DOCS_URL);
-          ui.notice("Membuka dokumentasi di browser...", "dim");
+          ui.notice(t().host.openingDocs, "dim");
         }
         if (choice === "create") return createProject();
       }
 
       if (!readyProvider) {
-        ui.notice("Selamat datang di Zentara Core. Pilih cara Zentara AI mengakses model (bisa diubah kapan saja dengan /setup).");
-        const choice = await ui.choose("Atur akses AI", [
-          { label: "OmniRoute (gratis)", value: "omniroute", hint: omnirouteInstalled() ? "direkomendasikan · jalankan di latar belakang, tanpa API key" : "direkomendasikan · pasang & jalankan otomatis, tanpa API key" },
-          { label: "Masukkan API key", value: "key", hint: "OpenAI, Claude, Gemini, Groq, DeepSeek, OpenRouter" },
-          { label: "Provider kustom", value: "custom", hint: "Ollama atau server OpenAI-compatible lain" },
-          { label: "Lewati dulu", value: "skip", hint: "mulai tanpa AI; atur nanti dengan /setup" },
+        const m = t().host.setup;
+        ui.notice(t().host.welcome);
+        const choice = await ui.choose(t().host.setupTitle, [
+          { label: m.omniroute, value: "omniroute", hint: omnirouteInstalled() ? m.omnirouteHintInstalled : m.omnirouteHintMissing },
+          { label: m.key, value: "key", hint: "OpenAI, Claude, Gemini, Groq, DeepSeek, OpenRouter" },
+          { label: m.custom, value: "custom", hint: m.customHint },
+          { label: m.skip, value: "skip", hint: m.skipHint },
         ], "skip");
         if (choice === "omniroute") {
           omniUrl ??= `${OMNIROUTE.api}/models`;
@@ -613,9 +620,9 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
         }
         readyProvider = await readiness(config);
       } else if (isLocalOmni && !(await isServerUp(omniUrl!)) && omnirouteInstalled()) {
-        const start = await ui.choose("OmniRoute (AI gratis) belum berjalan. Jalankan di latar belakang?", [
-          { label: "Ya", value: true, hint: "dimatikan lagi saat Anda keluar" },
-          { label: "Tidak", value: false, hint: `pakai ${readyProvider}` },
+        const start = await ui.choose(t().host.omnirouteAsk, [
+          { label: t().host.yes, value: true, hint: t().host.omnirouteAskYesHint },
+          { label: t().host.no, value: false, hint: t().host.useProvider(readyProvider) },
         ], false);
         if (start) await startOmniRoute();
       }
@@ -624,15 +631,15 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
         const url = `http://localhost:${options.appPort}`;
         if (await isServerUp(url)) {
           externalServer = url;
-          ui.notice(`● Server dev sudah berjalan di ${url} (dari terminal lain)`, "ok");
+          ui.notice(t().host.serverExternal(url), "ok");
         } else {
-          const start = await ui.choose(`Jalankan server dev (${devServer.commandText}) di latar belakang?`, [
-            { label: "Ya", value: true, hint: "tidak perlu buka terminal baru" },
-            { label: "Tidak", value: false, hint: "bisa nanti dengan /dev start" },
+          const start = await ui.choose(t().host.askDevServer(devServer.commandText), [
+            { label: t().host.yes, value: true, hint: t().host.devYesHint },
+            { label: t().host.no, value: false, hint: t().host.devNoHint },
           ], false);
           if (start) {
             devServer.start();
-            ui.notice("Menyalakan server... (hasilnya muncul di baris status)", "dim");
+            ui.notice(t().host.startingServer, "dim");
           }
         }
       }
@@ -640,7 +647,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       if (options.continueLast) {
         const latest = listSessions(cwd)[0];
         if (latest) resumeSession(latest.id);
-        else ui.notice("Belum ada percakapan tersimpan; memulai percakapan baru.", "dim");
+        else ui.notice(t().host.noSavedSessions, "dim");
       }
       ui.changed();
       return undefined;
@@ -648,7 +655,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     async submit(line) {
       const text = line.trim();
       if (!text) return undefined;
-      if (["keluar", "exit", "quit"].includes(text.toLowerCase())) return "exit";
+      if (t().host.exitWords.includes(text.toLowerCase())) return "exit";
       if (text.startsWith("/")) return command(text);
       await runTask(text);
       return undefined;
@@ -656,7 +663,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     interrupt() {
       if (controller && !controller.signal.aborted) {
         controller.abort();
-        ui.busy("Menghentikan");
+        ui.busy(t().host.busyStopping);
       }
     },
     toggleMode() {
@@ -666,11 +673,11 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     async close() {
       controller?.abort();
       if (devServer.running) {
-        ui.notice("Menghentikan server dev...", "dim");
+        ui.notice(t().host.stoppingServer, "dim");
         await devServer.stop();
       }
       if (omniroute?.running) {
-        ui.notice("Menghentikan OmniRoute...", "dim");
+        ui.notice(t().host.stoppingOmniroute, "dim");
         await omniroute.stop();
       }
       await devtools?.close();

@@ -6,7 +6,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import readline from "node:readline/promises";
 import { resolveAiConfig, createProviders, type AiUserConfig } from "./ai/config.js";
-import { PRESETS } from "./ai/presets.js";
+import { presetLabel, PRESETS } from "./ai/presets.js";
 import { interactiveSetup } from "./ai/setup.js";
 import { latestJournal, undoLatest } from "./ai/journal.js";
 import { createTerminalSession } from "./ai/session.js";
@@ -22,6 +22,7 @@ import { defaultAppDir, loadConfigFile, resolveConfig, type UserConfig } from ".
 import type { DbCommandResult } from "./db/commands.js";
 import { ZenLogger } from "./core/logger.js";
 import { allowedMethods, HTTP_METHODS, segmentsFromFile, ZenRouter } from "./core/router.js";
+import { getLocale, LOCALE_NAMES, parseLocale, readSettings, resolveLocale, setLocale, t, writeSettings } from "./i18n/index.js";
 
 export interface CliIO {
   cwd: string;
@@ -31,43 +32,6 @@ export interface CliIO {
   interactive?: boolean;
 }
 
-const HELP = `Zentara Core CLI
-
-Menjalankan aplikasi:
-  zentara dev [--no-ai]                            Server pengembangan dengan auto-reload (src/app),
-                                                   halaman error lengkap & chat Zentara AI di browser
-  zentara build                                    Kompilasi TypeScript ke dist/
-  zentara start                                    Jalankan hasil build (produksi, dist/app)
-
-Bicara dengan AI (bahasa sehari-hari):
-  zentara                                          CLI interaktif: chat dengan AI, server dev di latar
-                                                   belakang (ditanya dulu; --no-dev untuk melewati)
-  zentara --continue                               Lanjutkan percakapan terakhir (atau /resume di dalam CLI)
-  zentara --classic                                CLI interaktif klasik (tanpa tampilan Ink)
-  zentara "buatkan halaman portofolio dengan daftar proyek"
-  zentara ai "<perintah>" [--auto] [--dry-run]
-  zentara ai:status                                Cek provider AI yang tersedia
-  zentara ai:setup [provider]                      Atur provider AI (Claude, OpenAI, Gemini, Groq, DeepSeek,
-                                                   OpenRouter, OmniRoute, Ollama): API key, model, tes koneksi
-  zentara undo [--yes]                             Batalkan perubahan AI terakhir
-
-  --auto      Perubahan biasa langsung dikerjakan; hanya aksi krusial yang ditanyakan
-  --dry-run   Tampilkan apa yang akan dilakukan tanpa mengubah file
-
-Perintah manual:
-  zentara routes [--json]                          Tampilkan semua route
-  zentara db:generate [--name <nama>]              Buat file migrasi dari perubahan schema
-  zentara db:migrate                               Terapkan migrasi ke database
-  zentara db:seed                                  Isi data awal (app/db/seed.ts)
-  zentara make:route <path> [--methods GET,POST]   Buat file route baru, mis. api/events/[id]
-  zentara make:middleware <nama>                   Buat file middleware baru
-  zentara help                                     Tampilkan bantuan ini
-  zentara --version
-
-Opsi:
-  --force        Timpa file yang sudah ada
-  --dir <path>   Folder aplikasi (default: src/app)
-`;
 
 interface ParsedArgs {
   positional: string[];
@@ -105,24 +69,24 @@ function coreImport(_fromFile: string, _io: CliIO): string {
 
 function writeNewFile(file: string, content: string, force: boolean, io: CliIO): boolean {
   if (fs.existsSync(file) && !force) {
-    io.err(`File sudah ada: ${path.relative(io.cwd, file)} (pakai --force untuk menimpa)`);
+    io.err(t().cli.fileExists(path.relative(io.cwd, file)));
     return false;
   }
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, content);
-  io.out(`Dibuat: ${path.relative(io.cwd, file)}`);
+  io.out(t().cli.created(path.relative(io.cwd, file)));
   return true;
 }
 
 function makeRoute(args: ParsedArgs, io: CliIO): number {
   const raw = args.positional[1];
   if (!raw) {
-    io.err("Pemakaian: zentara make:route <path> [--methods GET,POST]");
+    io.err(t().cli.makeRouteUsage);
     return 1;
   }
   const routePath = raw.replace(/^\/+|\/+$/g, "").replace(/\.(ts|js)$/, "") || "index";
   if (routePath.split("/").some((p) => p === ".." || p === ".")) {
-    io.err(`Path route tidak valid: ${raw}`);
+    io.err(t().cli.invalidRoutePath(raw));
     return 1;
   }
   const relFile = routePath + ".ts";
@@ -138,7 +102,7 @@ function makeRoute(args: ParsedArgs, io: CliIO): number {
   const methods = methodsFlag.split(",").map((m) => m.trim().toUpperCase()).filter(Boolean);
   const invalid = methods.filter((m) => !(HTTP_METHODS as readonly string[]).includes(m));
   if (invalid.length || methods.length === 0) {
-    io.err(`Method tidak valid: ${invalid.join(", ") || "(kosong)"}. Pilihan: ${HTTP_METHODS.join(", ")}`);
+    io.err(t().cli.invalidMethods(invalid.join(", "), HTTP_METHODS.join(", ")));
     return 1;
   }
 
@@ -161,22 +125,23 @@ function makeRoute(args: ParsedArgs, io: CliIO): number {
 function makeMiddleware(args: ParsedArgs, io: CliIO): number {
   const name = args.positional[1];
   if (!name || !/^[A-Za-z][\w-]*$/.test(name)) {
-    io.err("Pemakaian: zentara make:middleware <nama> (huruf, angka, - atau _)");
+    io.err(t().cli.makeMiddlewareUsage);
     return 1;
   }
   const file = path.join(appDir(io, args.flags), "middleware", `${name}.ts`);
   const fnName = name.replace(/[-_](\w)/g, (_, c: string) => c.toUpperCase());
+  const note = t().cli.middlewareTemplate;
   const content = `import { defineMiddleware } from "${coreImport(file, io)}";
 
 export const ${fnName} = defineMiddleware(async (ctx, next) => {
-  // Sebelum handler: cek/ubah request, atau kembalikan respons untuk menghentikan rantai.
+  // ${note.before}
   const result = await next();
-  // Sesudah handler: mis. tambahkan header.
+  // ${note.after}
   return result;
 });
 `;
   if (!writeNewFile(file, content, args.flags.force === true, io)) return 1;
-  io.out(`Daftarkan di src/app/middleware.ts atau di \`export const middleware = [${fnName}]\` pada file route.`);
+  io.out(t().cli.registerMiddleware(fnName));
   return 0;
 }
 
@@ -197,7 +162,7 @@ async function listRoutes(args: ParsedArgs, io: CliIO): Promise<number> {
     return 0;
   }
   if (rows.length === 0) {
-    io.out(`Belum ada route di ${path.relative(io.cwd, config.routesDir) || "."}`);
+    io.out(t().cli.noRoutes(path.relative(io.cwd, config.routesDir) || "."));
     return 0;
   }
   const methodText = (m: string[]) => (m.length === HTTP_METHODS.length - 2 ? "ANY" : m.join("|"));
@@ -209,8 +174,45 @@ async function listRoutes(args: ParsedArgs, io: CliIO): Promise<number> {
 }
 
 const KNOWN_COMMANDS = new Set([
-  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed",
+  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang",
 ]);
+
+/** Bahasa CLI: env ZENTARA_LANG, lalu `locale` di zentara.config.mjs, lalu preferensi global, lalu Indonesia. */
+async function applyLocale(io: CliIO): Promise<{ source: "env" | "config" | "settings" | "default" }> {
+  let configured: unknown;
+  try {
+    configured = (await loadConfigFile(io.cwd)).locale;
+  } catch {
+    configured = undefined; // config rusak: pesan error-nya muncul di perintah yang memakainya
+  }
+  const settings = readSettings();
+  setLocale(resolveLocale({ config: configured, settings }));
+  const source = parseLocale(process.env.ZENTARA_LANG) ? "env" : parseLocale(configured) ? "config" : settings.locale ? "settings" : "default";
+  return { source };
+}
+
+/** `zentara lang` menampilkan bahasa aktif; `zentara lang en` menyimpan preferensi global. */
+async function lang(args: ParsedArgs, io: CliIO, source: "env" | "config" | "settings" | "default"): Promise<number> {
+  const value = args.positional[1];
+  if (!value) {
+    const m = t().cli.lang;
+    const from = { env: m.sourceEnv, config: m.sourceConfig, settings: m.sourceSettings, default: m.sourceDefault }[source];
+    io.out(m.current(LOCALE_NAMES[getLocale()], from));
+    io.out(c.dim(m.howTo));
+    return 0;
+  }
+  const locale = parseLocale(value);
+  if (!locale) {
+    io.err(t().cli.lang.invalid(value));
+    return 1;
+  }
+  const file = writeSettings({ locale });
+  // Pesan konfirmasi memakai bahasa yang baru dipilih.
+  setLocale(locale);
+  io.out(c.green(t(locale).cli.lang.saved(LOCALE_NAMES[locale], file)));
+  if (source === "env" || source === "config") io.out(c.dim(t(locale).cli.lang.overridden(LOCALE_NAMES[getLocale()])));
+  return 0;
+}
 
 async function dbCommand(fn: () => Promise<DbCommandResult>, io: CliIO): Promise<number> {
   loadDotEnv(io.cwd);
@@ -255,9 +257,8 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
     dryRun: args.flags["dry-run"] === true,
     verbose: args.flags.verbose === true,
   });
-  const modeText = config.mode === "auto" ? "otomatis (hanya aksi krusial ditanyakan)" : "minta persetujuan";
-  io.out(c.dim(`Zentara AI · mode: ${modeText}${args.flags["dry-run"] ? " · dry-run" : ""}`));
-  if (!rl) io.out(c.dim("Terminal non-interaktif: aksi yang butuh persetujuan akan ditolak (pakai --auto untuk perubahan biasa)."));
+  io.out(c.dim(t().cli.aiMode(config.mode === "auto", args.flags["dry-run"] === true)));
+  if (!rl) io.out(c.dim(t().cli.nonInteractive));
 
   try {
     if (task) {
@@ -265,10 +266,10 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
       return result.status === "done" ? 0 : 1;
     }
     if (!rl) {
-      io.err('Tulis perintahnya, mis. zentara ai "buat endpoint /api/events"');
+      io.err(t().cli.aiNeedsTask);
       return 1;
     }
-    io.out(c.dim('Mode obrolan. Ketik permintaan dalam bahasa biasa; "keluar" untuk selesai.'));
+    io.out(c.dim(t().cli.chatMode));
     for (;;) {
       let line: string;
       try {
@@ -277,7 +278,7 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
         break; // Ctrl+D / Ctrl+C
       }
       if (!line) continue;
-      if (["keluar", "exit", "quit"].includes(line.toLowerCase())) break;
+      if (t().cli.exitWords.includes(line.toLowerCase())) break;
       try {
         await session.run(line);
       } catch (err) {
@@ -327,7 +328,7 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
       // Dimuat hanya di sini agar perintah lain tidak ikut memuat React.
       ink = await import("./tui/index.js");
     } catch (err) {
-      io.err(c.yellow(`Tampilan Ink gagal dimuat (${(err as Error).message}); memakai CLI klasik.`));
+      io.err(c.yellow(t().cli.inkFailed((err as Error).message)));
     }
     if (ink) {
       return ink.startInkRepl(options, {
@@ -352,8 +353,8 @@ export function animationEnabled(configured: boolean | undefined, env: NodeJS.Pr
 
 async function aiStatus(args: ParsedArgs, io: CliIO): Promise<number> {
   const config = await loadAiConfig(io, args.flags);
-  io.out(`Mode persetujuan: ${config.mode}`);
-  io.out("Urutan provider (yang pertama dicoba lebih dulu):");
+  io.out(t().cli.approvalMode(config.mode));
+  io.out(t().cli.providerOrder);
   let ready = 0;
   for (const provider of createProviders(config.providers)) {
     try {
@@ -365,7 +366,7 @@ async function aiStatus(args: ParsedArgs, io: CliIO): Promise<number> {
       io.out(`  ${c.red("✗")} ${provider.name.padEnd(10)} ${provider.describe()} · ${reason}`);
     }
   }
-  if (ready === 0) io.out(c.yellow("\nBelum ada provider yang siap. Jalankan: zentara ai:setup"));
+  if (ready === 0) io.out(c.yellow(t().cli.noProviderReady));
   return ready > 0 ? 0 : 1;
 }
 
@@ -379,42 +380,35 @@ async function aiSetup(args: ParsedArgs, io: CliIO): Promise<number> {
   // Tanpa terminal interaktif: tampilkan panduan.
   const env = process.env;
   const rows = PRESETS.map((p) => {
-    const how = p.local ? `jalankan servernya (${p.urlEnv}, ${p.modelEnv})` : `isi ${p.keyEnv} (model: ${p.modelEnv}${p.defaultModel ? `, default ${p.defaultModel}` : ""})`;
+    const how = p.local ? t().cli.setupRunServer(p.urlEnv ?? "", p.modelEnv) : t().cli.setupFillKey(p.keyEnv ?? "", p.modelEnv, p.defaultModel);
     const state = p.local ? "" : p.keyEnv && env[p.keyEnv] ? c.green(" ✓") : "";
-    return `  ${p.name.padEnd(11)} ${p.label}${state}
+    return `  ${p.name.padEnd(11)} ${presetLabel(p)}${state}
               ${c.dim(how)}`;
   });
-  io.out(`Zentara AI memakai rantai provider: bila satu habis kredit/kuota atau mati, otomatis pindah ke berikutnya.
-
-Cara termudah (di terminal interaktif):  npx zentara ai:setup   atau   npx zentara ai:setup openai
-
-Atau isi langsung di .env. Provider dengan API key terisi otomatis dipakai:
-${rows.join("\n")}
-
-Urutan: ZENTARA_AI_ORDER=openai,claude,ollama (provider lain menyusul). Cek: npx zentara ai:status`);
+  io.out(t().cli.setupGuide(rows.join("\n")));
   return 0;
 }
 
 async function undo(args: ParsedArgs, io: CliIO): Promise<number> {
   const preview = latestJournal(io.cwd);
   if (!preview) {
-    io.out("Tidak ada perubahan AI yang bisa dibatalkan.");
+    io.out(t().cli.nothingToUndo);
     return 0;
   }
-  io.out(`Perubahan terakhir (${preview.createdAt}): ${preview.task.slice(0, 80)}`);
-  for (const e of preview.entries) io.out(`  ${e.action === "delete" ? "hapus  " : "pulihkan"} ${e.path}`);
+  io.out(t().cli.lastChange(preview.createdAt, preview.task.slice(0, 80)));
+  for (const e of preview.entries) io.out(`  ${e.action === "delete" ? t().cli.undoDelete : t().cli.undoRestore} ${e.path}`);
   if (args.flags.yes !== true) {
     if (!io.interactive) {
-      io.out("Jalankan ulang dengan --yes untuk membatalkan.");
+      io.out(t().cli.rerunWithYes);
       return 1;
     }
     const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const answer = (await rl.question("Batalkan perubahan ini? [y/n] > ")).trim().toLowerCase();
+    const answer = (await rl.question(t().cli.confirmUndo)).trim().toLowerCase();
     rl.close();
-    if (!["y", "ya", "yes"].includes(answer)) return 1;
+    if (!t().cli.yesWords.includes(answer)) return 1;
   }
   undoLatest(io.cwd);
-  io.out(c.green("✓ Perubahan dibatalkan."));
+  io.out(c.green(t().cli.undone));
   return 0;
 }
 
@@ -453,7 +447,7 @@ export function devWatchArgs(cwd: string, appDir: string, entry: string): string
 async function devServer(args: ParsedArgs, io: CliIO): Promise<number> {
   const appDir = path.join(io.cwd, "src", "app");
   if (!fs.existsSync(appDir)) {
-    io.err("Folder src/app tidak ditemukan. Jalankan perintah ini di folder proyek Zentara.");
+    io.err(t().cli.noAppDir);
     return 1;
   }
   const tsxPkg = localRequire.resolve("tsx/package.json");
@@ -468,7 +462,7 @@ async function devServer(args: ParsedArgs, io: CliIO): Promise<number> {
       await ensureTypeScriptLoader(io.cwd);
       devtools = await startDevtools({ root: io.cwd, loadConfig: () => loadAiConfig(io, {}), log: io.out });
     } catch (err) {
-      io.err(c.yellow(`Chat Zentara AI di browser tidak aktif: ${(err as Error).message}`));
+      io.err(c.yellow(t().cli.devtoolsOff((err as Error).message)));
     }
   }
   try {
@@ -488,20 +482,20 @@ async function build(io: CliIO): Promise<number> {
   try {
     tsc = createRequire(path.join(io.cwd, "package.json")).resolve("typescript/bin/tsc");
   } catch {
-    io.err("TypeScript belum dipasang di proyek ini. Jalankan: npm install -D typescript");
+    io.err(t().cli.noTypescript);
     return 1;
   }
   const project = fs.existsSync(path.join(io.cwd, "tsconfig.build.json")) ? "tsconfig.build.json" : "tsconfig.json";
   io.out(c.dim(`tsc -p ${project}`));
   const code = await runChild(process.execPath, [tsc, "-p", project], io.cwd, process.env);
-  if (code === 0) io.out(c.green("✓ Build selesai. Jalankan dengan: zentara start"));
+  if (code === 0) io.out(c.green(t().cli.buildDone));
   return code;
 }
 
 async function start(io: CliIO): Promise<number> {
   const appDir = path.join(io.cwd, "dist", "app");
   if (!fs.existsSync(appDir)) {
-    io.err("dist/app tidak ditemukan. Jalankan dulu: zentara build");
+    io.err(t().cli.noDist);
     return 1;
   }
   process.env.NODE_ENV ??= "production";
@@ -535,11 +529,12 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
   const serverEnv = { ...process.env };
   const args = parseArgs(argv);
   const command = args.positional[0];
+  const { source } = await applyLocale(io);
   if (args.flags.version) {
     io.out(version());
     return 0;
   }
-  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "db:generate", undefined].includes(command);
+  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "db:generate", "lang", undefined].includes(command);
   if (needsProjectCode || isNaturalLanguage(args.positional)) await ensureTypeScriptLoader(io.cwd);
   if (isNaturalLanguage(args.positional)) return runAi(args.positional.join(" "), args, io);
   switch (command) {
@@ -551,14 +546,14 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return start(io);
     case undefined:
       if (io.interactive) return repl(args, io, serverEnv);
-      io.out(HELP);
+      io.out(t().cli.help);
       return 0;
     case "help":
       if (io.interactive) {
         for (const line of banner({ version: version(), columns: process.stdout.columns ?? 80, depth: colorDepth(process.stdout) })) io.out(line);
         io.out("");
       }
-      io.out(HELP);
+      io.out(t().cli.help);
       return 0;
     case "ai": {
       const task = args.positional.slice(1).join(" ") || undefined;
@@ -586,9 +581,11 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return makeRoute(args, io);
     case "make:middleware":
       return makeMiddleware(args, io);
+    case "lang":
+      return lang(args, io, source);
     default:
-      io.err(`Perintah tidak dikenal: ${command}\n`);
-      io.err(HELP);
+      io.err(t().cli.unknownCommand(String(command)));
+      io.err(t().cli.help);
       return 1;
   }
 }

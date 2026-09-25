@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getLocale, t } from "../i18n/index.js";
 
 /** Instruksi tetap untuk agen. Dijaga stabil (tanpa data dinamis) agar prompt caching efektif. */
 export const SYSTEM_PROMPT = `You are Zentara AI, the built-in developer assistant of Zentara Core, a TypeScript web framework from Indonesia. Developers describe what they want in plain language in their terminal, and you carry it out inside their project using the tools provided.
@@ -52,16 +53,18 @@ export function projectSnapshot(root: string): string {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };
-    lines.push(`Project: ${pkg.name ?? "(tanpa nama)"}`);
+    lines.push(`Project: ${pkg.name ?? t().ai.session.untitledProject}`);
     lines.push(`Scripts: ${Object.keys(pkg.scripts ?? {}).join(", ") || "-"}`);
     lines.push(`Dependencies: ${Object.keys(pkg.dependencies ?? {}).join(", ") || "-"}`);
     lines.push(`Dev dependencies: ${Object.keys(pkg.devDependencies ?? {}).join(", ") || "-"}`);
   } catch {
-    lines.push("Project: (package.json tidak ditemukan)");
+    lines.push(`Project: ${t().ai.session.noPackageJson}`);
   }
   const top = fs.existsSync(root)
     ? fs.readdirSync(root).filter((f) => !["node_modules", ".git", "dist", ".zentara"].includes(f))
     : [];
   lines.push(`Top-level: ${top.sort().join(", ")}`);
+  // Bahasa proyek: teks yang dilihat pengguna aplikasi (label, pesan, halaman) ditulis dalam bahasa ini.
+  lines.push(`App language: ${getLocale() === "en" ? "English (en)" : "Bahasa Indonesia (id)"}; write user-facing app text in this language.`);
   return lines.join("\n");
 }

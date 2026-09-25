@@ -386,7 +386,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     spinner.stop();
     if (ok) {
       io.out(`  ${c.green("●")} OmniRoute (AI gratis) berjalan · dashboard ${c.bold(OMNIROUTE.dashboard)}`);
-      for (const tip of OMNIROUTE_TIPS) io.out(c.dim(`    ${tip}`));
+      for (const tip of OMNIROUTE_TIPS()) io.out(c.dim(`    ${tip}`));
     } else {
       io.out(c.yellow("  ⚠ OmniRoute belum siap; sementara memakai provider lain yang tersedia. Log terakhir:"));
       for (const line of omniroute.logs(8)) io.out(c.dim(`    │ ${line}`));

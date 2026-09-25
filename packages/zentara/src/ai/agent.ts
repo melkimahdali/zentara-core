@@ -1,4 +1,5 @@
 import type { ProviderChain } from "./chain.js";
+import { t } from "../i18n/index.js";
 import type { AgentTool, CommandResult, ToolContext } from "./tools.js";
 import { ToolError } from "./tools.js";
 import { AbortedError, type ChatMessage, type ToolCall, type ToolResult } from "./types.js";
@@ -77,12 +78,12 @@ export class Agent {
       signal: options.signal,
     });
     const summary = turn.text.trim();
-    if (!summary) throw new Error("Model tidak mengembalikan ringkasan.");
+    if (!summary) throw new Error(t().ai.agent.noSummary);
     this.messages.splice(
       0,
       this.messages.length,
-      { role: "user", text: `<ringkasan percakapan sebelumnya>\n${summary}\n</ringkasan percakapan sebelumnya>\n\nLanjutkan dari ringkasan ini bila saya meminta sesuatu yang berkaitan.` },
-      { role: "assistant", text: "Baik, saya sudah memahami konteks percakapan sebelumnya.", toolCalls: [] },
+      { role: "user", text: `<${t().ai.agent.summaryTag}>\n${summary}\n</${t().ai.agent.summaryTag}>\n\n${t().ai.agent.continueFromSummary}` },
+      { role: "assistant", text: t().ai.agent.understood, toolCalls: [] },
     );
     return true;
   }
@@ -118,8 +119,8 @@ export class Agent {
       });
       const interrupted = () => {
         // Model harus tahu tugas sebelumnya berhenti di tengah jalan saat pengguna menulis lagi.
-        this.messages.push({ role: "user", text: "[Pengguna menghentikan pekerjaan ini. Tunggu permintaan berikutnya.]" });
-        this.messages.push({ role: "assistant", text: "Baik, saya berhenti.", toolCalls: [] });
+        this.messages.push({ role: "user", text: t().ai.agent.userStopped });
+        this.messages.push({ role: "assistant", text: t().ai.agent.stopped, toolCalls: [] });
         return result("interrupted");
       };
       if (signal?.aborted) return interrupted();
@@ -143,33 +144,33 @@ export class Agent {
       if (turn.text.trim()) ui.assistant(turn.text.trim(), turn.provider);
 
       if (turn.stop === "refusal") {
-        ui.info("Model menolak permintaan ini.");
+        ui.info(t().ai.agent.refused);
         return result("refused");
       }
 
       if (turn.toolCalls.length === 0) {
         if (turn.stop === "max_tokens") {
-          this.messages.push({ role: "user", text: "Jawabanmu terpotong. Lanjutkan dari bagian terakhir." });
+          this.messages.push({ role: "user", text: t().ai.agent.truncated });
           continue;
         }
         if (!dirty || context.dryRun) return result("done");
 
-        ui.info("Memverifikasi perubahan (typecheck & test)...");
+        ui.info(t().ai.agent.verifying);
         const check = await verify();
         if (signal?.aborted) return interrupted();
         if (check.ok) {
-          ui.info("Verifikasi berhasil.");
+          ui.info(t().ai.agent.verified);
           return result("done");
         }
         if (fixAttempts >= maxFix) {
-          ui.info("Verifikasi masih gagal setelah beberapa percobaan perbaikan.");
+          ui.info(t().ai.agent.stillFailing);
           return result("verification_failed");
         }
         fixAttempts++;
-        ui.info(`Verifikasi gagal, meminta AI memperbaiki (percobaan ${fixAttempts}/${maxFix})...`);
+        ui.info(t().ai.agent.fixing(fixAttempts, maxFix));
         this.messages.push({
           role: "user",
-          text: `Verifikasi otomatis gagal. Perbaiki penyebabnya:\n\n${check.output.slice(-5000)}`,
+          text: t().ai.agent.fixRequest(check.output.slice(-5000)),
         });
         continue;
       }
@@ -179,9 +180,9 @@ export class Agent {
         ui.toolStart(call);
         let res: ToolResult;
         if (signal?.aborted) {
-          res = { id: call.id, isError: true, content: "Dibatalkan: pengguna menghentikan pekerjaan." };
+          res = { id: call.id, isError: true, content: t().ai.tools.aborted };
         } else if (turn.stop === "max_tokens") {
-          res = { id: call.id, isError: true, content: "Input tool terpotong (max_tokens). Pecah menjadi langkah/file yang lebih kecil." };
+          res = { id: call.id, isError: true, content: t().ai.agent.inputTruncated };
         } else {
           res = await this.execute(call);
           if (!res.isError && !context.dryRun && this.mutates(call)) dirty = true;
@@ -193,7 +194,7 @@ export class Agent {
       if (signal?.aborted) return interrupted();
     }
 
-    ui.info(`Batas ${maxSteps} langkah tercapai.`);
+    ui.info(t().ai.agent.stepLimit(maxSteps));
     return {
       status: "incomplete",
       steps: maxSteps,
@@ -212,16 +213,16 @@ export class Agent {
 
   private async execute(call: ToolCall): Promise<ToolResult> {
     const tool = this.toolMap.get(call.name);
-    if (!tool) return { id: call.id, isError: true, content: `Tool tidak dikenal: ${call.name}` };
+    if (!tool) return { id: call.id, isError: true, content: t().ai.agent.unknownTool(call.name) };
     const input = call.input;
     if (typeof input !== "object" || input === null || Array.isArray(input) || "__invalid_json__" in input) {
-      return { id: call.id, isError: true, content: "Input tool harus berupa object JSON yang valid." };
+      return { id: call.id, isError: true, content: t().ai.agent.badInput };
     }
     try {
       return { id: call.id, content: await tool.run(input as Record<string, unknown>, this.options.context) };
     } catch (err) {
       if (err instanceof ToolError) return { id: call.id, isError: true, content: err.message };
-      return { id: call.id, isError: true, content: `Error internal: ${(err as Error).message}` };
+      return { id: call.id, isError: true, content: t().ai.agent.internalError((err as Error).message) };
     }
   }
 }

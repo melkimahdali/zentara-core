@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { t } from "../i18n/index.js";
 import fs from "node:fs";
 import path from "node:path";
 import { platformCommand } from "../process.js";
@@ -18,10 +19,10 @@ const SHELL_META = /[|&;<>`$(){}%^!\r\n]/;
 /** Pecah satu baris perintah menjadi argv. Mendukung kutip tunggal dan ganda; operator shell ditolak. */
 export function parseCommand(line: string): string[] {
   const text = line.trim();
-  if (!text) throw new CommandRejected("perintah kosong");
+  if (!text) throw new CommandRejected(t().ai.command.empty);
   if (SHELL_META.test(text)) {
     throw new CommandRejected(
-      "operator shell (|, &&, ;, >, <, $, %, `, !, ^, tanda kurung) tidak didukung. Jalankan satu perintah saja tanpa pipa/pengalihan; baca file hasilnya dengan read_file.",
+      t().ai.command.operators,
     );
   }
   const argv: string[] = [];
@@ -44,7 +45,7 @@ export function parseCommand(line: string): string[] {
       has = true;
     }
   }
-  if (quote) throw new CommandRejected("tanda kutip tidak ditutup");
+  if (quote) throw new CommandRejected(t().ai.command.unclosedQuote);
   if (has || current) argv.push(current);
   return argv;
 }
@@ -60,12 +61,12 @@ const DENIED_PROGRAMS = new Set([
 ]);
 
 /** Subperintah yang menyentuh kredensial atau menerbitkan sesuatu ke luar atas nama pengguna. */
-const DENIED_SUBCOMMANDS: { program: string; sub: string[]; reason: string }[] = [
-  { program: "npm", sub: ["publish", "unpublish", "login", "logout", "adduser", "token", "owner", "access", "deprecate", "stage", "trust", "config", "set"], reason: "menyentuh akun/kredensial npm atau menerbitkan paket" },
-  { program: "pnpm", sub: ["publish", "login", "logout", "config"], reason: "menyentuh akun/kredensial atau menerbitkan paket" },
-  { program: "yarn", sub: ["publish", "login", "logout", "npm", "config"], reason: "menyentuh akun/kredensial atau menerbitkan paket" },
-  { program: "git", sub: ["config", "credential", "push", "remote", "filter-branch", "filter-repo"], reason: "mengubah konfigurasi/kredensial git atau mengirim ke remote" },
-  { program: "gh", sub: ["auth", "secret", "release", "repo"], reason: "menyentuh akun GitHub" },
+const DENIED_SUBCOMMANDS: { program: string; sub: string[]; reason: "npmAccount" | "pkgAccount" | "gitAccount" | "ghAccount" }[] = [
+  { program: "npm", sub: ["publish", "unpublish", "login", "logout", "adduser", "token", "owner", "access", "deprecate", "stage", "trust", "config", "set"], reason: "npmAccount" },
+  { program: "pnpm", sub: ["publish", "login", "logout", "config"], reason: "pkgAccount" },
+  { program: "yarn", sub: ["publish", "login", "logout", "npm", "config"], reason: "pkgAccount" },
+  { program: "git", sub: ["config", "credential", "push", "remote", "filter-branch", "filter-repo"], reason: "gitAccount" },
+  { program: "gh", sub: ["auth", "secret", "release", "repo"], reason: "ghAccount" },
 ];
 
 /** Perintah yang terus berjalan: pakai dev_server, bukan run_command. */
@@ -108,29 +109,29 @@ export interface CommandCheck {
  * - "critical": semua perintah lain, selalu ditanyakan.
  */
 export function classifyCommand(argv: string[], allowed: string[] = []): CommandCheck {
-  if (argv.length === 0) throw new CommandRejected("perintah kosong");
+  if (argv.length === 0) throw new CommandRejected(t().ai.command.empty);
   const program = programName(argv[0]!);
   const normalized = [program, ...argv.slice(1)];
   if (DENIED_PROGRAMS.has(program) || /^mkfs\./.test(program)) {
-    throw new CommandRejected(`"${program}" tidak boleh dijalankan oleh AI`);
+    throw new CommandRejected(t().ai.command.forbidden(program));
   }
   if (program !== argv[0] && /[\\/]/.test(argv[0]!)) {
-    throw new CommandRejected("jalankan program lewat namanya (mis. node, npx), bukan lewat path");
+    throw new CommandRejected(t().ai.command.byName);
   }
   for (const d of DENIED_SUBCOMMANDS) {
-    if (program === d.program && d.sub.includes(argv[1] ?? "")) throw new CommandRejected(`"${program} ${argv[1]}" ditolak: ${d.reason}`);
+    if (program === d.program && d.sub.includes(argv[1] ?? "")) throw new CommandRejected(t().ai.command.denied(`${program} ${argv[1]}`, t().ai.command[d.reason]));
   }
   for (const arg of argv.slice(1)) {
     for (const part of arg.split("=")) {
-      if (SECRET_ARG.test(part)) throw new CommandRejected(`argumen "${arg}" merujuk file rahasia (.env/database); AI tidak boleh membacanya`);
+      if (SECRET_ARG.test(part)) throw new CommandRejected(t().ai.command.secretArg(arg));
       if (/^(\/|~|[A-Za-z]:[\\/]|\\\\)/.test(part) || part.split(/[\\/]/).includes("..")) {
-        throw new CommandRejected(`argumen "${arg}" merujuk path di luar folder proyek`);
+        throw new CommandRejected(t().ai.command.outsideArg(arg));
       }
     }
   }
   const joined = normalized.join(" ");
   if (LONG_RUNNING.some((re) => re.test(joined))) {
-    throw new CommandRejected("perintah yang terus berjalan (server/watch) tidak didukung; pakai tool dev_server");
+    throw new CommandRejected(t().ai.command.longRunning);
   }
 
   if (SAFE_PREFIXES.some((p) => startsWith(normalized, p)) && !normalized.slice(1).some((a) => WRITES_OUTPUT.test(a))) {
@@ -144,9 +145,9 @@ export function classifyCommand(argv: string[], allowed: string[] = []): Command
       continue;
     }
     prefix[0] = programName(prefix[0] ?? "");
-    if (prefix.length && startsWith(normalized, prefix)) return { risk: "write", reason: `diizinkan oleh ai.allowedCommands ("${entry}")` };
+    if (prefix.length && startsWith(normalized, prefix)) return { risk: "write", reason: t().ai.command.allowedBy(entry) };
   }
-  return { risk: "critical", reason: "menjalankan perintah terminal; perubahan yang dibuatnya tidak bisa dibatalkan dengan undo" };
+  return { risk: "critical", reason: t().ai.command.criticalReason };
 }
 
 const MAX_CAPTURE = 256 * 1024;
@@ -176,9 +177,9 @@ export function createCommandRunner(root: string) {
       };
       child.stdout!.on("data", collect);
       child.stderr!.on("data", collect);
-      child.on("error", (err) => resolve({ ok: false, output: `${output}\n${err.name === "AbortError" ? "(dihentikan pengguna)" : err.message}` }));
+      child.on("error", (err) => resolve({ ok: false, output: `${output}\n${err.name === "AbortError" ? t().ai.tools.stoppedByUser : err.message}` }));
       child.on("close", (code, killSignal) =>
-        resolve({ ok: code === 0, output: killSignal ? `${output}\n(dihentikan: ${killSignal}, mungkin melewati batas waktu)` : `${output}${code ? `\n(kode keluar ${code})` : ""}` }),
+        resolve({ ok: code === 0, output: killSignal ? `${output}\n${t().ai.command.timedOut(killSignal)}` : `${output}${code ? `\n${t().ai.command.exitCode(code)}` : ""}` }),
       );
     });
 }

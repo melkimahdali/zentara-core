@@ -1,3 +1,4 @@
+import { t } from "../i18n/index.js";
 import { DEFAULT_CLAUDE_MODEL } from "./providers/anthropic.js";
 
 /** Parameter batas token yang diterima API. OpenAI (model baru) hanya menerima max_completion_tokens. */
@@ -126,4 +127,9 @@ export function findPreset(name: string): ProviderPreset | undefined {
 
 export function presetBaseUrl(preset: ProviderPreset, env: NodeJS.ProcessEnv): string | undefined {
   return (preset.urlEnv && env[preset.urlEnv]) || preset.baseUrl;
+}
+
+/** Nama provider untuk ditampilkan, dalam bahasa aktif. */
+export function presetLabel(preset: Pick<ProviderPreset, "name" | "label">): string {
+  return t().ai.presets[preset.name] ?? preset.label;
 }
