@@ -21,7 +21,7 @@ Fitur utama:
 
 ## Dokumentasi
 
-📖 **https://melkimahdali.github.io/zentara-core/**: mulai cepat, Zentara AI & OmniRoute, routing, database, auth, referensi CLI. Sumbernya ada di [`docs/`](docs) (Markdown); pratinjau lokal: `npm run build && npm run docs:build && npm run docs:serve`.
+📖 **https://zentara-core.morixa.id/**: mulai cepat, Zentara AI & OmniRoute, routing, database, auth, referensi CLI. Sumbernya ada di [`docs/`](docs) (Markdown); pratinjau lokal: `npm run build && npm run docs:build && npm run docs:serve`.
 
 ## Brand
 

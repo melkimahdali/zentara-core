@@ -6,7 +6,7 @@
 
 Framework web TypeScript AI-driven asal Nusantara: routing berbasis file, auth, database, dan **Zentara AI** yang membangun aplikasi dari bahasa sehari-hari.
 
-📖 Dokumentasi lengkap: **https://melkimahdali.github.io/zentara-core/**
+📖 Dokumentasi lengkap: **https://zentara-core.morixa.id/**
 
 > Status: **v0.8**. API masih bisa berubah sebelum v1.0.
 

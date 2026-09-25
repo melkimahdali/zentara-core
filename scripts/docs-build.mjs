@@ -20,7 +20,9 @@ if (!fs.existsSync(path.join(DIST, "brand", "assets.js"))) {
   process.exit(1);
 }
 const { LOGO_WEBP, FAVICON_PNG } = await load("brand/assets.js");
-const { BRAND, TAGLINE, DESCRIPTION } = await load("brand/index.js");
+const { BRAND, TAGLINE, DESCRIPTION, DOCS_URL } = await load("brand/index.js");
+/** Domain kustom GitHub Pages (Cloudflare → GitHub Pages). */
+const SITE = new URL(DOCS_URL);
 const { BASE_CSS, highlight, ZENTARA_VERSION } = await load("core/devpage/theme.js");
 const { escapeHtml } = await load("core/view.js");
 
@@ -35,10 +37,33 @@ function parse(file) {
   }
   return { slug: path.basename(file, ".md"), title: meta.title, order: Number(meta.order ?? 99), group: meta.group, description: meta.description ?? "", body: raw.slice(m?.[0].length ?? 0) };
 }
-const pages = fs
-  .readdirSync(DOCS)
-  .filter((f) => f.endsWith(".md"))
-  .map((f) => parse(path.join(DOCS, f)))
+/**
+ * Halaman "Catatan rilis" dibuat otomatis dari CHANGELOG.md, jadi situs selalu mengikuti versi terbaru
+ * setiap kali perubahan (termasuk kenaikan versi) masuk ke main.
+ */
+function releaseNotes() {
+  const raw = fs.readFileSync(path.join(ROOT, "CHANGELOG.md"), "utf8");
+  const body = raw
+    .replace(/^# Changelog\s*\n/, "")
+    .replace(/^## \[([^\]]+)\]/gm, "## $1");
+  return {
+    slug: "rilis",
+    title: "Catatan rilis",
+    order: 99,
+    group: "Referensi",
+    description: `Perubahan di setiap versi Zentara Core. Versi terbaru: v${ZENTARA_VERSION}.`,
+    body: `# Catatan rilis\n\nVersi terbaru: **v${ZENTARA_VERSION}**. Perbarui dengan \`npm install -g zentara@latest\` (CLI) dan \`npm install zentara@latest\` (proyek).\n\n${body}`,
+    source: "CHANGELOG.md",
+  };
+}
+
+const pages = [
+  ...fs
+    .readdirSync(DOCS)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => parse(path.join(DOCS, f))),
+  releaseNotes(),
+]
   .sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group) || a.order - b.order);
 for (const p of pages) if (!GROUPS.includes(p.group)) throw new Error(`${p.slug}.md: group tidak dikenal "${p.group}"`);
 
@@ -79,7 +104,7 @@ ${BASE_CSS}
 .doc-top .zx-logo{width:30px;height:30px}
 .doc-top .brand{display:flex;align-items:center;gap:10px;color:var(--text);font-weight:700;font-size:17px}
 .doc-top .brand:hover{text-decoration:none}
-.doc-top .ver{font-size:12px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:2px 8px}
+.doc-top .ver{font-size:12px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:2px 8px}.doc-top a.ver:hover{color:var(--text);border-color:var(--accent);text-decoration:none}
 .search{position:relative;flex:1;max-width:420px;margin-left:auto}
 .search input{width:100%;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:10px;padding:8px 12px;font:inherit;font-size:14px}
 .search input:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
@@ -186,13 +211,15 @@ const JS = `
 `;
 
 const LOGO = `<span class="zx-logo" role="img" aria-label="Zentara Core"></span>`;
-function shell({ title, description, body, active }) {
+function shell({ title, description, body, active, file }) {
+  const url = new URL(file === "index.html" ? "" : file, SITE).href;
   return `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title><meta name="description" content="${escapeHtml(description)}">
+<link rel="canonical" href="${url}"><meta property="og:url" content="${url}"><meta property="og:type" content="website">
 <meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:image" content="https://raw.githubusercontent.com/melkimahdali/zentara-core/main/assets/brand/social/social-preview.jpg"><meta name="theme-color" content="${BRAND.obsidian}">
 <link rel="icon" type="image/png" href="${FAVICON_PNG}"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="style.css"></head><body>
-<header class="doc-top"><button class="zx-btn small menu-btn" type="button" aria-label="Menu">☰</button><a class="brand" href="index.html">${LOGO}<span class="zx-word">Zentara <b>Core</b></span></a><span class="ver">v${escapeHtml(ZENTARA_VERSION)}</span>
+<header class="doc-top"><button class="zx-btn small menu-btn" type="button" aria-label="Menu">☰</button><a class="brand" href="index.html">${LOGO}<span class="zx-word">Zentara <b>Core</b></span></a><a class="ver" href="rilis.html" title="Catatan rilis">v${escapeHtml(ZENTARA_VERSION)}</a>
 <div class="search"><input type="search" placeholder="Cari dokumentasi…  ( / )" aria-label="Cari dokumentasi"><div class="results"></div></div>
 <a class="gh" href="${REPO}" target="_blank" rel="noopener">GitHub</a><a class="gh" href="https://www.npmjs.com/package/zentara" target="_blank" rel="noopener">npm</a></header>
 ${body}
@@ -220,9 +247,9 @@ pages.forEach((page, i) => {
   const body = `<div class="layout"><nav class="side" aria-label="Navigasi dokumentasi">${sidebar(page.slug)}</nav>
 <main class="content">${withLead}
 <div class="pager">${prev ? `<a class="prev" href="${prev.slug}.html"><small>← Sebelumnya</small>${escapeHtml(prev.title)}</a>` : ""}${next ? `<a class="next" href="${next.slug}.html"><small>Berikutnya →</small>${escapeHtml(next.title)}</a>` : ""}</div>
-<p class="edit"><a href="${REPO}/edit/main/docs/${page.slug}.md" target="_blank" rel="noopener">Perbaiki halaman ini di GitHub</a></p></main>
+<p class="edit"><a href="${REPO}/edit/main/${page.source ?? `docs/${page.slug}.md`}" target="_blank" rel="noopener">Perbaiki halaman ini di GitHub</a></p></main>
 <aside class="toc">${toc.length ? `<h4>Di halaman ini</h4>${toc.map((t) => `<a href="#${t.id}">${escapeHtml(t.text)}</a>`).join("")}` : ""}</aside></div>`;
-  fs.writeFileSync(path.join(OUT, `${page.slug}.html`), shell({ title: `${page.title} · Zentara Core`, description: page.description, body, active: page.slug }));
+  fs.writeFileSync(path.join(OUT, `${page.slug}.html`), shell({ title: `${page.title} · Zentara Core`, description: page.description, body, active: page.slug, file: `${page.slug}.html` }));
   index.push({
     url: `${page.slug}.html`,
     title: page.title,
@@ -262,5 +289,12 @@ ${feature("⛁", "Database & auth", "Drizzle ORM (SQLite tanpa instalasi atau Po
 ${feature("⛨", "Aman sejak awal", "Session terenkripsi, CSRF, CORS, halaman error yang tidak membocorkan detail di produksi.")}
 ${feature("❖", "Halaman error yang membantu", "Stack trace dengan potongan kode dan tombol \"Tanya Zentara AI\" untuk memperbaikinya.")}
 </section>`;
-fs.writeFileSync(path.join(OUT, "index.html"), shell({ title: `Zentara Core · ${DESCRIPTION}`, description: `${DESCRIPTION}. ${TAGLINE}`, body: home }));
+fs.writeFileSync(path.join(OUT, "index.html"), shell({ title: `Zentara Core · ${DESCRIPTION}`, description: `${DESCRIPTION}. ${TAGLINE}`, body: home, file: "index.html" }));
+
+// Domain kustom & mesin pencari. CNAME ikut diterbitkan agar domain tidak hilang saat deploy.
+fs.writeFileSync(path.join(OUT, "CNAME"), `${SITE.hostname}\n`);
+const today = new Date().toISOString().slice(0, 10);
+const urls = ["", ...pages.map((p) => `${p.slug}.html`)].map((f) => `  <url><loc>${new URL(f, SITE).href}</loc><lastmod>${today}</lastmod></url>`);
+fs.writeFileSync(path.join(OUT, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`);
+fs.writeFileSync(path.join(OUT, "robots.txt"), `User-agent: *\nAllow: /\nSitemap: ${new URL("sitemap.xml", SITE).href}\n`);
 console.log(`Dokumentasi: ${pages.length} halaman + beranda → ${path.relative(ROOT, OUT)}/`);

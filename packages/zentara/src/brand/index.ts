@@ -10,6 +10,8 @@ export const BRAND = {
 } as const;
 
 export const TAGLINE = "Rooted here. Built for what's next.";
+/** Situs dokumentasi resmi (GitHub Pages dengan domain kustom). */
+export const DOCS_URL = "https://zentara-core.morixa.id/";
 export const DESCRIPTION = "AI-driven TypeScript web framework from Indonesia";
 
 export type ColorDepth = "truecolor" | "256" | "basic" | "none";

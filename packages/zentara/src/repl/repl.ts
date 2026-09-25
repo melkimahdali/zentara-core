@@ -14,7 +14,7 @@ import { ProviderUnavailableError, type ToolCall, type ToolResult } from "../ai/
 import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
 import { BackgroundProcess, DevServer, isServerUp, openBrowser, waitForUrl } from "../dev/server.js";
 import { installOmniRoute, nodeSupportsOmniRoute, OMNIROUTE, OMNIROUTE_TIPS, omnirouteEnv, omnirouteInstalled } from "../ai/omniroute.js";
-import { colorDepth, terminalLogo, visibleWidth } from "../brand/index.js";
+import { colorDepth, DOCS_URL, terminalLogo, visibleWidth } from "../brand/index.js";
 import { spawn } from "node:child_process";
 import { platformCommand } from "../process.js";
 import { cursorRow, Keys, select, Spinner, type Choice } from "./widgets.js";
@@ -361,7 +361,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
     ], "chat");
     if (choice === "exit") return 0;
     if (choice === "docs") {
-      openBrowser("https://melkimahdali.github.io/zentara-core/");
+      openBrowser(DOCS_URL);
       io.out(c.dim("  Membuka dokumentasi di browser..."));
     }
     if (choice === "create") return createProject();
