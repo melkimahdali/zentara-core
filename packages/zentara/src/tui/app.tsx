@@ -444,7 +444,7 @@ export function App({ store, host, onExit, intro = false }: { store: Store; host
         <Box flexDirection="column" marginTop={1}>
           <Box borderStyle="round" borderColor={running ? SLATE : TEAL} paddingX={1}>
             <Text color={TEAL}>❯ </Text>
-            {running ? <Text color={SLATE}>Zentara AI sedang bekerja… (Esc untuk menghentikan)</Text> : <Line text={editor.text} cursor={editor.cursor} placeholder='Tulis permintaan, mis. "buatkan API produk" · /help' active />}
+            {running ? <Text color={SLATE}>Zentara AI sedang bekerja… (Esc untuk menghentikan)</Text> : <Line text={editor.text} cursor={editor.cursor} placeholder='Tulis permintaan, mis. "buatkan halaman portofolio" · /help' active />}
           </Box>
           {suggestions.length ? (
             <Box flexDirection="column" paddingX={2}>

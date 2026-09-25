@@ -19,7 +19,7 @@ function view({ values = {}, errors = {}, message }: View): string {
         title: "Buat akun",
         subtitle: "Isi tiga kolom di bawah, lalu Anda langsung masuk.",
         appName: APP_NAME,
-        aside: { title: "Mulai kelola toko Anda hari ini.", text: "Akun baru bisa melihat dasbor. Admin menambahkan produk dan mengatur pengguna." },
+        aside: { title: "Mulai dalam satu menit.", text: "Akun baru langsung masuk ke dasbor dan bisa menulis catatan. Admin juga bisa mengatur pengguna." },
         footer: ["Sudah punya akun? ", h("a", { href: "/login" }, "Masuk")],
       },
       h(

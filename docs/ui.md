@@ -55,7 +55,7 @@ Setiap halaman dari `page()` juga sudah punya:
 Semua warna berupa variabel CSS (`--zu-accent`, `--zu-bg`, `--zu-surface`, dan seterusnya). Ubah tema dengan menimpanya lewat `head`:
 
 ```ts
-page({ title: "Toko", head: h("style", null, raw(":root{--zu-accent:#c89b52}")) }, ...);
+page({ title: "Studio", head: h("style", null, raw(":root{--zu-accent:#c89b52}")) }, ...);
 ```
 
 ## Formulir dengan pesan error per field
@@ -69,8 +69,8 @@ export async function POST(ctx: ZenContext) {
   const raw = await readInput(ctx); // form HTML maupun JSON
   const input = await tryParse(ProductForm, raw);
   if (!input.ok) return html(view({ values: raw, errors: input.errors }), { status: 422 });
-  await db.insert(products).values(input.data);
-  return redirect("/admin/products?pesan=dibuat", 303);
+  await db.insert(notes).values({ ...input.data, userId: (ctx.state.user as User).id });
+  return redirect("/notes?pesan=dibuat", 303);
 }
 ```
 
@@ -94,9 +94,10 @@ Proyek baru dari `npm create zentara` (template **api**) langsung punya:
 | Halaman | Isi |
 |---|---|
 | `/login` · `/register` | formulir masuk dan daftar, lengkap dengan validasi, pesan error, dan pembatasan percobaan |
-| `/dashboard` | ringkasan (produk, total stok, stok menipis, pengguna), produk terbaru, dan daftar stok menipis |
-| `/admin/products` | daftar produk dengan pencarian, penanda stok, dan formulir tambah produk (khusus admin) |
-| `/admin/products/:id` | ubah dan hapus produk |
+| `/dashboard` | ringkasan (catatan, aktivitas minggu ini, pengguna), catatan terbaru, dan ide untuk dibangun berikutnya |
+| `/notes` | contoh fitur milik user: tulis, cari, dan daftar catatan (setiap user hanya melihat catatannya sendiri) |
+| `/notes/:id` | ubah dan hapus catatan |
+| `/admin/users` | daftar pengguna dan perannya (khusus admin) |
 | `/admin/users` | daftar pengguna dan perannya |
 
-Semua halaman ini ada di `src/app/routes/` dan boleh diubah sesuka Anda. `src/app/lib/ui.ts` berisi `appPage()` (kerangka dengan navigasi atas) dan `APP_NAME`. Zentara AI juga memakai kit ini saat Anda meminta halaman baru, mis. *"buatkan halaman kategori produk di admin"*.
+Semua halaman ini ada di `src/app/routes/` dan boleh diubah sesuka Anda. `src/app/lib/ui.ts` berisi `appPage()` (kerangka dengan navigasi atas) dan `APP_NAME`. Zentara AI juga memakai kit ini saat Anda meminta halaman baru, mis. *"buatkan halaman jadwal booking untuk user yang login"*.

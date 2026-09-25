@@ -416,7 +416,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       case "help":
       case "?":
         for (const [name, desc] of HOST_COMMANDS) ui.notice(`${name.padEnd(11)} ${desc}`);
-        ui.notice('Selain itu, tulis saja permintaan Anda, mis. "buatkan API produk dengan nama dan harga".', "dim");
+        ui.notice('Selain itu, tulis saja permintaan Anda, mis. "buatkan halaman portofolio dengan daftar proyek".', "dim");
         return;
       case "exit":
       case "quit":

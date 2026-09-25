@@ -5,7 +5,7 @@ export type Risk = "read" | "write" | "critical";
 export interface PendingAction {
   tool: string;
   risk: Risk;
-  /** Ringkasan satu baris, mis. "Buat src/app/routes/api/produk.ts". */
+  /** Ringkasan satu baris, mis. "Buat src/app/routes/api/events.ts". */
   summary: string;
   /** Pratinjau isi/diff yang ditampilkan saat meminta persetujuan. */
   preview?: string;

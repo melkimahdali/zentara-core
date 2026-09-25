@@ -21,7 +21,7 @@ npm install -g zentara
 | `zentara build` | kompilasi ke `dist/` |
 | `zentara start` | jalankan hasil build (`NODE_ENV=production`) |
 | `zentara routes [--json]` | daftar route |
-| `zentara make:route <path> [--methods GET,POST]` | buat file route, mis. `api/products/[id]` |
+| `zentara make:route <path> [--methods GET,POST]` | buat file route, mis. `api/events/[id]` |
 | `zentara make:middleware <nama>` | buat file middleware |
 | `zentara db:generate` · `db:migrate` · `db:seed` | database (Drizzle) |
 

@@ -39,7 +39,7 @@ export async function GET(ctx: ZenContext) {
 | `undefined` | `204 No Content` |
 | `json(data, { status })` · `html(markup, { status })` · `text(...)` | status & header kustom |
 | `redirect("/", 303)` | redirect |
-| `throw new HttpError(404, "Produk tidak ditemukan")` | respons error (JSON untuk API, halaman error untuk browser) |
+| `throw new HttpError(404, "Data tidak ditemukan")` | respons error (JSON untuk API, halaman error untuk browser) |
 
 ```ts
 import { html, HttpError, json, redirect, type ZenContext } from "zentara";

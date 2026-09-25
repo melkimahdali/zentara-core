@@ -15,8 +15,8 @@ Framework web TypeScript AI-driven asal Nusantara: routing berbasis file, auth, 
 Butuh Node.js 22 atau lebih baru.
 
 ```bash
-npm create zentara@latest toko-saya     # pilih template: api (login + database) atau minimal
-cd toko-saya
+npm create zentara@latest aplikasi-saya     # pilih template: api (login + database) atau minimal
+cd aplikasi-saya
 npx zentara                             # CLI interaktif: chat dengan AI + server dev di latar belakang
 ```
 
@@ -48,7 +48,7 @@ Tidak perlu hafal perintah. Tulis apa yang Anda mau dalam bahasa sehari-hari:
 
 ```bash
 npx zentara                       # CLI interaktif: percakapan berlanjut, server dev di latar belakang
-npx zentara "buatkan API produk dengan nama, harga, dan stok, lengkap dengan validasi"   # satu perintah
+npx zentara "buatkan API buku tamu dengan nama, pesan, dan tanggal, lengkap dengan validasi"   # satu perintah
 npx zentara undo                  # batalkan perubahan AI terakhir
 ```
 
@@ -350,7 +350,7 @@ Untuk validasi manual: `const data = await parse(schema, nilai)`.
 
 ```bash
 npx zentara routes                                   # daftar route (+ --json)
-npx zentara make:route api/products/[id] --methods GET,PUT
+npx zentara make:route api/events/[id] --methods GET,PUT
 npx zentara make:middleware auth-guard
 ```
 
@@ -362,20 +362,20 @@ Zentara memakai [Drizzle ORM](https://orm.drizzle.team). Defaultnya SQLite lewat
 
 ```ts
 // src/app/db/schema.ts
-export const products = sqliteTable("products", {
+export const events = sqliteTable("events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  price: integer("price").notNull(),
+  title: text("title").notNull(),
+  seats: integer("seats").notNull(),
 });
 
 // di route
 import { eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { products } from "../../db/schema.js";
+import { events } from "../../db/schema.js";
 
-export const GET = () => db.select().from(products);
-const [baru] = await db.insert(products).values({ name: "Kopi", price: 45000 }).returning();
-await db.update(products).set({ price: 40000 }).where(eq(products.id, 1));
+export const GET = () => db.select().from(events);
+const [baru] = await db.insert(events).values({ title: "Workshop Zentara", seats: 40 }).returning();
+await db.update(events).set({ seats: 60 }).where(eq(events.id, 1));
 await db.transaction(async (tx) => { /* ... */ });
 ```
 
@@ -419,8 +419,8 @@ Aplikasi contoh sudah menyediakan fitur-fitur berikut:
 |---|---|
 | `POST /api/auth/register` · `POST /api/auth/login` · `POST /api/auth/logout` | publik (rate limit 10×/15 menit) |
 | `GET /api/auth/me` | wajib login |
-| `GET /api/products?q=&maxHarga=` · `GET /api/products/:id` | publik |
-| `POST /api/products` · `PUT/DELETE /api/products/:id` | khusus admin |
+| `GET /api/notes?q=` · `POST /api/notes` | wajib login; hanya catatan milik sendiri |
+| `GET/PUT/DELETE /api/notes/:id` | wajib login; catatan orang lain dijawab 404 |
 
 Pengaman bawaan pada login:
 - pesan dan waktu respons sama untuk email yang tidak terdaftar maupun password salah (`fakeVerify`);

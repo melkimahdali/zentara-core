@@ -49,7 +49,7 @@ export function page(options: PageOptions, ...body: Child[]): string {
 
 type WithChildren<P> = P & { children: Child[] };
 
-/** Logo Zentara + nama aplikasi (kata terakhir berwarna aksen, mis. "Toko <b>Sari</b>"). */
+/** Logo Zentara + nama aplikasi (kata terakhir berwarna aksen, mis. "Studio <b>Senja</b>"). */
 export function Brand({ name = "Zentara Core", href = "/" }: WithChildren<{ name?: string; href?: string }>): Child {
   const words = name.trim().split(/\s+/);
   const last = words.length > 1 ? words.pop()! : undefined;
@@ -57,7 +57,7 @@ export function Brand({ name = "Zentara Core", href = "/" }: WithChildren<{ name
 }
 
 export interface AuthAside {
-  /** Kalimat utama di panel brand (layar lebar), mis. "Kelola toko Anda dari satu tempat". */
+  /** Kalimat utama di panel brand (layar lebar), mis. "Semua pekerjaan tim, di satu tempat". */
   title: string;
   text?: string;
 }
@@ -195,8 +195,12 @@ export function StatGroup({ children }: WithChildren<object>): Child {
 export interface FieldProps {
   name: string;
   label: string;
-  type?: "text" | "email" | "password" | "number" | "search" | "tel" | "url" | "date";
+  /** `"textarea"` untuk teks panjang beberapa baris. */
+  type?: "text" | "email" | "password" | "number" | "search" | "tel" | "url" | "date" | "textarea";
   value?: string | number;
+  /** Tinggi awal textarea (baris). */
+  rows?: number;
+  maxlength?: number;
   error?: string;
   hint?: string;
   placeholder?: string;
@@ -217,23 +221,41 @@ export function Field(props: WithChildren<FieldProps>): Child {
     "div",
     { class: "zu-field" },
     h("label", { for: id }, props.label),
-    h("input", {
-      class: "zu-input",
-      id,
-      name: props.name,
-      type: props.type ?? "text",
-      value: props.type === "password" ? undefined : props.value,
-      placeholder: props.placeholder,
-      required: props.required,
-      autocomplete: props.autocomplete,
-      min: props.min,
-      max: props.max,
-      step: props.step,
-      inputmode: props.inputmode,
-      autofocus: props.autofocus,
-      "aria-invalid": props.error ? "true" : undefined,
-      "aria-describedby": describedBy,
-    }),
+    props.type === "textarea"
+      ? h(
+          "textarea",
+          {
+            class: "zu-input zu-textarea",
+            id,
+            name: props.name,
+            rows: props.rows ?? 4,
+            maxlength: props.maxlength,
+            placeholder: props.placeholder,
+            required: props.required,
+            autofocus: props.autofocus,
+            "aria-invalid": props.error ? "true" : undefined,
+            "aria-describedby": describedBy,
+          },
+          props.value === undefined ? "" : String(props.value),
+        )
+      : h("input", {
+          class: "zu-input",
+          id,
+          name: props.name,
+          type: props.type ?? "text",
+          value: props.type === "password" ? undefined : props.value,
+          placeholder: props.placeholder,
+          required: props.required,
+          autocomplete: props.autocomplete,
+          min: props.min,
+          max: props.max,
+          step: props.step,
+          maxlength: props.maxlength,
+          inputmode: props.inputmode,
+          autofocus: props.autofocus,
+          "aria-invalid": props.error ? "true" : undefined,
+          "aria-describedby": describedBy,
+        }),
     props.error ? h("span", { class: "zu-error", id: `${id}-error` }, props.error) : props.hint ? h("small", { id: `${id}-hint` }, props.hint) : null,
   );
 }

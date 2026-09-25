@@ -24,7 +24,7 @@ Contoh dengan PM2:
 ```bash
 npm ci && npm run build
 npx zentara db:migrate
-pm2 start npm --name toko -- start
+pm2 start npm --name aplikasi -- start
 ```
 
 Adapter deploy (Docker, Vercel, Cloudflare, dan lainnya) ada di peta jalan Tahap 13.

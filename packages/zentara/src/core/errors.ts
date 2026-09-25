@@ -1,6 +1,6 @@
 /**
  * Error dengan status HTTP. Lempar dari handler untuk membalas dengan status tertentu:
- *   throw new HttpError(404, "Produk tidak ditemukan")
+ *   throw new HttpError(404, "Data tidak ditemukan")
  * Pesan hanya dikirim ke klien bila `expose` true (default untuk status < 500).
  */
 export class HttpError extends Error {

@@ -1,6 +1,6 @@
 # Aplikasi Zentara
 
-Dibuat dengan `npm create zentara@latest` (template **api**: halaman login & dasbor, auth, database, CRUD produk).
+Dibuat dengan `npm create zentara@latest` (template **api**: halaman login & dasbor, auth, database, dan contoh CRUD). Aplikasi ini titik awal yang netral: bangun apa saja di atasnya.
 
 ## Mulai
 
@@ -15,8 +15,8 @@ Database SQLite ada di `data/app.db`. Akun admin untuk pengembangan: `admin@zent
 | Halaman | Isi |
 |---|---|
 | `/login` · `/register` | masuk & daftar |
-| `/dashboard` | ringkasan dan produk terbaru |
-| `/admin/products` | kelola produk (admin) |
+| `/dashboard` | ringkasan dan catatan terbaru |
+| `/notes` | contoh fitur milik user: tulis, cari, ubah, hapus catatan |
 | `/admin/users` | daftar pengguna (admin) |
 
 Semua dibuat dengan kit UI `zentara/ui` (lihat https://zentara-core.morixa.id/ui.html). Nama aplikasi dan menu navigasi ada di `src/app/lib/ui.ts`.
@@ -26,9 +26,20 @@ Semua dibuat dengan kit UI `zentara/ui` (lihat https://zentara-core.morixa.id/ui
 ```bash
 npx zentara ai:setup                       # atur provider AI (Claude, OpenAI, Gemini, Groq, ...)
 npx zentara                                # CLI interaktif; server dev bisa ikut dijalankan
-npx zentara "tambahkan fitur keranjang belanja untuk user yang login"
+npx zentara "buatkan halaman jadwal booking untuk user yang login"
 npx zentara undo                           # batalkan perubahan AI terakhir
 ```
+
+## Mulai dari kanvas kosong
+
+Fitur **Catatan** hanya contoh cara membuat data milik user (tabel, API, halaman, test). Untuk menggantinya dengan fitur Anda sendiri:
+
+1. Hapus `src/app/routes/notes/`, `src/app/routes/api/notes/`, dan `src/app/lib/notes.ts`.
+2. Hapus tabel `notes` dari `src/app/db/schema.ts` dan data contohnya dari `src/app/db/seed.ts`.
+3. Hapus menu "Catatan" di `src/app/lib/ui.ts`, lalu sesuaikan `src/app/routes/dashboard.ts` dan `test/app.test.ts`.
+4. Jalankan `npx zentara db:generate` lalu `npx zentara db:migrate`.
+
+Atau minta Zentara AI: `npx zentara "hapus fitur catatan, lalu buatkan fitur ..."`.
 
 ## Perintah
 

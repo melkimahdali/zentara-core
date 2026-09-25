@@ -148,7 +148,7 @@ describe("welcomePage", () => {
       const body = welcomePage();
       assert.match(body, /\/api\/produk/);
       assert.match(body, /window\.ZentaraChat =/);
-      assert.match(body, /Buatkan API produk/);
+      assert.match(body, /Buatkan blog sederhana/);
     } finally {
       delete process.env.ZENTARA_DEVTOOLS_PORT;
       delete process.env.ZENTARA_DEVTOOLS_TOKEN;

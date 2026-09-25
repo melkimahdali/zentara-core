@@ -11,7 +11,7 @@ Tidak perlu hafal perintah. Tulis apa yang Anda mau dalam bahasa sehari-hari:
 
 ```bash
 npx zentara                       # CLI interaktif: percakapan berlanjut, server dev di latar belakang
-npx zentara "buatkan API produk dengan nama, harga, dan stok, lengkap dengan validasi"   # satu perintah
+npx zentara "buatkan API buku tamu dengan nama, pesan, dan tanggal, lengkap dengan validasi"   # satu perintah
 npx zentara undo                  # batalkan perubahan AI terakhir
 ```
 
