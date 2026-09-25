@@ -2,6 +2,31 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.10.3]
+
+### Diubah
+- **CLI interaktif mengambil alih terminal seperti ruang chat.** Saat dibuka, layar dibersihkan (`\u001b[2J\u001b[0;0H`, aman untuk terminal cloud), lalu dibagi tiga seksi `<Box flexDirection="column">`:
+  1. header terkunci berisi logo ringkas, versi, status AI dan server dev, folder, dan garis pembatas;
+  2. log percakapan di tengah: pesan baru mendorong yang lama ke atas, **PgUp/PgDn** untuk menggulir, dan penanda jumlah pesan di atas/bawah layar;
+  3. input di bawah: kotak input, menu, atau dialog persetujuan.
+
+  Ink merender dengan `incrementalRendering` (hanya baris yang berubah ditulis ulang) dan frame satu baris lebih pendek dari terminal, sehingga layar tidak berkedip, termasuk di Windows. Hanya pesan yang terlihat yang dirender, jadi percakapan panjang tetap ringan. Saat keluar, seluruh percakapan dicetak ke scrollback. Terminal di bawah 12 baris atau output non-TTY memakai tata letak biasa; atur dengan `cli: { fullscreen: false }` atau `ZENTARA_FULLSCREEN=off`.
+- **Keluar dengan anggun:** Esc atau Ctrl+C dua kali berturut-turut (tombol pertama menampilkan pengingat). Bila AI sedang bekerja, ada dialog, atau input berisi teks, tombol itu lebih dulu menghentikan AI, menutup dialog, atau mengosongkan input. Server dev dimatikan, sesi disimpan, lalu proses diakhiri dengan `process.exit` setelah output terkirim. `SIGTERM` dan `SIGHUP` (terminal ditutup, sesi cloud terputus) juga menutup CLI dengan rapi.
+- **Template `api` kini netral, bukan aplikasi toko.** Contoh CRUD produk diganti **Catatan** milik user: tabel `notes`, API `/api/notes` (hanya catatan sendiri; catatan orang lain dijawab 404), dan halaman `/notes` dengan pencarian. README template menjelaskan cara menghapusnya untuk mulai dari kanvas kosong. Dasbor menampilkan ringkasan catatan dan ide untuk dibangun berikutnya. Contoh di CLI, halaman sambutan, instruksi AI, dan dokumentasi dibuat beragam (portofolio, blog, booking, buku tamu).
+
+### Ditambahkan
+- **Peta jalan** di dokumentasi (`peta-jalan.html`). Tahap berikutnya adalah **Tahap 10: dukungan Bahasa Inggris** (0.11), disusul Back-End, Data & admin, Testing, Deploy, dan 1.0.
+- `Field` di kit UI menerima `type: "textarea"` (dengan `rows`) dan `maxlength`. Utilitas CSS baru: `.zu-block` dan `.zu-bullets`.
+- `/clear` di layar penuh juga mengosongkan log.
+
+### Diperbaiki
+- CLI Ink:
+  - timer pengingat dibersihkan saat komponen dilepas, dan penghubung `suspendTerminal` dilepas saat unmount (tidak ada setState setelah unmount);
+  - error dari host saat mengirim permintaan ditampilkan sebagai pesan, bukan *unhandled rejection*;
+  - menutup CLI berkali-kali hanya menutup host sekali;
+  - menu panjang (mis. daftar model) dan pratinjau diff dibatasi setinggi layar;
+  - tipe props komponen memakai `Key` dari Ink dan interface eksplisit.
+
 ## [0.10.2]
 
 Desain ulang kit UI dan halaman bawaan agar terasa seperti produk jadi, bukan tampilan generik. Audit dan perbaikannya mengikuti skill desain *taste* dan *redesign* (MIT, dari Leonxlnx/taste-skill) yang kini ada di `.claude/skills/` repo ini.

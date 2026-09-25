@@ -43,6 +43,11 @@ export interface ZenConfig {
 export interface CliConfig {
   /** Animasi logo saat CLI dibuka (default true; env ZENTARA_ANIMATION=off mematikan). */
   animation?: boolean;
+  /**
+   * Layar penuh seperti ruang chat: header terkunci di atas, log bisa digulir, input di bawah
+   * (default true bila terminal interaktif; env ZENTARA_FULLSCREEN=off mematikan).
+   */
+  fullscreen?: boolean;
 }
 
 export type UserConfig = Partial<ZenConfig> & { cli?: CliConfig };

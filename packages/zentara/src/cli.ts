@@ -329,7 +329,14 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     } catch (err) {
       io.err(c.yellow(`Tampilan Ink gagal dimuat (${(err as Error).message}); memakai CLI klasik.`));
     }
-    if (ink) return ink.startInkRepl(options, { animation: animationEnabled(userConfig.cli?.animation) });
+    if (ink) {
+      return ink.startInkRepl(options, {
+        animation: animationEnabled(userConfig.cli?.animation),
+        fullscreen: ink.fullscreenEnabled(userConfig.cli?.fullscreen),
+        // Tutup proses setelah CLI selesai rapi, agar timer atau proses anak tidak menahan terminal.
+        exitProcess: true,
+      });
+    }
   }
   return startRepl({ ...options, io });
 }
