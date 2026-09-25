@@ -2,6 +2,36 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.10.0]
+
+Tahap 9: Front-End, ditambah CLI berbasis Ink.
+
+### Ditambahkan
+- **Kit UI `zentara/ui`**: komponen HTML server-side bergaya brand Zentara Core. Warnanya teal/emas, otomatis mengikuti mode gelap/terang, responsif, dan tanpa JavaScript maupun build step.
+  - Komponen: `page()`, `AuthCard`, `AppShell` (sidebar, navigasi, user, tombol keluar), `Card`, `Grid`, `Stat`, `Form`, `FormRow`, `Field` (label, error, aria), `Button`, `PostButton` (POST dengan konfirmasi), `Alert`, `Badge`, `Table`, `EmptyState`, `Avatar`, `Brand`, `rupiah()`.
+  - Stylesheet, logo, dan favicon disajikan framework di `/_zentara/*`.
+- **Halaman bawaan di template `api`**:
+  - `/login` dan `/register`: validasi per field, pesan error, pembatasan percobaan hanya untuk POST, dan kembali ke halaman asal lewat `?next` (hanya path lokal).
+  - `/logout` (POST) dan `/dashboard` (ringkasan dan produk terbaru).
+  - `/admin/products`: tambah, ubah, dan hapus produk.
+  - `/admin/users`.
+  - Logika login dan daftar dipakai bersama oleh API JSON dan halaman.
+- `tryParse(schema, value)` untuk formulir HTML: validasi tanpa melempar error, dengan pesan pertama per field.
+- `requireAuth({ redirectTo: "/login" })` untuk halaman: tamu diarahkan ke `/login?next=…` (303), bukan dibalas 401.
+- **Paket baru `zentara-cli`**: tampilan CLI interaktif berbasis Ink, bergaya Claude Code. Isinya:
+  - logo dan info di atas;
+  - jawaban AI yang mengalir dan dirender sebagai Markdown;
+  - kotak input di bawah dengan riwayat dan saran perintah garis miring (Tab untuk melengkapi);
+  - dialog menu, persetujuan, dan pertanyaan rahasia;
+  - baris mode dan status server.
+
+  Perintah `zentara` memakainya otomatis bila terpasang (`npm install -g zentara zentara-cli`); tanpa paket itu, CLI bawaan tetap dipakai. `zentara --classic` memaksa CLI bawaan. Paket ini dipisah agar proyek tidak ikut memasang Ink dan React (±25 MB).
+- `zentara/host`: inti CLI interaktif tanpa tampilan (`createReplHost`, `HostUI`, `HOST_API`), sehingga tampilan lain bisa memakai logika yang sama.
+- Dokumentasi: grup baru **Front-End** dengan halaman *Kit UI*. Zentara AI kini diarahkan memakai kit UI dan `appPage()` saat membuat halaman.
+
+### Diubah
+- CI dan workflow Release menjalankan build sebelum typecheck. `zentara-cli` ikut dirilis setelah terbit manual pertama (lihat PUBLISHING.md).
+
 ## [0.9.0]
 
 Tahap 8: arsitektur & keamanan Zentara AI.

@@ -5,7 +5,7 @@
 Framework web TypeScript **AI-driven asal Nusantara**. Tulis apa yang Anda mau dalam bahasa sehari-hari, lalu Zentara AI yang mengerjakan langkah teknisnya, dengan persetujuan Anda dan selalu diverifikasi dengan test.
 
 ```bash
-npm install -g zentara   # sekali saja, lalu cukup ketik: zentara
+npm install -g zentara zentara-cli   # sekali saja, lalu cukup ketik: zentara
 zentara                  # buat proyek baru, atur AI (OmniRoute gratis), lalu chat dengan Zentara AI
 ❯ tambahkan fitur keranjang belanja untuk user yang login
 ```
@@ -14,8 +14,8 @@ Fitur utama:
 - **Routing berbasis file** dan validasi input (zod/valibot/arktype).
 - **Keamanan bawaan:** session terenkripsi, CSRF, CORS, dan rate limit.
 - **Database** Drizzle ORM: SQLite tanpa instalasi, atau PostgreSQL.
-- **Auth** dengan scrypt dan role.
-- **Zentara AI** di terminal (CLI interaktif gaya Claude Code) dan di browser: halaman sambutan dan halaman error bisa langsung diajak chat untuk membangun fitur atau memperbaiki error.
+- **Auth** dengan scrypt dan role, plus **halaman bawaan** login, daftar, dasbor, dan admin dari kit UI `zentara/ui`.
+- **Zentara AI** di terminal (CLI interaktif gaya Claude Code berbasis Ink lewat paket `zentara-cli`) dan di browser: halaman sambutan dan halaman error bisa langsung diajak chat untuk membangun fitur atau memperbaiki error.
 - **Halaman error lengkap** saat pengembangan: stack trace dengan potongan kode, detail request, tombol "Tanya Zentara AI".
 - Provider AI: **OmniRoute (default, gratis)**, Claude, OpenAI, Gemini, Groq, DeepSeek, OpenRouter, Ollama, dengan fallback otomatis bila kredit habis.
 

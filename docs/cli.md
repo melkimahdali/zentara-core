@@ -10,7 +10,7 @@ description: Semua perintah zentara.
 Pasang global agar cukup mengetik `zentara`, atau jalankan lewat `npx zentara` di folder proyek.
 
 ```bash
-npm install -g zentara
+npm install -g zentara zentara-cli   # zentara-cli = tampilan Ink (opsional)
 ```
 
 ## Aplikasi
@@ -31,6 +31,7 @@ npm install -g zentara
 |---|---|
 | `zentara` | CLI interaktif (gaya Claude Code) |
 | `zentara --continue` | CLI interaktif, langsung melanjutkan percakapan terakhir |
+| `zentara --classic` | CLI interaktif bawaan, walau `zentara-cli` terpasang |
 | `zentara "<kalimat>" [--auto] [--dry-run]` | satu perintah AI |
 | `zentara ai:setup [provider]` | atur akses AI dengan menu panah |
 | `zentara ai:status` | cek provider AI |

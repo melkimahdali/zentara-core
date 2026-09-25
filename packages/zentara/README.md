@@ -57,11 +57,19 @@ npx zentara undo                  # batalkan perubahan AI terakhir
 Pasang sekali secara global agar cukup mengetik `zentara` dari folder mana pun, seperti Claude Code:
 
 ```bash
-npm install -g zentara
+npm install -g zentara zentara-cli
 zentara
 ```
 
 (Tanpa pemasangan global: `npx zentara` di folder proyek.)
+
+`zentara-cli` adalah tampilan terminal berbasis [Ink](https://github.com/vadimdemedes/ink), bergaya Claude Code:
+- jawaban AI mengalir dan dirender sebagai Markdown;
+- kotak input di bawah dengan riwayat (↑/↓) dan saran perintah (ketik `/` lalu **Tab**);
+- dialog menu dan persetujuan berwarna;
+- baris mode dan status server.
+
+Paket ini opsional. Tanpa `zentara-cli`, perintah `zentara` memakai CLI bawaan. Paksa CLI bawaan dengan `zentara --classic`. Pasang dan perbarui keduanya bersamaan agar versinya cocok: `npm install -g zentara@latest zentara-cli@latest`.
 
 Saat dibuka, Zentara menampilkan logo Zentara Core beserta versi, AI yang aktif, mode, dan folder, seperti Claude Code. Kolom input ada di antara dua garis, dengan baris mode di bawahnya (**Shift+Tab** untuk mengganti mode). Lalu:
 - **Belum ada AI yang siap:** muncul layar sambutan untuk memilih cara mengakses model, yaitu *OmniRoute (gratis)*, *Masukkan API key*, *Provider kustom*, atau *Lewati dulu*. Menu dipilih dengan ↑/↓ + Enter, atau ketik untuk mencari.

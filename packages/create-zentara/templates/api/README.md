@@ -1,6 +1,6 @@
 # Aplikasi Zentara
 
-Dibuat dengan `npm create zentara@latest` (template **api**: auth + database + CRUD produk).
+Dibuat dengan `npm create zentara@latest` (template **api**: halaman login & dasbor, auth, database, CRUD produk).
 
 ## Mulai
 
@@ -9,6 +9,17 @@ npm run dev          # http://localhost:3000 (auto-reload)
 ```
 
 Database SQLite ada di `data/app.db`. Akun admin untuk pengembangan: `admin@zentara.test` / `admin12345`.
+
+## Halaman bawaan
+
+| Halaman | Isi |
+|---|---|
+| `/login` · `/register` | masuk & daftar |
+| `/dashboard` | ringkasan dan produk terbaru |
+| `/admin/products` | kelola produk (admin) |
+| `/admin/users` | daftar pengguna (admin) |
+
+Semua dibuat dengan kit UI `zentara/ui` (lihat https://melkimahdali.github.io/zentara-core/ui.html). Nama aplikasi dan menu sidebar ada di `src/app/lib/ui.ts`.
 
 ## Bicara dengan Zentara AI
 
@@ -36,7 +47,7 @@ npx zentara undo                           # batalkan perubahan AI terakhir
 src/app/routes/      route (file = URL)
 src/app/middleware.ts middleware global
 src/app/db/          schema, koneksi, seed
-src/app/lib/         helper (requireUser, requireAdmin)
+src/app/lib/         helper: auth (requireUser, requireUserPage, ...) dan ui (appPage)
 drizzle/             file migrasi SQL
 test/                test
 ```
