@@ -3,17 +3,17 @@
 Buat proyek [Zentara](https://www.npmjs.com/package/zentara) baru dengan satu perintah:
 
 ```bash
-npm create zentara@latest toko-saya
+npm create zentara@latest aplikasi-saya
 ```
 
 Pilih template:
 
 | Template | Isi |
 |---|---|
-| `api` | login/register, database SQLite (Drizzle), CRUD produk, rate limit, test |
+| `api` | login/register, database SQLite (Drizzle), contoh CRUD catatan milik user, rate limit, test |
 | `minimal` | halaman & API sederhana, tanpa database |
 
-Opsi: `--template api|minimal`, `--no-install`, `--yes` (tanpa pertanyaan). Bila memakai npm, pisahkan opsi dengan `--`, mis. `npm create zentara@latest toko -- --template minimal`.
+Opsi: `--template api|minimal`, `--no-install`, `--yes` (tanpa pertanyaan). Bila memakai npm, pisahkan opsi dengan `--`, mis. `npm create zentara@latest situs -- --template minimal`.
 
 `create-zentara` membuat `.env` dengan `SESSION_SECRET` acak, memasang dependency, dan (untuk template `api`) langsung menjalankan migrasi dan seed. Setelah itu proyek siap dijalankan dengan `npm run dev`.
 

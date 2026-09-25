@@ -48,12 +48,12 @@ describe("kit UI (zentara/ui)", () => {
   it("AppShell menandai menu aktif dan menyediakan tombol keluar (POST)", () => {
     const html = page(
       { title: "Dasbor" },
-      h(AppShell, { appName: "Toko Sari", title: "Dasbor", active: "/dashboard", user: { name: "Sari Dewi", email: "sari@x.id" }, nav: [{ href: "/dashboard", label: "Dasbor" }, { href: "/admin", label: "Admin", section: "Kelola" }] }, h(Alert, { tone: "success" }, "Tersimpan")),
+      h(AppShell, { appName: "Studio Senja", title: "Dasbor", active: "/dashboard", user: { name: "Sari Dewi", email: "sari@x.id" }, nav: [{ href: "/dashboard", label: "Dasbor" }, { href: "/admin", label: "Admin", section: "Kelola" }] }, h(Alert, { tone: "success" }, "Tersimpan")),
     );
     assert.match(html, /<a href="\/dashboard" aria-current="page">Dasbor<\/a>/);
     assert.match(html, /<a href="\/admin">Admin<\/a>/);
     assert.match(html, /<form method="post" action="\/logout">/);
-    assert.match(html, /Toko <b>Sari<\/b>/);
+    assert.match(html, /Studio <b>Senja<\/b>/);
     assert.match(html, /aria-hidden="true">SD<\/span>/);
   });
 
@@ -62,9 +62,9 @@ describe("kit UI (zentara/ui)", () => {
     const html = page({ title: "t" }, h(PostButton, { action: "/x/1/delete", confirm: `Hapus "a" </button>?` }, "Hapus"));
     assert.match(html, /onclick="return confirm\(&quot;Hapus \\&quot;a\\&quot; &lt;\/button&gt;\?&quot;\)"/);
     assert.equal(rupiah(45000), "Rp45.000");
-    const auth = page({ title: "t" }, h(AuthCard, { title: "Masuk", aside: { title: "Semua data toko Anda", text: "Pantau stok." } }, h(Button, { block: true }, "Masuk")));
+    const auth = page({ title: "t" }, h(AuthCard, { title: "Masuk", aside: { title: "Semua pekerjaan tim Anda", text: "Satu tempat." } }, h(Button, { block: true }, "Masuk")));
     assert.match(auth, /zu-btn primary block/);
-    assert.match(auth, /Semua data toko Anda/);
+    assert.match(auth, /Semua pekerjaan tim Anda/);
   });
 });
 

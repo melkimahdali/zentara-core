@@ -8,7 +8,7 @@ import { ZenRuntime } from "zentara";
 process.env.DATABASE_URL = ":memory:";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-describe("aplikasi contoh: auth + produk", () => {
+describe("aplikasi contoh: auth + catatan", () => {
   let base: string;
   let runtime: ZenRuntime;
 
@@ -28,15 +28,6 @@ describe("aplikasi contoh: auth + produk", () => {
     fetch(`${base}${url}`, { method: "POST", headers: { "Content-Type": "application/json", cookie }, body: JSON.stringify(body) });
   const cookieOf = (res: Response) => res.headers.getSetCookie()[0]?.split(";")[0] ?? "";
 
-  it("produk publik dengan filter", async () => {
-    const all = (await (await fetch(`${base}/api/products`)).json()) as { name: string }[];
-    assert.equal(all.length, 3);
-    const cheap = (await (await fetch(`${base}/api/products?maxHarga=15000`)).json()) as { price: number }[];
-    assert.ok(cheap.every((p) => p.price <= 15000) && cheap.length === 2);
-    assert.deepEqual(await (await fetch(`${base}/api/products?q=%25`)).json(), [], "wildcard di-escape");
-    assert.equal((await fetch(`${base}/api/products?maxHarga=abc`)).status, 422);
-  });
-
   it("register -> me -> logout", async () => {
     const reg = await post("/api/auth/register", { name: "Sari", email: "SARI@mail.id", password: "rahasia123" });
     assert.equal(reg.status, 201);
@@ -50,26 +41,40 @@ describe("aplikasi contoh: auth + produk", () => {
     assert.equal(out.status, 204);
   });
 
-  it("user biasa tidak boleh mengubah produk; admin boleh", async () => {
-    const user = cookieOf(await post("/api/auth/login", { email: "sari@mail.id", password: "rahasia123" }));
-    assert.equal((await post("/api/products", { name: "Sambal", price: 20000 }, user)).status, 403);
-    assert.equal((await post("/api/products", { name: "Sambal", price: 20000 })).status, 401);
+  it("API catatan: butuh login, milik sendiri, filter, update sebagian", async () => {
+    assert.equal((await fetch(`${base}/api/notes`)).status, 401);
+    assert.equal((await post("/api/notes", { title: "Tamu" })).status, 401);
 
-    const admin = cookieOf(await post("/api/auth/login", { email: "admin@zentara.test", password: "admin12345" }));
-    const created = (await (await post("/api/products", { name: "Sambal Roa", price: 20000, stock: 7 }, admin)).json()) as { id: number };
-    const put = await fetch(`${base}/api/products/${created.id}`, {
+    const sari = cookieOf(await post("/api/auth/login", { email: "sari@mail.id", password: "rahasia123" }));
+    assert.deepEqual(await (await fetch(`${base}/api/notes`, { headers: { cookie: sari } })).json(), [], "catatan admin tidak terlihat");
+    assert.equal((await post("/api/notes", { title: "" }, sari)).status, 422);
+    const created = await post("/api/notes", { title: "Belanja 100%", body: "Beras dan telur" }, sari);
+    assert.equal(created.status, 201);
+    const note = (await created.json()) as { id: number; userId: number; body: string };
+    assert.equal(note.body, "Beras dan telur");
+
+    const list = (q: string) => fetch(`${base}/api/notes?q=${encodeURIComponent(q)}`, { headers: { cookie: sari } }).then((r) => r.json());
+    assert.equal(((await list("telur")) as unknown[]).length, 1, "cari di isi");
+    assert.equal(((await list("%")) as unknown[]).length, 1, "wildcard di-escape");
+    assert.equal(((await list("_x")) as unknown[]).length, 0);
+
+    const put = await fetch(`${base}/api/notes/${note.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", cookie: admin },
-      body: JSON.stringify({ price: 18000 }),
+      headers: { "Content-Type": "application/json", cookie: sari },
+      body: JSON.stringify({ title: "Belanja mingguan" }),
     });
-    assert.deepEqual(
-      { price: ((await put.json()) as { price: number; stock: number }).price },
-      { price: 18000 },
-    );
-    const after = (await (await fetch(`${base}/api/products/${created.id}`)).json()) as { stock: number };
-    assert.equal(after.stock, 7, "update sebagian tidak mereset field lain");
-    assert.equal((await fetch(`${base}/api/products/${created.id}`, { method: "DELETE", headers: { cookie: admin } })).status, 204);
-    assert.equal((await fetch(`${base}/api/products/${created.id}`)).status, 404);
+    const updated = (await put.json()) as { title: string; body: string };
+    assert.deepEqual([updated.title, updated.body], ["Belanja mingguan", "Beras dan telur"], "update sebagian tidak mereset field lain");
+
+    // Catatan orang lain: 404 (bukan 403), agar keberadaannya tidak bocor.
+    const admin = cookieOf(await post("/api/auth/login", { email: "admin@zentara.test", password: "admin12345" }));
+    assert.equal((await fetch(`${base}/api/notes/${note.id}`, { headers: { cookie: admin } })).status, 404);
+    assert.equal((await fetch(`${base}/api/notes/${note.id}`, { method: "DELETE", headers: { cookie: admin } })).status, 404);
+    assert.equal(((await (await fetch(`${base}/api/notes`, { headers: { cookie: admin } })).json()) as unknown[]).length, 2, "catatan contoh dari seed");
+
+    assert.equal((await fetch(`${base}/api/notes/${note.id}`, { method: "DELETE", headers: { cookie: sari } })).status, 204);
+    assert.equal((await fetch(`${base}/api/notes/${note.id}`, { headers: { cookie: sari } })).status, 404);
+    assert.equal((await fetch(`${base}/api/notes/abc`, { headers: { cookie: sari } })).status, 404);
   });
 
   // Formulir HTML (seperti browser: application/x-www-form-urlencoded, redirect tidak diikuti).
@@ -110,7 +115,7 @@ describe("aplikasi contoh: auth + produk", () => {
     assert.equal(dash.status, 200);
     const dashHtml = await dash.text();
     assert.match(dashHtml, /Halo, Admin/);
-    assert.match(dashHtml, /Kopi Gayo 250g/);
+    assert.match(dashHtml, /Selamat datang di aplikasi Anda/);
     assert.match(dashHtml, /aria-current="page">Dasbor/);
 
     // Hanya path lokal yang boleh jadi tujuan setelah login.
@@ -141,35 +146,42 @@ describe("aplikasi contoh: auth + produk", () => {
     assert.equal((await form("/register", { name: "Budi", email: "budi@mail.id", password: "rahasia123" })).status, 409);
 
     // User biasa: tidak ada menu Kelola dan tidak boleh membuka halaman admin.
-    assert.doesNotMatch(await (await page("/dashboard", budi)).text(), /\/admin\/products/);
-    assert.equal((await page("/admin/products", budi)).status, 403);
-    assert.equal((await form("/admin/products", { name: "Curang", price: "1", stock: "1" }, budi)).status, 403);
+    assert.doesNotMatch(await (await page("/dashboard", budi)).text(), /\/admin\/users/);
+    assert.equal((await page("/admin/users", budi)).status, 403);
+    assert.equal((await page("/admin", budi)).status, 403);
   });
 
-  it("halaman admin: tambah, ubah, hapus produk", async () => {
-    const admin = cookieOf(await form("/login", { email: "admin@zentara.test", password: "admin12345" }));
-    const bad = await form("/admin/products", { name: "X", price: "-5", stock: "abc" }, admin);
+  it("halaman catatan: tulis, cari, ubah, hapus", async () => {
+    const budi = cookieOf(await form("/login", { email: "budi@mail.id", password: "rahasia123" }));
+    const bad = await form("/notes", { title: " ", body: "isi" }, budi);
     assert.equal(bad.status, 422);
     const badHtml = await bad.text();
-    assert.match(badHtml, /Nama minimal 2 karakter/);
-    assert.match(badHtml, /Harga tidak boleh negatif/);
+    assert.match(badHtml, /Judul wajib diisi/);
+    assert.match(badHtml, /<textarea class="zu-input zu-textarea" id="f-body" name="body" rows="5"[^>]*>isi<\/textarea>/, "isi diisi ulang");
+    assert.match(badHtml, /<details class="zu-disclosure" open>/);
 
-    const created = await form("/admin/products", { name: "Rendang Kaleng", price: "55000", stock: "0" }, admin);
-    assert.equal(created.headers.get("location"), "/admin/products?pesan=dibuat");
-    const list = await (await page("/admin/products?pesan=dibuat", admin)).text();
-    assert.match(list, /Produk ditambahkan/);
-    assert.match(list, /Rendang Kaleng/);
-    assert.match(list, /Rp55\.000/);
-    const id = /href="\/admin\/products\/(\d+)"[^>]*>Ubah<\/a>/.exec(list)![1];
+    const created = await form("/notes", { title: "Rapat <tim>", body: "Bahas rilis" }, budi);
+    assert.equal(created.headers.get("location"), "/notes?pesan=dibuat");
+    const list = await (await page("/notes?pesan=dibuat", budi)).text();
+    assert.match(list, /Catatan disimpan/);
+    assert.match(list, /Rapat &lt;tim&gt;/);
+    assert.match(list, /aria-current="page">Catatan/);
+    const id = /href="\/notes\/(\d+)">Rapat/.exec(list)![1];
+    assert.match(await (await page("/notes?q=rilis", budi)).text(), /1 hasil untuk/);
+    assert.match(await (await page("/notes?q=tidak-ada", budi)).text(), /Tidak ada catatan yang cocok/);
 
-    assert.equal((await form(`/admin/products/${id}`, { name: "Rendang Kaleng 200g", price: "57000", stock: "3" }, admin)).status, 303);
-    const product = (await (await fetch(`${base}/api/products/${id}`)).json()) as { name: string; price: number };
-    assert.deepEqual([product.name, product.price], ["Rendang Kaleng 200g", 57000]);
-    assert.match(await (await page(`/admin/products/${id}`, admin)).text(), /Hapus Rendang Kaleng 200g\?/);
+    assert.equal((await form(`/notes/${id}`, { title: "Rapat tim", body: "Bahas rilis 1.0" }, budi)).status, 303);
+    assert.match(await (await page(`/notes/${id}`, budi)).text(), /Bahas rilis 1\.0<\/textarea>/);
 
-    assert.equal((await form(`/admin/products/${id}/hapus`, {}, admin)).headers.get("location"), "/admin/products?pesan=dihapus");
-    assert.equal((await page(`/admin/products/${id}`, admin)).status, 404);
-    assert.equal((await page("/admin/products/abc", admin)).status, 404);
+    // Admin pun tidak bisa membuka catatan milik orang lain.
+    const admin = cookieOf(await form("/login", { email: "admin@zentara.test", password: "admin12345" }));
+    assert.equal((await page(`/notes/${id}`, admin)).status, 404);
+    assert.equal((await form(`/notes/${id}/hapus`, {}, admin)).status, 404);
+
+    assert.equal((await form(`/notes/${id}/hapus`, {}, budi)).headers.get("location"), "/notes?pesan=dihapus");
+    assert.equal((await page(`/notes/${id}`, budi)).status, 404);
+    assert.equal((await page("/notes/abc", budi)).status, 404);
+    assert.equal((await page("/admin", admin)).headers.get("location"), "/admin/users");
     assert.match(await (await page("/admin/users", admin)).text(), /budi@mail\.id/);
   });
 

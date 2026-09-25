@@ -36,13 +36,13 @@ const WELCOME_JS = `
   var data = JSON.parse(document.getElementById("zx-data").textContent);
   document.querySelectorAll(".zx-copy").forEach(function(b){ b.addEventListener("click", function(){ navigator.clipboard.writeText(b.previousElementSibling.textContent).then(function(){ b.textContent = "✓"; setTimeout(function(){ b.textContent = "Salin"; }, 1400); }); }); });
   var box = document.querySelector(".zw-chat-body");
-  if (box && data.devtools) ZentaraChat.mount(box, { port: data.devtools.port, token: data.devtools.token, storageKey: "welcome", emptyText: "Ceritakan apa yang ingin Anda bangun. Zentara AI akan menjelaskan rencananya dan meminta persetujuan sebelum mengubah file.", suggestions: data.suggestions, placeholder: "Mis. buatkan API produk dengan nama dan harga" });
+  if (box && data.devtools) ZentaraChat.mount(box, { port: data.devtools.port, token: data.devtools.token, storageKey: "welcome", emptyText: "Ceritakan apa yang ingin Anda bangun. Zentara AI akan menjelaskan rencananya dan meminta persetujuan sebelum mengubah file.", suggestions: data.suggestions, placeholder: "Mis. buatkan halaman portofolio dengan daftar proyek" });
 })();
 `;
 
 const SUGGESTIONS = [
   "Buatkan halaman tentang kami",
-  "Buatkan API produk dengan nama dan harga",
+  "Buatkan blog sederhana dengan daftar artikel",
   "Tambahkan form kontak yang tersimpan di database",
   "Jelaskan struktur proyek ini",
 ];

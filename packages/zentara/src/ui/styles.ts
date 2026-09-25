@@ -48,6 +48,9 @@ body.zu::before{content:"";position:fixed;inset:0;z-index:var(--zu-z-grain);poin
 .zu-stack{display:flex;flex-direction:column;gap:16px}
 .zu-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .zu-spacer{flex:1}
+.zu-block{display:block;overflow:hidden;text-overflow:ellipsis}
+.zu-bullets{margin:10px 0 0;padding-left:18px;display:grid;gap:6px;font-size:14px}
+.zu-bullets li::marker{color:var(--zu-accent)}
 .zu-num{font-variant-numeric:tabular-nums}
 .zu-skip{position:absolute;left:12px;top:-60px;z-index:calc(var(--zu-z-grain) + 1);background:var(--zu-text);color:var(--zu-bg)!important;padding:8px 12px;border-radius:var(--zu-r-md);font-weight:600;transition:top .15s var(--zu-ease)}
 .zu-skip:focus{top:12px}
@@ -120,6 +123,7 @@ body.zu::before{content:"";position:fixed;inset:0;z-index:var(--zu-z-grain);poin
 .zu-field small{color:var(--zu-muted);font-size:13px}
 .zu-field .zu-error{color:var(--zu-danger);font-size:13px;font-weight:500}
 .zu-input{width:100%;height:42px;font:inherit;font-size:15px;color:var(--zu-text);background:var(--zu-surface);border:1px solid var(--zu-border-strong);border-radius:var(--zu-r-md);padding:0 12px;outline:none;transition:border-color .15s var(--zu-ease),box-shadow .15s var(--zu-ease)}
+.zu-textarea{height:auto;min-height:96px;padding:10px 12px;line-height:1.55;resize:vertical}
 .zu-input::placeholder{color:var(--zu-faint)}
 .zu-input:hover{border-color:var(--zu-faint)}
 .zu-input:focus{border-color:var(--zu-accent);box-shadow:0 0 0 3px var(--zu-accent-soft)}
@@ -171,7 +175,7 @@ body.zu::before{content:"";position:fixed;inset:0;z-index:var(--zu-z-grain);poin
 .zu-table .end{text-align:right;width:1%;white-space:nowrap}
 .zu-cell-user{display:flex;align-items:center;gap:10px}
 
-/* Daftar ringkas (mis. stok menipis) */
+/* Daftar ringkas (mis. info akun) */
 .zu-list{list-style:none;margin:0;padding:0}
 .zu-list li{display:flex;align-items:center;gap:12px;padding:10px 0;font-size:14px}
 .zu-list li + li{border-top:1px solid var(--zu-border)}

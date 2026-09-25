@@ -44,7 +44,7 @@ Bicara dengan AI (bahasa sehari-hari):
                                                    belakang (ditanya dulu; --no-dev untuk melewati)
   zentara --continue                               Lanjutkan percakapan terakhir (atau /resume di dalam CLI)
   zentara --classic                                CLI interaktif klasik (tanpa tampilan Ink)
-  zentara "buatkan API produk dengan nama dan harga"
+  zentara "buatkan halaman portofolio dengan daftar proyek"
   zentara ai "<perintah>" [--auto] [--dry-run]
   zentara ai:status                                Cek provider AI yang tersedia
   zentara ai:setup [provider]                      Atur provider AI (Claude, OpenAI, Gemini, Groq, DeepSeek,
@@ -59,7 +59,7 @@ Perintah manual:
   zentara db:generate [--name <nama>]              Buat file migrasi dari perubahan schema
   zentara db:migrate                               Terapkan migrasi ke database
   zentara db:seed                                  Isi data awal (app/db/seed.ts)
-  zentara make:route <path> [--methods GET,POST]   Buat file route baru, mis. api/products/[id]
+  zentara make:route <path> [--methods GET,POST]   Buat file route baru, mis. api/events/[id]
   zentara make:middleware <nama>                   Buat file middleware baru
   zentara help                                     Tampilkan bantuan ini
   zentara --version
@@ -265,7 +265,7 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
       return result.status === "done" ? 0 : 1;
     }
     if (!rl) {
-      io.err('Tulis perintahnya, mis. zentara ai "buat endpoint /api/produk"');
+      io.err('Tulis perintahnya, mis. zentara ai "buat endpoint /api/events"');
       return 1;
     }
     io.out(c.dim('Mode obrolan. Ketik permintaan dalam bahasa biasa; "keluar" untuk selesai.'));
@@ -329,7 +329,14 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     } catch (err) {
       io.err(c.yellow(`Tampilan Ink gagal dimuat (${(err as Error).message}); memakai CLI klasik.`));
     }
-    if (ink) return ink.startInkRepl(options, { animation: animationEnabled(userConfig.cli?.animation) });
+    if (ink) {
+      return ink.startInkRepl(options, {
+        animation: animationEnabled(userConfig.cli?.animation),
+        fullscreen: ink.fullscreenEnabled(userConfig.cli?.fullscreen),
+        // Tutup proses setelah CLI selesai rapi, agar timer atau proses anak tidak menahan terminal.
+        exitProcess: true,
+      });
+    }
   }
   return startRepl({ ...options, io });
 }

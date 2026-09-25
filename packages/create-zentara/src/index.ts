@@ -7,7 +7,7 @@ import readline from "node:readline/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const TEMPLATES = {
-  api: "API + login + database (SQLite) + CRUD produk",
+  api: "Aplikasi web: login, dasbor, database (SQLite), contoh CRUD",
   minimal: "Minimal: halaman & API sederhana, tanpa database",
 } as const;
 export type TemplateName = keyof typeof TEMPLATES;
@@ -37,7 +37,7 @@ export function ownVersion(): string {
   return pkg.version;
 }
 
-/** Nama paket npm yang valid dari nama folder, mis. "Toko Saya" -> "toko-saya". */
+/** Nama paket npm yang valid dari nama folder, mis. "Aplikasi Saya" -> "aplikasi-saya". */
 export function toPackageName(dirName: string): string {
   const name = dirName
     .trim()

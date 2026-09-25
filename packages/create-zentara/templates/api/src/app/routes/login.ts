@@ -27,7 +27,7 @@ function view({ email, next, errors = {}, message }: View): string {
         title: "Masuk",
         subtitle: "Pakai email dan password akun Anda.",
         appName: APP_NAME,
-        aside: { title: "Semua data toko Anda, di satu tempat.", text: "Pantau stok, ubah harga, dan kelola pengguna tanpa membuka spreadsheet." },
+        aside: { title: "Selamat datang kembali.", text: "Masuk untuk melanjutkan pekerjaan Anda. Aplikasi ini dibangun dengan Zentara Core dan siap Anda ubah menjadi apa saja." },
         footer: ["Belum punya akun? ", h("a", { href: "/register" }, "Buat akun")],
       },
       h(

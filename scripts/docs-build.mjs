@@ -267,15 +267,15 @@ const home = `<section class="hero"><div>${LOGO.replace('class="zx-logo"', 'clas
 <p class="lead">${escapeHtml(DESCRIPTION)}. Ceritakan apa yang ingin dibangun dalam bahasa sehari-hari; Zentara AI menyusun rencana, meminta persetujuan, menulis kode, lalu mengeceknya.</p>
 <div class="cta"><a class="zx-btn primary" href="mulai-cepat.html">Mulai cepat →</a><a class="zx-btn" href="${REPO}" target="_blank" rel="noopener">GitHub</a></div>
 <div class="zx-cmd install"><span>npm install -g zentara</span><button type="button" class="zx-copy" onclick="navigator.clipboard.writeText('npm install -g zentara');this.textContent='✓'">Salin</button></div></div>
-<div class="term"><div class="bar"><i></i><i></i><i></i></div><pre><span class="t-dim">~/toko $</span> zentara
+<div class="term"><div class="bar"><i></i><i></i><i></i></div><pre><span class="t-dim">~/aplikasi $</span> zentara
 <span class="t-teal">◆ Zentara Core</span> <span class="t-dim">v${escapeHtml(ZENTARA_VERSION)}</span>
 <span class="t-dim">OmniRoute (gratis) · minta persetujuan</span>
 
-<span class="t-teal">❯</span> buatkan API produk dengan nama dan harga
+<span class="t-teal">❯</span> buatkan halaman portofolio dengan daftar proyek
 
-<span class="t-teal">⏺</span> Rencana: buat src/app/routes/api/produk.ts
-  dengan validasi, lalu cek typecheck &amp; test.
-<span class="t-dim">⏺</span> <b>Tulis</b>(src/app/routes/api/produk.ts)
+<span class="t-teal">⏺</span> Rencana: buat src/app/routes/portofolio.ts
+  pakai kit UI, lalu cek typecheck &amp; test.
+<span class="t-dim">⏺</span> <b>Tulis</b>(src/app/routes/portofolio.ts)
   <span class="t-dim">⎿  Dibuat</span>
 <span class="t-dim">⏺</span> <b>Cek</b>(typecheck)
   <span class="t-dim">⎿  BERHASIL</span>

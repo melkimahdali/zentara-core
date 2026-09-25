@@ -33,7 +33,7 @@ Zentara Core conventions:
 
 Database (Drizzle ORM):
 - Tables are defined in src/app/db/schema.ts (drizzle-orm/sqlite-core by default). Import \`db\` from src/app/db/index.ts and table objects from schema.ts.
-- Query examples: db.select().from(products).where(eq(products.id, id)); db.query.users.findFirst({ where: eq(users.email, email) }); db.insert(t).values(v).returning(); db.update(t).set(v).where(...).returning(); db.delete(t).where(...); db.transaction(async (tx) => ...). Operators come from "drizzle-orm" as functions: import { eq } from "drizzle-orm"; where: eq(users.email, email). Never call column.eq(...).
+- Query examples: db.select().from(notes).where(eq(notes.id, id)); db.query.users.findFirst({ where: eq(users.email, email) }); db.insert(t).values(v).returning(); db.update(t).set(v).where(...).returning(); db.delete(t).where(...); db.transaction(async (tx) => ...). Operators come from "drizzle-orm" as functions: import { eq } from "drizzle-orm"; where: eq(users.email, email). Never call column.eq(...).
 - After changing schema.ts, call the database tool with action "generate" and then "migrate". Never hand-write migration SQL. Initial data belongs in src/app/db/seed.ts (run with action "seed").
 - Validate params with z.coerce.number() for numeric ids; return 404 via HttpError when a row is missing. For partial updates use a schema without defaults (.partial() keeps defaults).
 

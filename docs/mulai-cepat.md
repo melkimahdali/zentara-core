@@ -10,8 +10,8 @@ description: Buat proyek Zentara pertama dalam satu menit.
 Butuh Node.js 22 atau lebih baru.
 
 ```bash
-npm create zentara@latest toko-saya     # pilih template: api (login + database) atau minimal
-cd toko-saya
+npm create zentara@latest aplikasi-saya     # pilih template: api (login + database) atau minimal
+cd aplikasi-saya
 npx zentara                             # CLI interaktif: chat dengan AI + server dev di latar belakang
 ```
 

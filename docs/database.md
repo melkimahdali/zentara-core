@@ -11,20 +11,20 @@ Zentara memakai [Drizzle ORM](https://orm.drizzle.team). Defaultnya SQLite lewat
 
 ```ts
 // src/app/db/schema.ts
-export const products = sqliteTable("products", {
+export const events = sqliteTable("events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  price: integer("price").notNull(),
+  title: text("title").notNull(),
+  seats: integer("seats").notNull(),
 });
 
 // di route
 import { eq } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { products } from "../../db/schema.js";
+import { events } from "../../db/schema.js";
 
-export const GET = () => db.select().from(products);
-const [baru] = await db.insert(products).values({ name: "Kopi", price: 45000 }).returning();
-await db.update(products).set({ price: 40000 }).where(eq(products.id, 1));
+export const GET = () => db.select().from(events);
+const [baru] = await db.insert(events).values({ title: "Workshop Zentara", seats: 40 }).returning();
+await db.update(events).set({ seats: 60 }).where(eq(events.id, 1));
 await db.transaction(async (tx) => { /* ... */ });
 ```
 

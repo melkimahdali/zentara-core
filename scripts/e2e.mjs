@@ -120,8 +120,11 @@ try {
       const hello = await (await fetch(`http://127.0.0.1:${prodPort}/api/hello?name=Nusantara`)).json();
       check(hello.message === "Hello from Nusantara API", "zentara start: /api/hello");
       if (template === "api") {
-        const products = await (await fetch(`http://127.0.0.1:${prodPort}/api/products`)).json();
-        check(Array.isArray(products) && products.length === 3, "zentara start: /api/products dari database");
+        const auth = { "content-type": "application/json" };
+        const signin = await fetch(`http://127.0.0.1:${prodPort}/api/auth/login`, { method: "POST", headers: auth, body: JSON.stringify({ email: "admin@zentara.test", password: "admin12345" }) });
+        const cookie = signin.headers.getSetCookie()[0]?.split(";")[0] ?? "";
+        const notes = await (await fetch(`http://127.0.0.1:${prodPort}/api/notes`, { headers: { cookie } })).json();
+        check(signin.status === 200 && Array.isArray(notes) && notes.length === 2, "zentara start: login + /api/notes dari database");
         check((await fetch(`http://127.0.0.1:${prodPort}/api/auth/me`)).status === 401, "zentara start: /api/auth/me butuh login");
         const login = await fetch(`http://127.0.0.1:${prodPort}/login`);
         check(login.status === 200 && (await login.text()).includes('href="/_zentara/ui.css'), "zentara start: halaman /login dengan kit UI");

@@ -55,6 +55,8 @@ export interface HostUI {
   busy(label: string | undefined): void;
   /** Status/mode berubah: gambar ulang baris status. */
   changed(): void;
+  /** Opsional: kosongkan riwayat di layar (dipakai `/clear` pada tampilan layar penuh). */
+  clear?(): void;
   /**
    * Serahkan terminal ke proses lain (mis. `npm create zentara`, `npm install -g omniroute`) lalu kembali.
    * Tampilan harus berhenti membaca keyboard selama fn berjalan.
@@ -416,7 +418,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       case "help":
       case "?":
         for (const [name, desc] of HOST_COMMANDS) ui.notice(`${name.padEnd(11)} ${desc}`);
-        ui.notice('Selain itu, tulis saja permintaan Anda, mis. "buatkan API produk dengan nama dan harga".', "dim");
+        ui.notice('Selain itu, tulis saja permintaan Anda, mis. "buatkan halaman portofolio dengan daftar proyek".', "dim");
         return;
       case "exit":
       case "quit":
@@ -424,6 +426,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
         return "exit";
       case "clear":
         session.reset();
+        ui.clear?.();
         ui.notice("Percakapan baru dimulai.", "dim");
         ui.changed();
         return;

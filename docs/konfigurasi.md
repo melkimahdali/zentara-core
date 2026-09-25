@@ -21,7 +21,7 @@ export default {
   plugins: [],
   middleware: [],      // middleware global
   middlewareFile: "src/app/middleware", // default: app/middleware di samping folder route; false = mati
-  cli: { animation: true }, // animasi logo saat `zentara` dibuka (env ZENTARA_ANIMATION=off mematikan)
+  cli: { animation: true, fullscreen: true }, // animasi logo & layar penuh saat `zentara` dibuka (env ZENTARA_ANIMATION=off, ZENTARA_FULLSCREEN=off)
 };
 ```
 

@@ -5,7 +5,7 @@ Dibuat dengan `npm create zentara@latest` (template **minimal**).
 ```bash
 npx zentara                                  # chat dengan Zentara AI + server dev (tanya dulu)
 npm run dev                                  # atau server saja: http://localhost:3000
-npx zentara make:route api/produk --methods GET,POST
+npx zentara make:route api/pesan --methods GET,POST
 npx zentara "buatkan halaman tentang kami"   # satu perintah AI (atur dulu: npx zentara ai:setup)
 npm run build && npm start                   # produksi
 ```

@@ -629,7 +629,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
       case "?":
         io.out("");
         for (const [name, desc] of COMMANDS) io.out(`  ${accent(name.padEnd(9))} ${desc}`);
-        io.out(c.dim("\n  Selain itu, tulis saja permintaan Anda, mis. \"buatkan API produk dengan nama dan harga\"."));
+        io.out(c.dim("\n  Selain itu, tulis saja permintaan Anda, mis. \"buatkan halaman portofolio dengan daftar proyek\"."));
         return true;
       case "exit":
       case "quit":

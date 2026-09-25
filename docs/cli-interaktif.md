@@ -22,6 +22,29 @@ Tampilannya dibangun dengan [Ink](https://github.com/vadimdemedes/ink), bergaya 
 - dialog menu dan persetujuan berwarna;
 - baris mode dan status server.
 
+## Layar penuh seperti ruang chat
+
+Saat dibuka, `zentara` membersihkan layar lalu mengambil alih terminal. Layar dibagi tiga:
+
+1. **Header terkunci di atas:** nama dan versi Zentara Core, AI dan mode yang aktif, status server dev, folder proyek, dan garis pembatas. Header tidak ikut bergulir.
+2. **Log percakapan di tengah:** pesan baru mendorong pesan lama ke atas. **PgUp/PgDn** untuk menggulir; selama Anda membaca pesan lama, pesan baru tidak menarik layar ke bawah. **Esc** kembali ke pesan terbaru.
+3. **Input di bawah:** kotak input, atau menu dan dialog persetujuan (↑/↓ + Enter).
+
+Hanya baris yang berubah yang digambar ulang, sehingga spinner dan teks yang mengalir tidak membuat layar berkedip. Tampilan ini memakai kode ANSI standar, jadi berjalan di terminal lokal maupun terminal cloud (Codespaces, SSH, terminal web). Saat keluar, seluruh percakapan dicetak ke scrollback terminal, jadi tidak ada yang hilang.
+
+Terminal yang lebih pendek dari 12 baris, atau output yang bukan terminal, otomatis memakai tata letak biasa (riwayat langsung ke scrollback). Untuk memakai tata letak biasa di terminal mana pun:
+
+```js
+// zentara.config.mjs
+export default {
+  cli: { fullscreen: false },
+};
+```
+
+Atau untuk sementara: `ZENTARA_FULLSCREEN=off zentara`.
+
+**Keluar:** tekan **Esc** atau **Ctrl+C** dua kali berturut-turut, atau ketik `/exit`. Tombol pertama menampilkan pengingat, jadi percakapan tidak tertutup tanpa sengaja. Esc dan Ctrl+C lebih dulu menghentikan AI yang sedang bekerja, menutup dialog, atau mengosongkan input. Server dev latar belakang ikut dimatikan dan sesi disimpan sebelum proses berakhir. Hal yang sama terjadi saat terminal ditutup (`SIGHUP`) atau proses dihentikan (`SIGTERM`).
+
 `zentara --classic` (atau `ZENTARA_UI=classic`) memakai CLI klasik tanpa Ink.
 
 Saat dibuka, logo Zentara Core muncul dengan animasi singkat (±1 detik): tersapu mengikuti goresan Z dengan kilau Pearl, lalu motif emas menyusul. Animasi ini otomatis mati di CI. Untuk mematikannya:
@@ -35,7 +58,7 @@ export default {
 
 Atau untuk sementara: `ZENTARA_ANIMATION=off zentara` (PowerShell: `$env:ZENTARA_ANIMATION="off"; zentara`).
 
-Saat dibuka, Zentara menampilkan logo Zentara Core beserta versi, AI yang aktif, mode, dan folder, seperti Claude Code. Kolom input ada di antara dua garis, dengan baris mode di bawahnya (**Shift+Tab** untuk mengganti mode). Lalu:
+Setelah animasi, header menampilkan versi, AI yang aktif, mode, dan folder. Kolom input ada di bawah, dengan baris mode di bawahnya (**Shift+Tab** untuk mengganti mode). Lalu:
 - **Belum ada AI yang siap:** muncul layar sambutan untuk memilih cara mengakses model, yaitu *OmniRoute (gratis)*, *Masukkan API key*, *Provider kustom*, atau *Lewati dulu*. Menu dipilih dengan ↑/↓ + Enter, atau ketik untuk mencari.
 - **Di luar folder proyek:** muncul pilihan *Buat proyek baru* (menjalankan `npm create zentara` lalu langsung membuka proyeknya), *Chat di folder ini*, atau *Buka dokumentasi*.
 
@@ -45,7 +68,7 @@ Fitur sesi interaktif:
 - **Jawaban mengalir (streaming).** Teks AI muncul baris demi baris selagi ditulis, tidak perlu menunggu jawaban selesai.
 - **Percakapan berlanjut dan tersimpan.** Permintaan berikutnya bisa merujuk yang sebelumnya ("ubah warnanya jadi biru"). Percakapan disimpan otomatis di `.zentara/sessions/` (30 terbaru, diabaikan git), jadi setelah menutup terminal Anda bisa melanjutkannya dengan `/resume` atau `zentara --continue`.
 - **Hemat token.** `/compact` meringkas percakapan panjang menjadi catatan singkat. Ini juga terjadi otomatis saat percakapan melewati ±60 ribu token (atur dengan `ai.compactAt`), sehingga batas token per menit provider (error 429) lebih jarang tercapai.
-- **Esc** menghentikan AI kapan saja. **Ctrl+C dua kali** untuk keluar (server dev ikut dimatikan).
+- **Esc** atau **Ctrl+C** menghentikan AI kapan saja. Tekan dua kali saat AI tidak bekerja untuk keluar (server dev ikut dimatikan).
 - **Persetujuan lewat menu** (↑/↓ lalu Enter, atau angka): *Ya*, *Ya dan setujui semua perubahan biasa*, atau *Tidak*. Perubahan ditampilkan sebagai diff berwarna, hanya baris yang berubah beserta 3 baris konteks dan nomor barisnya (`@@ -12,7 +12,8 @@`).
 - **Perintah terminal.** AI bisa menjalankan perintah seperti `git diff` atau `npx eslint src`. Lihat [aturan keamanannya](zentara-ai.html#perintah-terminal).
 - **Perintah garis miring:**
@@ -62,5 +85,5 @@ Fitur sesi interaktif:
 | `/compact` | ringkas percakapan agar hemat token |
 | `/status` · `/setup` (alias `/login`) | cek atau atur akses AI; `/setup openai` langsung ke provider tertentu |
 | `/omniroute` | OmniRoute (AI gratis): status, `install`, `start`, `stop` |
-| `/clear` | mulai percakapan baru |
+| `/clear` | mulai percakapan baru (layar penuh: log dikosongkan) |
 | `/exit` | keluar |

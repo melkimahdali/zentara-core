@@ -34,6 +34,12 @@ export interface State {
  * berlangganan lewat useSyncExternalStore.
  */
 export class Store {
+  /**
+   * Tampilan layar penuh: log dirender sebagai jendela yang bisa digulir, sehingga boleh dikosongkan.
+   * Pada tampilan biasa, riwayat dicetak lewat <Static> yang tidak bisa ditarik kembali.
+   */
+  constructor(readonly options: { fullscreen?: boolean } = {}) {}
+
   private state: State = { items: [{ id: 0, kind: "header" }], live: "", version: 0 };
   private readonly listeners = new Set<() => void>();
   private nextId = 1;
@@ -67,6 +73,12 @@ export class Store {
   /** Tutup dialog aktif dan tampilkan yang mengantre. */
   closeDialog(): void {
     this.set({ dialog: this.queue.shift() });
+  }
+
+  /** Kosongkan log di layar (header tetap). Riwayat sebelumnya tetap ada di sesi tersimpan. */
+  reset(): void {
+    this.stream = undefined;
+    this.set({ items: [{ id: this.nextId++, kind: "header" }], live: "" });
   }
 
   /** Sembunyikan bagian dinamis (input, status) sebelum keluar. */
@@ -147,6 +159,9 @@ export class Store {
       new Promise<string | undefined>((resolve) => this.openDialog({ kind: "ask", question, secret: Boolean(options.secret), placeholder: options.placeholder, resolve })),
     busy: (label) => this.set({ busy: label ? { label, since: this.state.busy?.since ?? Date.now() } : undefined }),
     changed: () => this.changed(),
+    clear: () => {
+      if (this.options.fullscreen) this.reset();
+    },
     suspend: async <T>(fn: () => Promise<T>): Promise<T> => {
       if (!this.suspendTerminal) return fn();
       let result!: T;

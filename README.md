@@ -2,12 +2,12 @@
 
 # Zentara Core
 
-Framework web TypeScript **AI-driven asal Nusantara**. Tulis apa yang Anda mau dalam bahasa sehari-hari, lalu Zentara AI yang mengerjakan langkah teknisnya, dengan persetujuan Anda dan selalu diverifikasi dengan test.
+Framework web TypeScript **AI-driven asal Nusantara**. Tulis apa yang Anda mau dalam bahasa sehari-hari, lalu Zentara AI yang mengerjakan langkah teknisnya, dengan persetujuan Anda dan selalu diverifikasi dengan test. Zentara framework umum: bangun blog, sistem booking, dasbor internal, API, atau aplikasi apa pun.
 
 ```bash
 npm install -g zentara   # sekali saja, lalu cukup ketik: zentara
 zentara                  # buat proyek baru, atur AI (OmniRoute gratis), lalu chat dengan Zentara AI
-❯ tambahkan fitur keranjang belanja untuk user yang login
+❯ buatkan halaman jadwal booking untuk user yang login
 ```
 
 Fitur utama:
@@ -22,6 +22,10 @@ Fitur utama:
 ## Dokumentasi
 
 📖 **https://zentara-core.morixa.id/**: mulai cepat, Zentara AI & OmniRoute, routing, database, auth, referensi CLI. Sumbernya ada di [`docs/`](docs) (Markdown); pratinjau lokal: `npm run build && npm run docs:build && npm run docs:serve`.
+
+## Peta jalan
+
+Zentara dikembangkan per tahap; tahap berikutnya adalah **Tahap 10: dukungan Bahasa Inggris** (0.11). Rincian semua tahap ada di [docs/peta-jalan.md](docs/peta-jalan.md) dan https://zentara-core.morixa.id/peta-jalan.html.
 
 ## Brand
 

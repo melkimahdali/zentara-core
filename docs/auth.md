@@ -30,8 +30,8 @@ Aplikasi contoh sudah menyediakan fitur-fitur berikut:
 |---|---|
 | `POST /api/auth/register` · `POST /api/auth/login` · `POST /api/auth/logout` | publik (rate limit 10×/15 menit) |
 | `GET /api/auth/me` | wajib login |
-| `GET /api/products?q=&maxHarga=` · `GET /api/products/:id` | publik |
-| `POST /api/products` · `PUT/DELETE /api/products/:id` | khusus admin |
+| `GET /api/notes?q=` · `POST /api/notes` | wajib login; hanya catatan milik sendiri |
+| `GET/PUT/DELETE /api/notes/:id` | wajib login; catatan orang lain dijawab 404 |
 
 Pengaman bawaan pada login:
 - pesan dan waktu respons sama untuk email yang tidak terdaftar maupun password salah (`fakeVerify`);
