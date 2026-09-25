@@ -7,10 +7,10 @@ import { findNote } from "../../../lib/notes.js";
 
 export const middleware = [requireUserPage];
 
-// POST /notes/1/hapus (tombol "Hapus catatan" di halaman ubah)
+// POST /notes/1/delete (tombol "Hapus catatan" di halaman ubah)
 export async function POST(ctx: ZenContext) {
   const note = await findNote((ctx.state.user as User).id, ctx.params.id);
   if (!note) throw new HttpError(404, "Catatan tidak ditemukan");
   await db.delete(notes).where(eq(notes.id, note.id));
-  return redirect("/notes?pesan=dihapus", 303);
+  return redirect("/notes?msg=deleted", 303);
 }

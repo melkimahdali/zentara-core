@@ -8,7 +8,7 @@ import { appPage, excerpt, flash, relativeDate } from "../../lib/ui.js";
 
 export const middleware = [requireUserPage];
 
-const MESSAGES: Record<string, string> = { created: "Catatan disimpan.", updated: "Perubahan disimpan.", deleted: "Catatan dihapus." };
+const MESSAGES: Record<string, string> = { created: "Note saved.", updated: "Changes saved.", deleted: "Note deleted." };
 
 type FormState = { values?: Record<string, unknown>; errors?: Record<string, string> };
 
@@ -24,32 +24,32 @@ async function view(ctx: ZenContext, form: FormState = {}): Promise<string> {
 
   return appPage(
     ctx,
-    { title: "Catatan", subtitle: q ? `${rows.length} hasil untuk “${q}”` : `${rows.length} catatan, hanya terlihat oleh Anda`, active: "/notes" },
+    { title: "Notes", subtitle: q ? `Found ${rows.length} for “${q}”` : `Notes: ${rows.length} · visible only to you`, active: "/notes" },
     message ? h(Alert, { tone: "success" }, message) : null,
     h(
       Disclosure,
-      { summary: "Tulis catatan", open: openForm },
+      { summary: "Write a note", open: openForm },
       h(
         Form,
         { action: "/notes" },
-        h(Field, { name: "title", label: "Judul", value: str(v.title), error: e.title, maxlength: 200, placeholder: "Rapat mingguan", required: true, autofocus: openForm }),
-        h(Field, { name: "body", label: "Isi", type: "textarea", rows: 5, value: str(v.body), error: e.body, placeholder: "Tulis apa saja…" }),
-        h(FormActions, null, h(Button, { loading: "Menyimpan…" }, "Simpan catatan")),
+        h(Field, { name: "title", label: "Title", value: str(v.title), error: e.title, maxlength: 200, placeholder: "Weekly meeting", required: true, autofocus: openForm }),
+        h(Field, { name: "body", label: "Body", type: "textarea", rows: 5, value: str(v.body), error: e.body, placeholder: "Write anything…" }),
+        h(FormActions, null, h(Button, { loading: "Saving…" }, "Save note")),
       ),
     ),
     h(
       Card,
-      { title: "Semua catatan", flush: true, actions: h(Search, { action: "/notes", value: q || undefined, label: "Cari catatan", placeholder: "Cari judul atau isi…" }) },
+      { title: "All notes", flush: true, actions: h(Search, { action: "/notes", value: q || undefined, label: "Search notes", placeholder: "Search titles or bodies…" }) },
       h(Table, {
-        columns: [{ label: "Judul" }, { label: "Cuplikan" }, { label: "Diubah", align: "end" }],
+        columns: [{ label: "Title" }, { label: "Excerpt" }, { label: "Updated", align: "end" }],
         rows: rows.map((n) => [
           h("a", { href: `/notes/${n.id}` }, n.title),
-          h("span", { class: "zu-muted" }, excerpt(n.body) || "Tanpa isi"),
+          h("span", { class: "zu-muted" }, excerpt(n.body) || "No body"),
           relativeDate(n.updatedAt),
         ]),
         empty: q
-          ? h(EmptyState, { title: `Tidak ada catatan yang cocok dengan “${q}”`, text: "Coba kata lain, atau lihat semua catatan.", action: h("a", { class: "zu-link", href: "/notes" }, "Lihat semua catatan") })
-          : h(EmptyState, { title: "Belum ada catatan", text: "Tulis catatan pertama lewat formulir di atas. Catatan juga tersedia lewat API /api/notes." }),
+          ? h(EmptyState, { title: `No notes match “${q}”`, text: "Try another word, or see all notes.", action: h("a", { class: "zu-link", href: "/notes" }, "See all notes") })
+          : h(EmptyState, { title: "No notes yet", text: "Write your first note with the form above. Notes are also available through the /api/notes API." }),
       }),
     ),
   );

@@ -2,18 +2,18 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { ZenRuntime } from "zentara";
 
-describe("aplikasi", () => {
+describe("app", () => {
   let base: string;
   let runtime: ZenRuntime;
 
   before(async () => {
-    runtime = new ZenRuntime({ port: 0, host: "127.0.0.1", logLevel: "silent", locale: "id" });
+    runtime = new ZenRuntime({ port: 0, host: "127.0.0.1", logLevel: "silent", locale: "en" });
     const { port } = await runtime.start();
     base = `http://127.0.0.1:${port}`;
   });
   after(() => runtime.stop());
 
-  it("halaman utama", async () => {
+  it("home page", async () => {
     const res = await fetch(base);
     assert.equal(res.status, 200);
     assert.match(await res.text(), /Zentara/);

@@ -9,11 +9,11 @@ import { appPage, excerpt, relativeDate, today } from "../lib/ui.js";
 
 export const middleware = [requireUserPage];
 
-/** Contoh permintaan untuk Zentara AI: aplikasi ini boleh menjadi apa saja. */
+/** Example requests for Zentara AI: this app can become anything. */
 const IDEAS = [
-  "buatkan halaman jadwal booking untuk user yang login",
-  "tambahkan blog dengan artikel, kategori, dan halaman publik",
-  "buatkan API inventori barang dengan validasi",
+  "build a booking schedule page for signed-in users",
+  "add a blog with posts, categories, and public pages",
+  "build an inventory API with validation",
 ];
 
 export async function GET(ctx: ZenContext) {
@@ -26,29 +26,29 @@ export async function GET(ctx: ZenContext) {
     db.select({ total: count() }).from(users),
     listNotes(user.id, { limit: 5 }),
   ]);
-  const date = new Intl.DateTimeFormat("id-ID", { dateStyle: "long" });
+  const date = new Intl.DateTimeFormat("en-US", { dateStyle: "long" });
 
   return appPage(
     ctx,
     {
-      title: "Dasbor",
-      subtitle: `Halo, ${user.name.split(" ")[0]}. Hari ini ${today()}.`,
+      title: "Dashboard",
+      subtitle: `Hi, ${user.name.split(" ")[0]}. Today is ${today()}.`,
       active: "/dashboard",
-      actions: h(Button, { href: "/notes?new=1", variant: "secondary" }, "Tulis catatan"),
+      actions: h(Button, { href: "/notes?new=1", variant: "secondary" }, "Write a note"),
     },
     h(
       StatGroup,
       null,
-      h(Stat, { label: "Catatan", value: mine?.total ?? 0, hint: "milik Anda" }),
-      h(Stat, { label: "Minggu ini", value: thisWeek?.total ?? 0, hint: "catatan dibuat atau diubah" }),
-      isAdmin ? h(Stat, { label: "Pengguna", value: people?.total ?? 0, hint: "akun terdaftar" }) : null,
+      h(Stat, { label: "Notes", value: mine?.total ?? 0, hint: "yours" }),
+      h(Stat, { label: "This week", value: thisWeek?.total ?? 0, hint: "notes created or edited" }),
+      isAdmin ? h(Stat, { label: "Users", value: people?.total ?? 0, hint: "registered accounts" }) : null,
     ),
     h(
       Split,
       null,
       h(
         Card,
-        { title: "Catatan terbaru", actions: h("a", { class: "zu-link", href: "/notes" }, "Semua catatan") },
+        { title: "Latest notes", actions: h("a", { class: "zu-link", href: "/notes" }, "All notes") },
         latest.length
           ? h(List, {
               items: latest.map((n) => [
@@ -56,27 +56,27 @@ export async function GET(ctx: ZenContext) {
                 h("span", { class: "zu-muted" }, relativeDate(n.updatedAt)),
               ]),
             })
-          : h(EmptyState, { title: "Belum ada catatan", text: "Catatan yang Anda tulis akan muncul di sini.", action: h(Button, { href: "/notes?new=1", small: true }, "Tulis catatan") }),
+          : h(EmptyState, { title: "No notes yet", text: "Notes you write will appear here.", action: h(Button, { href: "/notes?new=1", small: true }, "Write a note") }),
       ),
       h(
         "div",
         { class: "zu-stack" },
         h(
           Card,
-          { title: "Akun Anda" },
+          { title: "Your account" },
           h(List, {
             items: [
               [h("span", { class: "zu-muted" }, "Email"), user.email],
-              [h("span", { class: "zu-muted" }, "Peran"), isAdmin ? "Admin" : "Pengguna"],
-              [h("span", { class: "zu-muted" }, "Bergabung"), date.format(user.createdAt)],
+              [h("span", { class: "zu-muted" }, "Role"), isAdmin ? "Admin" : "User"],
+              [h("span", { class: "zu-muted" }, "Joined"), date.format(user.createdAt)],
             ],
           }),
         ),
         isAdmin
           ? h(
               Card,
-              { title: "Bangun apa saja" },
-              h("p", { class: "zu-muted" }, "Aplikasi ini titik awal, bukan batas. Jalankan ", h("code", null, "npx zentara"), " di terminal, lalu minta misalnya:"),
+              { title: "Build anything" },
+              h("p", { class: "zu-muted" }, "This app is a starting point, not a limit. Run ", h("code", null, "npx zentara"), " in a terminal, then ask for example:"),
               h("ul", { class: "zu-bullets" }, IDEAS.map((idea) => h("li", null, `“${idea}”`))),
             )
           : null,

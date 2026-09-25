@@ -2,28 +2,28 @@ import { h, type Child, type ZenContext } from "zentara";
 import { AppShell, page, type NavItem } from "zentara/ui";
 import type { User } from "../db/schema.js";
 
-/** Nama aplikasi di judul halaman dan navigasi atas. */
+/** App name in page titles and the top navigation. */
 export const APP_NAME = "Zentara App";
 
-/** Menu navigasi atas; bagian "Kelola" hanya untuk admin. Tambahkan halaman baru Anda di sini. */
+/** Top navigation; the "Manage" section is for admins only. Add your new pages here. */
 function navFor(user: User): NavItem[] {
   const nav: NavItem[] = [
-    { href: "/dashboard", label: "Dasbor" },
-    { href: "/notes", label: "Catatan" },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/notes", label: "Notes" },
   ];
-  if (user.role === "admin") nav.push({ href: "/admin/users", label: "Pengguna", section: "Kelola" });
+  if (user.role === "admin") nav.push({ href: "/admin/users", label: "Users", section: "Manage" });
   return nav;
 }
 
 export interface AppPageOptions {
   title: string;
   subtitle?: string;
-  /** href menu yang aktif di navigasi. */
+  /** href of the active navigation item. */
   active: string;
   actions?: Child;
 }
 
-/** Halaman aplikasi untuk user yang sudah login (dipakai bersama requireUserPage/requireAdminPage). */
+/** App page for signed-in users (used with requireUserPage/requireAdminPage). */
 export function appPage(ctx: ZenContext, options: AppPageOptions, ...children: Child[]): string {
   const user = ctx.state.user as User;
   return page(
@@ -44,30 +44,30 @@ export function appPage(ctx: ZenContext, options: AppPageOptions, ...children: C
   );
 }
 
-/** Pesan singkat setelah redirect (?msg=kode). Hanya kode yang dikenal yang ditampilkan, bukan teks bebas dari URL. */
+/** Short message after a redirect (?msg=code). Only known codes are shown, never free text from the URL. */
 export function flash(ctx: ZenContext, messages: Record<string, string>): string | undefined {
   const code = ctx.query.msg;
   return typeof code === "string" ? messages[code] : undefined;
 }
 
-/** Tanggal hari ini dalam bahasa Indonesia, mis. "Kamis, 25 September 2026". */
+/** Today's date, e.g. "Thursday, September 25, 2026". */
 export function today(): string {
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(new Date());
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "full" }).format(new Date());
 }
 
-/** Waktu relatif singkat, mis. "5 menit yang lalu" atau "kemarin"; lebih dari seminggu memakai tanggal. */
+/** Short relative time, e.g. "5 minutes ago" or "yesterday"; older than a week uses the date. */
 export function relativeDate(date: Date, now = new Date()): string {
   const seconds = Math.round((date.getTime() - now.getTime()) / 1000);
-  const rtf = new Intl.RelativeTimeFormat("id-ID", { numeric: "auto" });
+  const rtf = new Intl.RelativeTimeFormat("en-US", { numeric: "auto" });
   const abs = Math.abs(seconds);
-  if (abs < 60) return "baru saja";
+  if (abs < 60) return "just now";
   if (abs < 3600) return rtf.format(Math.round(seconds / 60), "minute");
   if (abs < 86_400) return rtf.format(Math.round(seconds / 3600), "hour");
   if (abs < 7 * 86_400) return rtf.format(Math.round(seconds / 86_400), "day");
-  return new Intl.DateTimeFormat("id-ID", { dateStyle: "medium" }).format(date);
+  return new Intl.DateTimeFormat("en-US", { dateStyle: "medium" }).format(date);
 }
 
-/** Potongan teks satu baris untuk daftar. */
+/** One-line excerpt for lists. */
 export function excerpt(text: string, max = 90): string {
   const line = text.replace(/\s+/g, " ").trim();
   return line.length > max ? `${line.slice(0, max - 1).trimEnd()}…` : line;

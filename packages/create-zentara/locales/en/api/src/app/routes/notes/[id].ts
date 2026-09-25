@@ -11,7 +11,7 @@ export const middleware = [requireUserPage];
 
 async function findOr404(ctx: ZenContext): Promise<Note> {
   const note = await findNote((ctx.state.user as User).id, ctx.params.id);
-  if (!note) throw new HttpError(404, "Catatan tidak ditemukan");
+  if (!note) throw new HttpError(404, "Note not found");
   return note;
 }
 
@@ -21,22 +21,22 @@ function view(ctx: ZenContext, note: Note, form: { values?: Record<string, unkno
   const str = (x: unknown) => (typeof x === "string" ? x : undefined);
   return appPage(
     ctx,
-    { title: note.title, subtitle: `Diubah ${relativeDate(note.updatedAt)}.`, active: "/notes", actions: h(Button, { href: "/notes", variant: "secondary" }, "Kembali ke daftar") },
+    { title: note.title, subtitle: `Updated ${relativeDate(note.updatedAt)}.`, active: "/notes", actions: h(Button, { href: "/notes", variant: "secondary" }, "Back to the list") },
     h(
       Card,
       null,
       h(
         Form,
         { action: `/notes/${note.id}` },
-        h(Field, { name: "title", label: "Judul", value: str(v.title), error: e.title, maxlength: 200, required: true }),
-        h(Field, { name: "body", label: "Isi", type: "textarea", rows: 10, value: str(v.body), error: e.body }),
-        h(FormActions, null, h(Button, { loading: "Menyimpan…" }, "Simpan perubahan"), h("a", { class: "zu-link", href: "/notes" }, "Batal")),
+        h(Field, { name: "title", label: "Title", value: str(v.title), error: e.title, maxlength: 200, required: true }),
+        h(Field, { name: "body", label: "Body", type: "textarea", rows: 10, value: str(v.body), error: e.body }),
+        h(FormActions, null, h(Button, { loading: "Saving…" }, "Save changes"), h("a", { class: "zu-link", href: "/notes" }, "Cancel")),
       ),
     ),
     h(
       Card,
-      { title: "Hapus catatan" },
-      h("div", { class: "zu-row" }, h("p", { class: "zu-muted zu-spacer" }, "Catatan hilang dari daftar dan API. Tindakan ini tidak bisa dibatalkan."), h(PostButton, { action: `/notes/${note.id}/delete`, confirm: `Hapus “${note.title}”? Tindakan ini tidak bisa dibatalkan.` }, "Hapus catatan")),
+      { title: "Delete note" },
+      h("div", { class: "zu-row" }, h("p", { class: "zu-muted zu-spacer" }, "The note disappears from the list and the API. This cannot be undone."), h(PostButton, { action: `/notes/${note.id}/delete`, confirm: `Delete “${note.title}”? This cannot be undone.` }, "Delete note")),
     ),
   );
 }

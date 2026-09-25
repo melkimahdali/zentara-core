@@ -70,7 +70,7 @@ export async function POST(ctx: ZenContext) {
   const input = await tryParse(ProductForm, raw);
   if (!input.ok) return html(view({ values: raw, errors: input.errors }), { status: 422 });
   await db.insert(notes).values({ ...input.data, userId: (ctx.state.user as User).id });
-  return redirect("/notes?pesan=dibuat", 303);
+  return redirect("/notes?msg=created", 303);
 }
 ```
 

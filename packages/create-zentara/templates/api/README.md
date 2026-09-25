@@ -51,6 +51,7 @@ Atau minta Zentara AI: `npx zentara "hapus fitur catatan, lalu buatkan fitur ...
 | `npx zentara routes` | daftar route |
 | `npx zentara db:generate` lalu `npx zentara db:migrate` | setelah mengubah `src/app/db/schema.ts` |
 | `npx zentara db:seed` | isi data awal |
+| `npx zentara lang en` | ganti bahasa Zentara ke Bahasa Inggris (atau atur `locale` di `zentara.config.mjs`) |
 
 ## Struktur
 

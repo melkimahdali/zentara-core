@@ -29,6 +29,7 @@
   "files": [
     "dist",
     "templates",
+    "locales",
     "README.md",
     "LICENSE"
   ],
