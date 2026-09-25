@@ -136,7 +136,8 @@ export class DevServer extends EventEmitter {
   }
 }
 
-function killTree(pid: number, signal: NodeJS.Signals): void {
+/** Hentikan proses beserta anak-anaknya (Windows: taskkill /T; lainnya: grup proses, butuh `detached`). */
+export function killTree(pid: number, signal: NodeJS.Signals): void {
   try {
     if (process.platform === "win32") spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
     else process.kill(-pid, signal);

@@ -17,6 +17,7 @@ import type { HostOptions } from "./repl/host.js";
 import { menuPrompts } from "./repl/prompts.js";
 import { banner, colorDepth } from "./brand/index.js";
 import { checkForUpdate } from "./update.js";
+import { findLocalCli } from "./process.js";
 import { ProviderUnavailableError } from "./ai/types.js";
 import { defaultAppDir, loadConfigFile, resolveConfig, type UserConfig } from "./core/config.js";
 import type { DbCommandResult } from "./db/commands.js";
@@ -320,6 +321,15 @@ async function lang(args: ParsedArgs, io: CliIO, source: "env" | "config" | "set
   return 0;
 }
 
+/** Jalankan perintah yang sama lewat CLI zentara milik proyek, dengan terminal yang sama. */
+function runLocalCli(cli: string, argv: readonly string[], cwd: string): Promise<number> {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [cli, ...argv], { cwd, stdio: "inherit" });
+    child.on("error", () => resolve(1));
+    child.on("close", (code) => resolve(code ?? 1));
+  });
+}
+
 async function dbCommand(fn: () => Promise<DbCommandResult>, io: CliIO): Promise<number> {
   loadDotEnv(io.cwd);
   try {
@@ -401,7 +411,7 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
 }
 
 /** Mode obrolan interaktif (gaya Claude Code). */
-async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): Promise<number> {
+async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv, askLanguage = false): Promise<number> {
   await ensureTypeScriptLoader(io.cwd);
   let appPort = 3000;
   let userConfig: UserConfig = {};
@@ -422,6 +432,7 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     offerDevServer: args.flags["no-dev"] !== true,
     dryRun: args.flags["dry-run"] === true,
     continueLast: args.flags.continue === true,
+    askLanguage,
     runSetup: async (prompts, preset, setupIo) => {
       const user = (await loadConfigFile(io.cwd)) as { ai?: AiUserConfig };
       return interactiveSetup({ root: io.cwd, prompts, io: setupIo ?? io, preset, configProviders: user.ai?.providers });
@@ -651,7 +662,7 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
     case "start":
       return start(io);
     case undefined:
-      if (io.interactive) return repl(args, io, serverEnv);
+      if (io.interactive) return repl(args, io, serverEnv, source === "default");
       io.out(t().cli.help);
       return 0;
     case "help":
@@ -663,7 +674,7 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return 0;
     case "ai": {
       const task = args.positional.slice(1).join(" ") || undefined;
-      if (!task && io.interactive) return repl(args, io, serverEnv);
+      if (!task && io.interactive) return repl(args, io, serverEnv, source === "default");
       return runAi(task, args, io);
     }
     case "ai:status":
@@ -675,8 +686,18 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
     case "db:generate":
     case "db:migrate":
     case "db:seed": {
+      // CLI global tidak punya drizzle-orm milik proyek: jalankan lewat CLI zentara di node_modules proyek.
+      const local = findLocalCli(io.cwd, fileURLToPath(import.meta.url));
+      if (local) return runLocalCli(local, argv, io.cwd);
       // Dimuat saat dipakai saja: proyek tanpa database tidak perlu memasang drizzle-orm.
-      const db = await import("./db/commands.js");
+      let db: typeof import("./db/commands.js");
+      try {
+        db = await import("./db/commands.js");
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FOUND") throw err;
+        io.err(t().cli.dbDepsMissing);
+        return 1;
+      }
       const name = typeof args.flags.name === "string" ? args.flags.name : undefined;
       const fn = command === "db:generate" ? () => db.dbGenerate(io.cwd, name) : command === "db:migrate" ? () => db.dbMigrate(io.cwd) : () => db.dbSeed(io.cwd);
       return dbCommand(fn, io);

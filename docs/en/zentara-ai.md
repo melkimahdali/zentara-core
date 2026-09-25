@@ -36,6 +36,17 @@ What the AI can **never** do:
 - write to `.git/`, `node_modules/` (including the Zentara framework), or `dist/`;
 - touch files outside the project folder, including through symlinks.
 
+## Zentara commands
+
+The AI runs Zentara commands with the project's own zentara (`node_modules/zentara`), so they all work from the terminal and the browser even when the CLI you opened is the global install:
+
+| Command | Handling |
+|---|---|
+| `routes`, `jobs` | runs right away |
+| `make:route`, `make:middleware`, `make:job`, `build` | asked in `ask` mode; files created by `make:*` can be undone |
+| `jobs:run`, `db:migrate`, `db:seed` | critical action, always asked |
+| `db:generate` | asked in `ask` mode; migration files can be undone |
+
 ## Page layout
 
 Pages built by Zentara AI use the app's existing layout instead of a new design:

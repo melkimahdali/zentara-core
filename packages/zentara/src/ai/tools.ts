@@ -1,12 +1,10 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import { t } from "../i18n/index.js";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { loadConfigFile, resolveConfig } from "../core/config.js";
-import { ZenLogger } from "../core/logger.js";
-import { allowedMethods, ZenRouter } from "../core/router.js";
-import { platformCommand } from "../process.js";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { findLocalCli, platformCommand } from "../process.js";
 import type { ApprovalPolicy, PendingAction, Risk } from "./approval.js";
 import type { Journal } from "./journal.js";
 import { layoutWarning } from "./layout.js";
@@ -213,15 +211,17 @@ export const agentTools: AgentTool[] = [
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
     },
     async run(_input, ctx) {
-      const config = resolveConfig(await loadConfigFile(ctx.root), process.env, ctx.root);
-      const router = new ZenRouter(new ZenLogger("silent"));
+      // Proses baru (`zentara routes --json`): route & schema yang baru diubah AI ikut terbaca, bukan
+      // versi lama dari cache modul proses ini.
+      const result = await runZentaraCli(ctx.root, ["routes", "--json"], 60_000);
+      let rows: { pattern: string; methods: string[]; file: string }[];
       try {
-        await router.loadRoutes(config.routesDir);
+        if (!result.ok) throw new Error(result.output);
+        rows = JSON.parse(result.output.slice(result.output.indexOf("["))) as typeof rows;
       } catch (err) {
-        throw new ToolError(t().ai.tools.routesFailed((err as Error).message));
+        throw new ToolError(t().ai.tools.routesFailed(((err as Error).message || result.output).split("\n").slice(0, 8).join("\n")));
       }
-      const rows = router.list.map((r) => `${allowedMethods(r.module).join("|")} ${r.pattern} -> ${toPosix(path.relative(ctx.root, r.file))}`);
-      return rows.join("\n") || t().ai.tools.noRoutes;
+      return rows.map((r) => `${r.methods.join("|")} ${r.pattern} -> ${toPosix(r.file)}`).join("\n") || t().ai.tools.noRoutes;
     },
   },
   {
@@ -417,6 +417,53 @@ export const agentTools: AgentTool[] = [
   },
   {
     spec: {
+      name: "zentara",
+      description:
+        "Run a Zentara CLI command in the project, using the project's own zentara install: routes (list routes), jobs (list background jobs, schedules, and queue), jobs:run <name> [--data <json>] (run one job now), make:route <path> [--methods GET,POST], make:middleware <name>, make:job <name> [--schedule \"<cron>\"], build. Use the database tool for db:*; the dev server is controlled by the developer.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          command: { type: "string", enum: ["routes", "jobs", "jobs:run", "make:route", "make:middleware", "make:job", "build"] },
+          args: { type: "array", items: { type: "string" }, description: "Extra arguments, e.g. [\"reports/daily\", \"--schedule\", \"0 7 * * *\"]" },
+        },
+        required: ["command"],
+        additionalProperties: false,
+      },
+    },
+    async run(input, ctx) {
+      const command = str(input, "command")!;
+      const risks: Record<string, Risk> = { routes: "read", jobs: "read", "jobs:run": "critical", "make:route": "write", "make:middleware": "write", "make:job": "write", build: "write" };
+      const risk = risks[command];
+      if (!risk) throw new ToolError(t().ai.tools.zentaraArgInvalid(command));
+      const args = Array.isArray(input.args) ? input.args.map(String) : [];
+      for (const arg of args) {
+        // Argumen diteruskan apa adanya (tanpa shell); tolak karakter kontrol, file rahasia, dan path di luar proyek.
+        if (/[\u0000-\u001f]/.test(arg) || /(^|[\\/])\.env/.test(arg) || /^(\/|~|[A-Za-z]:[\\/])/.test(arg) || arg.split(/[\\/]/).includes("..")) {
+          throw new ToolError(t().ai.tools.zentaraArgInvalid(arg));
+        }
+      }
+      const line = [command, ...args].join(" ");
+      if (risk !== "read") {
+        await gate(ctx, { tool: "zentara", risk, reason: command === "jobs:run" ? t().ai.tools.jobRunReason : undefined, summary: t().ai.tools.zentaraSummary(line) });
+        if (ctx.dryRun) return t().ai.tools.dryRunNotRun(`zentara ${line}`);
+      }
+      // make:* membuat file di src/: foto dulu isinya agar `zentara undo` bisa mengembalikannya.
+      const src = path.join(ctx.root, "src");
+      const snapshot = new Map<string, string>();
+      if (command.startsWith("make:")) for (const f of listFiles(ctx.root, src, 5_000, true)) snapshot.set(f, fs.readFileSync(path.join(ctx.root, f), "utf8"));
+      const result = await runZentaraCli(ctx.root, [command, ...args]);
+      if (command.startsWith("make:")) {
+        for (const f of listFiles(ctx.root, src, 5_000, true)) {
+          const before = snapshot.get(f);
+          if (before === undefined) ctx.journal.recordExternal(f, null);
+          else if (before !== fs.readFileSync(path.join(ctx.root, f), "utf8")) ctx.journal.recordExternal(f, before);
+        }
+      }
+      return `${result.ok ? t().ai.tools.ok : t().ai.tools.failed}: zentara ${line}\n${truncate(redactSecrets(result.output, secretValues(ctx.root)), 3000)}`;
+    },
+  },
+  {
+    spec: {
       name: "install_package",
       description: "Install an npm package. Always asks the developer for approval.",
       inputSchema: {
@@ -467,23 +514,61 @@ export function createScriptRunner(root: string, timeoutMs = 5 * 60 * 1000) {
   };
 }
 
-/** Jalankan `zentara db:<action>` di proses Node terpisah (modul database aplikasi dimuat segar setiap kali). */
-export function createDbRunner(root: string, timeoutMs = 5 * 60 * 1000) {
+/**
+ * Jalankan CLI zentara (`zentara <args>`) di proses terpisah untuk proyek `root`. Memakai CLI milik
+ * proyek bila ada (dependency proyek seperti drizzle-orm tersedia), dan proses baru berarti kode
+ * proyek selalu dimuat ulang (tanpa cache modul lama dari proses yang sudah lama berjalan).
+ */
+export function runZentaraCli(root: string, args: string[], timeoutMs = 5 * 60 * 1000): Promise<CommandResult> {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const cli = [path.join(here, "..", "cli.js"), path.join(here, "..", "cli.ts")].find((f) => fs.existsSync(f));
-  return (action: DbAction): Promise<CommandResult> => {
-    if (!cli) return Promise.resolve({ ok: false, output: t().ai.tools.cliMissing });
-    return new Promise((resolve) => {
-      const child = spawn(process.execPath, [...process.execArgv, cli, `db:${action}`], {
-        cwd: root,
-        env: { ...process.env, FORCE_COLOR: "0", NODE_NO_WARNINGS: "1" },
-        timeout: timeoutMs,
-      });
-      let output = "";
-      child.stdout.on("data", (c: Buffer) => (output += c.toString()));
-      child.stderr.on("data", (c: Buffer) => (output += c.toString()));
-      child.on("error", (err) => resolve({ ok: false, output: `${output}\n${err.message}` }));
-      child.on("close", (code) => resolve({ ok: code === 0, output: output.trim() }));
+  const own = [path.join(here, "..", "cli.js"), path.join(here, "..", "cli.ts")].find((f) => fs.existsSync(f));
+  const cli = findLocalCli(root, own) ?? own;
+  if (!cli) return Promise.resolve({ ok: false, output: t().ai.tools.cliMissing });
+  // CLI proyek adalah JavaScript hasil build: loader (tsx) milik proses ini hanya dibutuhkan untuk cli.ts.
+  const dev = cli.endsWith(".ts");
+  const execArgv = dev ? absoluteLoaders(process.execArgv) : [];
+  const env: NodeJS.ProcessEnv = { ...process.env, FORCE_COLOR: "0", NODE_NO_WARNINGS: "1" };
+  // Loader juga bisa datang lewat NODE_OPTIONS (mis. test runner Node 24): ubah juga ke path absolut.
+  if (dev && env.NODE_OPTIONS) env.NODE_OPTIONS = absoluteLoaders(env.NODE_OPTIONS.split(/\s+/).filter(Boolean)).join(" ");
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [...execArgv, cli, ...args], {
+      cwd: root,
+      env,
+      timeout: timeoutMs,
     });
-  };
+    let output = "";
+    child.stdout.on("data", (c: Buffer) => (output += c.toString()));
+    child.stderr.on("data", (c: Buffer) => (output += c.toString()));
+    child.on("error", (err) => resolve({ ok: false, output: `${output}\n${err.message}` }));
+    child.on("close", (code) => resolve({ ok: code === 0, output: output.trim() }));
+  });
+}
+
+const LOADER_FLAGS = ["--import", "--loader", "--experimental-loader"];
+
+/**
+ * `--import tsx` / `--import=./x.mjs` diubah ke URL absolut agar tetap ditemukan dari cwd proyek lain.
+ * Hanya dipakai saat CLI berupa cli.ts (pengembangan & test); CLI rilis (cli.js) tidak butuh loader.
+ */
+function absoluteLoaders(args: readonly string[]): string[] {
+  return args.map((arg, i) => {
+    const eq = arg.indexOf("=");
+    if (eq > 0 && LOADER_FLAGS.includes(arg.slice(0, eq))) return `${arg.slice(0, eq)}=${absoluteSpecifier(arg.slice(eq + 1))}`;
+    return LOADER_FLAGS.includes(args[i - 1] ?? "") ? absoluteSpecifier(arg) : arg;
+  });
+}
+
+function absoluteSpecifier(spec: string): string {
+  if (/^[a-z]+:/i.test(spec)) return spec;
+  if (spec.startsWith(".") || path.isAbsolute(spec)) return pathToFileURL(path.resolve(spec)).href;
+  try {
+    // Dicari dari cwd proses ini (tempat loader terpasang), bukan dari folder proyek tujuan.
+    return pathToFileURL(createRequire(path.join(process.cwd(), "noop.js")).resolve(spec)).href;
+  } catch {
+    return spec;
+  }
+}
+
+export function createDbRunner(root: string, timeoutMs = 5 * 60 * 1000) {
+  return (action: DbAction): Promise<CommandResult> => runZentaraCli(root, [`db:${action}`], timeoutMs);
 }

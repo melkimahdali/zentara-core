@@ -2,6 +2,27 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.3]
+
+### Diperbaiki
+- **Membuat proyek dari CLI interaktif tidak lagi "keluar" dari Zentara.** Sebelumnya layar Zentara ditutup dan terminal diserahkan ke `npm create zentara`, yang lalu menanyakan ulang semuanya di terminal biasa ("Ok to proceed?", template, dependency, OmniRoute). Sekarang:
+  - nama folder dan template ditanyakan di dalam Zentara;
+  - `create-zentara` dan `npm install` berjalan di latar belakang tanpa pertanyaan, dengan progres di spinner;
+  - setelah selesai, Zentara langsung terbuka di proyek baru;
+  - **Esc** membatalkan pembuatan proyek dan menghapus folder yang setengah jadi. Bila gagal, pesan error ditampilkan dan Anda tetap di Zentara.
+- Nama folder proyek dibuat aman: spasi dan karakter lain menjadi `-` (mis. "hub tiket transportasi" menjadi `hub-tiket-transportasi`). Folder yang sudah berisi tidak ditimpa.
+- **Pemilihan bahasa tetap ada:** saat `zentara` pertama kali dibuka (belum ada pilihan bahasa dari `ZENTARA_LANG`, `locale` di config, atau `zentara lang`), bahasa ditanyakan lebih dulu lalu disimpan ke `~/.zentara/settings.json`; *Buat proyek baru* juga menanyakan bahasa aplikasi (pilihan yang disorot adalah bahasa yang sedang dipakai).
+- **Perintah database dari CLI global tidak lagi gagal karena drizzle-orm.** `zentara db:generate`, `db:migrate`, dan `db:seed`, termasuk yang dijalankan Zentara AI di terminal maupun di browser, kini otomatis memakai zentara milik proyek (`node_modules/zentara`), yang punya drizzle-orm dan drizzle-kit. Bila dependency proyek belum terpasang, pesannya jelas: jalankan `npm install`.
+- **`list_routes` Zentara AI selalu membaca kode terbaru.** Route dimuat di proses baru, jadi route dan schema yang baru diubah (mis. tabel `bookings` baru) tidak lagi gagal dengan "does not provide an export named ..." karena cache modul lama.
+
+### Ditambahkan
+- **Tool `zentara` untuk Zentara AI**, supaya semua fungsi CLI bisa dijalankan AI (terminal dan browser) memakai zentara milik proyek:
+  - `routes` dan `jobs` langsung jalan tanpa persetujuan;
+  - `make:route`, `make:middleware`, `make:job`, dan `build` ditanyakan di mode ask, dan file buatan `make:*` bisa dibatalkan dengan `zentara undo`;
+  - `jobs:run` selalu minta persetujuan.
+
+  AI juga diinstruksikan untuk tidak lagi menyuruh developer menjalankan perintah ini sendiri.
+
 ## [0.12.2]
 
 ### Diperbaiki

@@ -36,6 +36,17 @@ Yang **tidak pernah** bisa dilakukan AI:
 - menulis ke `.git/`, `node_modules/` (termasuk framework Zentara), atau `dist/`;
 - menyentuh file di luar folder proyek, termasuk lewat symlink.
 
+## Perintah Zentara
+
+AI menjalankan perintah Zentara lewat zentara milik proyek (`node_modules/zentara`), jadi semuanya jalan dari terminal maupun browser walau CLI yang Anda buka adalah instalasi global:
+
+| Perintah | Perlakuan |
+|---|---|
+| `routes`, `jobs` | langsung jalan |
+| `make:route`, `make:middleware`, `make:job`, `build` | ditanyakan di mode `ask`; file buatan `make:*` bisa di-undo |
+| `jobs:run`, `db:migrate`, `db:seed` | aksi krusial, selalu ditanyakan |
+| `db:generate` | ditanyakan di mode `ask`; file migrasi bisa di-undo |
+
 ## Tampilan halaman
 
 Halaman yang dibuat Zentara AI memakai layout aplikasi yang sudah ada, bukan tampilan baru:

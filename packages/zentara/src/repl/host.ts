@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -14,10 +14,10 @@ import { renderMarkdown, toolResultSummary, toolTitle, type Output } from "../ai
 import { ToolError, type AgentTool } from "../ai/tools.js";
 import { ProviderUnavailableError, type ToolCall, type ToolResult } from "../ai/types.js";
 import { startDevtools, type AiLock, type Devtools } from "../dev/devtools.js";
-import { BackgroundProcess, DevServer, isServerUp, openBrowser, waitForUrl } from "../dev/server.js";
+import { BackgroundProcess, DevServer, isServerUp, killTree, openBrowser, waitForUrl } from "../dev/server.js";
 import { platformCommand } from "../process.js";
 import { DOCS_URL } from "../brand/index.js";
-import { getLocale, LOCALE_NAMES, parseLocale, setLocale, t, writeSettings } from "../i18n/index.js";
+import { getLocale, LOCALE_NAMES, parseLocale, setLocale, t, writeSettings, type Locale } from "../i18n/index.js";
 
 /**
  * Inti CLI interaktif tanpa tampilan: sesi AI, server dev, OmniRoute, dan perintah garis miring.
@@ -77,6 +77,8 @@ export interface HostOptions {
   runSetup: (prompts: SetupPrompts, preset?: string, io?: Output) => Promise<number>;
   dryRun?: boolean;
   continueLast?: boolean;
+  /** Bahasa belum pernah dipilih (tanpa ZENTARA_LANG, `locale` di config, atau `zentara lang`): tanyakan saat dibuka. */
+  askLanguage?: boolean;
 }
 
 export interface HostStatus {
@@ -322,28 +324,100 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     return true;
   }
 
-  async function createProject(): Promise<number> {
-    const name = ((await ui.ask(t().host.projectFolder, { placeholder: "zentara-app" })) ?? "").trim() || "zentara-app";
+  /**
+   * Buat proyek baru tanpa keluar dari tampilan Zentara: nama folder dan template ditanyakan di sini,
+   * lalu create-zentara berjalan di latar belakang (tanpa pertanyaan) dengan progres di spinner.
+   * Setelah selesai, Zentara dibuka di folder proyek baru. undefined = batal, lanjut di folder ini.
+   */
+  /** Pilih bahasa (dua bahasa sekaligus di pertanyaannya) dan simpan sebagai preferensi global. */
+  async function chooseLanguage(): Promise<Locale> {
+    const chosen = await ui.choose<Locale>("Bahasa / Language", [
+      { label: "Bahasa Indonesia", value: "id", hint: "id" },
+      { label: "English", value: "en", hint: "en" },
+    ], getLocale());
+    setLocale(chosen);
+    try {
+      writeSettings({ locale: chosen });
+    } catch {
+      // Folder pengaturan tidak bisa ditulis: bahasa tetap dipakai untuk sesi ini.
+    }
+    return chosen;
+  }
+
+  /** Proses create-zentara yang sedang berjalan (Esc membatalkannya). */
+  let creation: { child: ChildProcess | undefined; cancelled: boolean } | undefined;
+
+  async function createProject(): Promise<number | undefined> {
+    // Bahasa yang sedang dipakai ditaruh paling atas (pilihan yang disorot).
+    const langs: { label: string; value: Locale; hint: string }[] = [
+      { label: "Bahasa Indonesia", value: "id", hint: t().host.projectLanguageHint },
+      { label: "English", value: "en", hint: t().host.projectLanguageHint },
+    ];
+    const lang = await ui.choose<Locale>(t().host.projectLanguage, [...langs.filter((l) => l.value === getLocale()), ...langs.filter((l) => l.value !== getLocale())], getLocale());
+    const m = t().host;
+    const answer = await ui.ask(m.projectFolder, { placeholder: "zentara-app" });
+    if (answer === undefined) return undefined;
+    const name = projectSlug(answer) || "zentara-app";
+    if (name !== answer.trim()) ui.notice(m.projectSlug(name), "dim");
     const target = path.resolve(cwd, name);
-    return ui.suspend(async () => {
-      const cmd = platformCommand("npm", ["create", "zentara@latest", name, "--", "--lang", getLocale()]);
-      const code = await new Promise<number>((resolve) => {
-        const child = spawn(cmd.command, cmd.args, { cwd, stdio: "inherit", shell: cmd.shell });
-        child.on("error", () => resolve(1));
-        child.on("close", (c2) => resolve(c2 ?? 1));
-      });
-      if (code !== 0 || !fs.existsSync(path.join(target, "src", "app"))) {
-        process.stdout.write(t().host.projectFailed);
-        return 1;
-      }
-      process.stdout.write(t().host.projectReady(shortPath(target), name));
-      await devtools?.close();
-      return new Promise<number>((resolve) => {
-        const child = spawn(process.execPath, [...process.execArgv, process.argv[1]!], { cwd: target, stdio: "inherit" });
-        child.on("close", (c2) => resolve(c2 ?? 0));
-        child.on("error", () => resolve(1));
-      });
+    if (fs.existsSync(target) && fs.readdirSync(target).length > 0) {
+      ui.notice(m.projectExists(name), "warn");
+      return undefined;
+    }
+    const template = await ui.choose(m.projectTemplate, [
+      { label: "api", value: "api", hint: m.templateApi },
+      { label: "minimal", value: "minimal", hint: m.templateMinimal },
+    ], "api");
+
+    const label = m.creatingProject(name);
+    ui.busy(label);
+    const tail: string[] = [];
+    creation = { child: undefined, cancelled: false };
+    const code = await new Promise<number>((resolve) => {
+      // npx --yes: tanpa pertanyaan "Ok to proceed?"; create-zentara --yes: tanpa pertanyaan lanjutan.
+      const cmd = platformCommand("npx", ["--yes", "create-zentara@latest", name, "--template", template, "--lang", lang, "--yes"]);
+      // detached (selain Windows): Esc menghentikan seluruh grup proses (npx, npm install, ...).
+      const child = spawn(cmd.command, cmd.args, { cwd, stdio: ["ignore", "pipe", "pipe"], shell: cmd.shell, detached: process.platform !== "win32", env: { ...process.env, FORCE_COLOR: "0" } });
+      creation!.child = child;
+      const onData = (chunk: Buffer) => {
+        for (const raw of chunk.toString("utf8").split(/\r?\n/)) {
+          const line = raw.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "").trim();
+          if (!line) continue;
+          tail.push(line);
+          if (tail.length > 12) tail.shift();
+          ui.busy(`${label} · ${line.length > 60 ? `${line.slice(0, 59)}…` : line}`);
+        }
+      };
+      child.stdout?.on("data", onData);
+      child.stderr?.on("data", onData);
+      child.on("error", () => resolve(1));
+      child.on("close", (c2) => resolve(c2 ?? 1));
     });
+    ui.busy(undefined);
+    const cancelled = creation.cancelled;
+    creation = undefined;
+    ui.changed();
+    if (cancelled) {
+      // Folder tujuan tadinya kosong atau belum ada: hapus sisa proyek yang setengah jadi.
+      fs.rmSync(target, { recursive: true, force: true });
+      ui.notice(m.projectCancelled, "warn");
+      return undefined;
+    }
+    if (code !== 0 || !fs.existsSync(path.join(target, "src", "app"))) {
+      ui.notice(m.projectCreateFailed(tail.map((l) => `  ${l}`).join("\n")), "error");
+      return undefined;
+    }
+    ui.notice(m.projectReady(shortPath(target), name).trim(), "ok");
+    await devtools?.close();
+    // Zentara di folder proyek baru mengambil alih terminal; saat ditutup, CLI ini ikut selesai.
+    return ui.suspend(
+      () =>
+        new Promise<number>((resolve) => {
+          const child = spawn(process.execPath, [...process.execArgv, process.argv[1]!], { cwd: target, stdio: "inherit" });
+          child.on("close", (c2) => resolve(c2 ?? 0));
+          child.on("error", () => resolve(1));
+        }),
+    );
   }
 
   function resumeSession(id: string): void {
@@ -577,7 +651,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
             : isProject
               ? { state: "stopped" }
               : { state: "none" };
-      return { server, mode: session.approval.mode, provider: readyProvider, tokens: session.tokens, busy: Boolean(controller) };
+      return { server, mode: session.approval.mode, provider: readyProvider, tokens: session.tokens, busy: Boolean(controller || creation) };
     },
     async startup() {
       const newer = await Promise.race([options.checkUpdate?.() ?? Promise.resolve(undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), 1500).unref())]);
@@ -585,6 +659,11 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
         ui.notice(t().host.newVersion(newer, options.version), "warn");
       }
       if (options.dryRun) ui.notice(t().host.dryRun, "warn");
+      // Pertama kali dibuka: pilih bahasa lebih dulu, lalu simpan sebagai preferensi global.
+      if (options.askLanguage) {
+        await chooseLanguage();
+        ui.changed();
+      }
 
       if (!isProject) {
         const m = t().host.start;
@@ -600,7 +679,10 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
           openBrowser(DOCS_URL);
           ui.notice(t().host.openingDocs, "dim");
         }
-        if (choice === "create") return createProject();
+        if (choice === "create") {
+          const code = await createProject();
+          if (code !== undefined) return code;
+        }
       }
 
       if (!readyProvider) {
@@ -661,6 +743,12 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
       return undefined;
     },
     interrupt() {
+      if (creation?.child?.pid && !creation.cancelled) {
+        creation.cancelled = true;
+        killTree(creation.child.pid, "SIGTERM");
+        ui.busy(t().host.busyStopping);
+        return;
+      }
       if (controller && !controller.signal.aborted) {
         controller.abort();
         ui.busy(t().host.busyStopping);
@@ -689,5 +777,15 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
 // Bahan untuk tampilan: tipe kejadian agen, logo & warna brand, pratinjau persetujuan berwarna.
 export type { ApprovalAnswer, PendingAction } from "../ai/approval.js";
 export type { ToolCall, ToolResult } from "../ai/types.js";
+/** Nama folder proyek yang aman: huruf kecil, spasi & karakter lain menjadi "-" (mis. "Hub Tiket" -> "hub-tiket"). */
+export function projectSlug(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "");
+}
+
 export { BRAND, colorDepth, terminalLogo, terminalLogoFrame, terminalLogoMini, visibleWidth, TAGLINE, type ColorDepth } from "../brand/index.js";
 export { formatPreview, MarkdownLines, renderMarkdown } from "../ai/terminal.js";

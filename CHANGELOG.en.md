@@ -2,6 +2,27 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.3]
+
+### Fixed
+- **Creating a project from the interactive CLI no longer "exits" Zentara.** Previously the Zentara screen closed and the terminal was handed to `npm create zentara`, which then asked everything again in the plain terminal ("Ok to proceed?", template, dependencies, OmniRoute). Now:
+  - the folder name and template are asked inside Zentara;
+  - `create-zentara` and `npm install` run in the background without questions, with progress in the spinner;
+  - when done, Zentara opens in the new project right away;
+  - **Esc** cancels project creation and removes the half-created folder. If it fails, the error is shown and you stay in Zentara.
+- Project folder names are made safe: spaces and other characters become `-` (e.g. "hub tiket transportasi" becomes `hub-tiket-transportasi`). A folder that already has files is never overwritten.
+- **Language selection stays:** the first time `zentara` opens (no language chosen yet via `ZENTARA_LANG`, `locale` in the config, or `zentara lang`), it asks for the language first and saves it to `~/.zentara/settings.json`; *Create a new project* also asks for the app language (the current language is highlighted).
+- **Database commands from the global CLI no longer fail on drizzle-orm.** `zentara db:generate`, `db:migrate`, and `db:seed`, including the ones Zentara AI runs in the terminal and in the browser, now use the project's own zentara (`node_modules/zentara`), which has drizzle-orm and drizzle-kit. If the project's dependencies are missing, the message says so clearly: run `npm install`.
+- **Zentara AI's `list_routes` always reads the latest code.** Routes are loaded in a fresh process, so routes and schema that were just changed (e.g. a new `bookings` table) no longer fail with "does not provide an export named ..." because of a stale module cache.
+
+### Added
+- **A `zentara` tool for Zentara AI**, so the AI can run every CLI function (terminal and browser) with the project's own zentara:
+  - `routes` and `jobs` run right away without approval;
+  - `make:route`, `make:middleware`, `make:job`, and `build` are asked in ask mode, and files created by `make:*` can be reverted with `zentara undo`;
+  - `jobs:run` always asks for approval.
+
+  The AI is also told to stop asking the developer to run these commands themselves.
+
 ## [0.12.2]
 
 ### Fixed

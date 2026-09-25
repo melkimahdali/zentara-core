@@ -1,6 +1,7 @@
 import type { Messages } from "../id/index.js";
 
 export const cli: Messages["cli"] = {
+  dbDepsMissing: "drizzle-orm is not installed for this project. Run `npm install` in the project folder (the api template already includes drizzle-orm and drizzle-kit), or `npm install drizzle-orm drizzle-kit`.",
   help: `Zentara Core CLI
 
 Running your app:
