@@ -3,7 +3,12 @@ import path from "node:path";
 
 let cache: { file: string; mtimeMs: number; css: string } | undefined;
 
-/** Baca `zenstyles/app.zs.css`. Dibaca ulang bila file berubah, jadi aman dipakai saat dev. */
+/**
+ * Baca `zenstyles/app.zs.css`. Dibaca ulang bila file berubah, jadi aman dipakai saat dev.
+ *
+ * @deprecated Pakai kit UI `zentara/ui` (page, AppShell, dan komponennya). Tetap ada agar proyek
+ * lama tidak rusak; template baru tidak lagi membawa folder `zenstyles/`.
+ */
 export function loadZenStyles(file = path.join(process.cwd(), "zenstyles", "app.zs.css")): string {
   let stat: fs.Stats;
   try {

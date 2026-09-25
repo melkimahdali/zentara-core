@@ -47,7 +47,6 @@ src/app/db/           schema, koneksi, dan seed database (template api)
 src/app/jobs/         job latar belakang (file = job, template api)
 src/app/lib/          helper aplikasi (mis. requireUser/requireAdmin)
 public/               file statis
-zenstyles/            CSS aplikasi
 drizzle/              file migrasi SQL (hasil db:generate)
 test/                 test (node:test)
 zentara.config.mjs    konfigurasi

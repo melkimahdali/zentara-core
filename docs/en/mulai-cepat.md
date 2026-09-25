@@ -47,7 +47,6 @@ src/app/db/           database schema, connection, and seed (api template)
 src/app/jobs/         background jobs (file = job, api template)
 src/app/lib/          app helpers (e.g. requireUser/requireAdmin)
 public/               static files
-zenstyles/            app CSS
 drizzle/              SQL migrations (from db:generate)
 test/                 tests (node:test)
 zentara.config.mjs    configuration

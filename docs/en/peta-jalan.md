@@ -33,10 +33,17 @@ Stages 10 and 11 shipped together in 0.12.
 
 | Stage | Version | Contents |
 |---|---|---|
-| 12 | 0.13 | Data and admin panel: automatic CRUD from the schema, relations, pagination, filters |
+| 12 | 0.13 | Data and admin panel: automatic CRUD from the schema, relations, pagination, filters, and interactions without full page reloads using [htmx](https://htmx.org) |
 | 13 | 0.14 | Testing: route and page test helpers, test data (factories), coverage reports |
 | 14 | 0.15 | Deploy: Docker, Vercel, and Cloudflare adapters, plus a self-hosting guide |
-| 15 | 1.0 | Ecosystem: plugins, MCP, subagents, a language server, a stable API |
+| 15 | 1.0 | Ecosystem: an official plugin catalog that Zentara AI can offer as options, MCP, subagents, a language server, a stable API |
+
+## Integrating other frameworks
+
+Zentara keeps a single UI system, the `zentara/ui` kit, so every page (including the ones Zentara AI builds) looks consistent and needs no build step.
+
+- **Stage 12:** [htmx](https://htmx.org) joins the core for pagination, filters, and form saves without full page reloads. The server still sends HTML.
+- **Stage 15:** Tailwind, charts, rich text editors, maps, payments, Google/GitHub sign-in, and React/Preact "islands" become optional plugins from an official catalog (`zentara add <plugin>`). Zentara AI only offers them as options when a request actually needs one, with "no plugin" as the default, and installing always asks for approval.
 
 ## Stage 10: English (done)
 

@@ -2,6 +2,18 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.2]
+
+### Fixed
+- **Zentara AI reuses the app's existing layout** when asked to build a page, instead of inventing its own design.
+  - The project summary sent to the AI now names `src/app/lib/ui.ts` and its exports (`appPage`, `APP_NAME`, ...), one example page that already uses `appPage()`, and the route list.
+  - The AI's instructions require `appPage()` for signed-in pages and `page()` for public pages, ask it to read a similar page first, add new pages to the `navFor()` menu, and forbid its own `<html>`, `<style>`, CSS, or navigation unless asked.
+  - When `write_file`/`edit_file` writes a route that builds its own HTML document or CSS, the tool result adds a note so the AI fixes it right away.
+- The `api` and `minimal` templates no longer ship a `zenstyles/` folder (an old, differently styled stylesheet no page used, which confused the AI). `loadZenStyles()` is deprecated but kept for existing projects; there, the AI is told not to use it.
+
+### Added
+- Roadmap: htmx joins stage 12, and an optional plugin catalog that Zentara AI can offer as choices joins stage 15.
+
 ## [0.12.1]
 
 ### Fixed
