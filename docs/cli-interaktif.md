@@ -60,7 +60,7 @@ Atau untuk sementara: `ZENTARA_ANIMATION=off zentara` (PowerShell: `$env:ZENTARA
 
 Setelah animasi, header menampilkan versi, AI yang aktif, mode, dan folder. Kolom input ada di bawah, dengan baris mode di bawahnya (**Shift+Tab** untuk mengganti mode). Lalu:
 - **Belum ada AI yang siap:** muncul layar sambutan untuk memilih cara mengakses model, yaitu *OmniRoute (gratis)*, *Masukkan API key*, *Provider kustom*, atau *Lewati dulu*. Menu dipilih dengan ↑/↓ + Enter, atau ketik untuk mencari.
-- **Di luar folder proyek:** muncul pilihan *Buat proyek baru* (menjalankan `npm create zentara` lalu langsung membuka proyeknya), *Chat di folder ini*, atau *Buka dokumentasi*.
+- **Di luar folder proyek:** muncul pilihan *Buat proyek baru* (nama folder dan template ditanyakan di dalam Zentara, proyek dibuat dan `npm install` berjalan di latar belakang dengan progres di spinner, lalu Zentara langsung terbuka di proyek itu; **Esc** membatalkan), *Chat di folder ini*, atau *Buka dokumentasi*.
 
 Fitur sesi interaktif:
 

@@ -2,6 +2,16 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.3]
+
+### Fixed
+- **Creating a project from the interactive CLI no longer "exits" Zentara.** Previously the Zentara screen closed and the terminal was handed to `npm create zentara`, which then asked everything again in the plain terminal ("Ok to proceed?", template, dependencies, OmniRoute). Now:
+  - the folder name and template are asked inside Zentara;
+  - `create-zentara` and `npm install` run in the background without questions, with progress in the spinner;
+  - when done, Zentara opens in the new project right away;
+  - **Esc** cancels project creation and removes the half-created folder. If it fails, the error is shown and you stay in Zentara.
+- Project folder names are made safe: spaces and other characters become `-` (e.g. "hub tiket transportasi" becomes `hub-tiket-transportasi`). A folder that already has files is never overwritten.
+
 ## [0.12.2]
 
 ### Fixed

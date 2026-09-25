@@ -2,6 +2,16 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.3]
+
+### Diperbaiki
+- **Membuat proyek dari CLI interaktif tidak lagi "keluar" dari Zentara.** Sebelumnya layar Zentara ditutup dan terminal diserahkan ke `npm create zentara`, yang lalu menanyakan ulang semuanya di terminal biasa ("Ok to proceed?", template, dependency, OmniRoute). Sekarang:
+  - nama folder dan template ditanyakan di dalam Zentara;
+  - `create-zentara` dan `npm install` berjalan di latar belakang tanpa pertanyaan, dengan progres di spinner;
+  - setelah selesai, Zentara langsung terbuka di proyek baru;
+  - **Esc** membatalkan pembuatan proyek dan menghapus folder yang setengah jadi. Bila gagal, pesan error ditampilkan dan Anda tetap di Zentara.
+- Nama folder proyek dibuat aman: spasi dan karakter lain menjadi `-` (mis. "hub tiket transportasi" menjadi `hub-tiket-transportasi`). Folder yang sudah berisi tidak ditimpa.
+
 ## [0.12.2]
 
 ### Diperbaiki
