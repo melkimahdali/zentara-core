@@ -525,11 +525,15 @@ export function runZentaraCli(root: string, args: string[], timeoutMs = 5 * 60 *
   const cli = findLocalCli(root, own) ?? own;
   if (!cli) return Promise.resolve({ ok: false, output: t().ai.tools.cliMissing });
   // CLI proyek adalah JavaScript hasil build: loader (tsx) milik proses ini hanya dibutuhkan untuk cli.ts.
-  const execArgv = cli.endsWith(".ts") ? absoluteLoaders(process.execArgv) : [];
+  const dev = cli.endsWith(".ts");
+  const execArgv = dev ? absoluteLoaders(process.execArgv) : [];
+  const env: NodeJS.ProcessEnv = { ...process.env, FORCE_COLOR: "0", NODE_NO_WARNINGS: "1" };
+  // Loader juga bisa datang lewat NODE_OPTIONS (mis. test runner Node 24): ubah juga ke path absolut.
+  if (dev && env.NODE_OPTIONS) env.NODE_OPTIONS = absoluteLoaders(env.NODE_OPTIONS.split(/\s+/).filter(Boolean)).join(" ");
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [...execArgv, cli, ...args], {
       cwd: root,
-      env: { ...process.env, FORCE_COLOR: "0", NODE_NO_WARNINGS: "1" },
+      env,
       timeout: timeoutMs,
     });
     let output = "";
@@ -540,20 +544,29 @@ export function runZentaraCli(root: string, args: string[], timeoutMs = 5 * 60 *
   });
 }
 
-/** `--import tsx` / `--import ./x.mjs` diubah ke URL absolut agar tetap ditemukan dari cwd proyek lain. */
-function absoluteLoaders(execArgv: readonly string[]): string[] {
-  return execArgv.map((arg, i) => {
-    const flag = execArgv[i - 1];
-    if (flag !== "--import" && flag !== "--loader" && flag !== "--experimental-loader") return arg;
-    if (/^[a-z]+:/i.test(arg)) return arg;
-    if (arg.startsWith(".") || path.isAbsolute(arg)) return pathToFileURL(path.resolve(arg)).href;
-    try {
-      // Dicari dari cwd proses ini (tempat loader terpasang), bukan dari folder proyek tujuan.
-      return pathToFileURL(createRequire(path.join(process.cwd(), "noop.js")).resolve(arg)).href;
-    } catch {
-      return arg;
-    }
+const LOADER_FLAGS = ["--import", "--loader", "--experimental-loader"];
+
+/**
+ * `--import tsx` / `--import=./x.mjs` diubah ke URL absolut agar tetap ditemukan dari cwd proyek lain.
+ * Hanya dipakai saat CLI berupa cli.ts (pengembangan & test); CLI rilis (cli.js) tidak butuh loader.
+ */
+function absoluteLoaders(args: readonly string[]): string[] {
+  return args.map((arg, i) => {
+    const eq = arg.indexOf("=");
+    if (eq > 0 && LOADER_FLAGS.includes(arg.slice(0, eq))) return `${arg.slice(0, eq)}=${absoluteSpecifier(arg.slice(eq + 1))}`;
+    return LOADER_FLAGS.includes(args[i - 1] ?? "") ? absoluteSpecifier(arg) : arg;
   });
+}
+
+function absoluteSpecifier(spec: string): string {
+  if (/^[a-z]+:/i.test(spec)) return spec;
+  if (spec.startsWith(".") || path.isAbsolute(spec)) return pathToFileURL(path.resolve(spec)).href;
+  try {
+    // Dicari dari cwd proses ini (tempat loader terpasang), bukan dari folder proyek tujuan.
+    return pathToFileURL(createRequire(path.join(process.cwd(), "noop.js")).resolve(spec)).href;
+  } catch {
+    return spec;
+  }
 }
 
 export function createDbRunner(root: string, timeoutMs = 5 * 60 * 1000) {
