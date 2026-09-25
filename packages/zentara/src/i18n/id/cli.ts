@@ -1,4 +1,5 @@
 export const cli = {
+  dbDepsMissing: "drizzle-orm belum terpasang untuk proyek ini. Jalankan `npm install` di folder proyek (template api sudah memuat drizzle-orm dan drizzle-kit), atau `npm install drizzle-orm drizzle-kit`.",
   help: `Zentara Core CLI
 
 Menjalankan aplikasi:

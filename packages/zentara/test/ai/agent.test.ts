@@ -100,6 +100,38 @@ describe("keamanan tool", () => {
     assert.equal(edited, "Diubah: src/app/routes/booking.ts", "setelah memakai appPage, tidak ada catatan");
   });
 
+  it("tool zentara: routes & jobs langsung jalan; make:job minta persetujuan dan bisa di-undo", async () => {
+    fs.mkdirSync(path.join(root, "src", "app", "routes"), { recursive: true });
+    fs.writeFileSync(path.join(root, "src", "app", "routes", "halo.ts"), "export const GET = () => 'halo';\n");
+    const ctx = makeContext("ask");
+    const run = (input: Record<string, unknown>) => agentTools.find((t) => t.spec.name === "zentara")!.run(input, ctx);
+    assert.match(await run({ command: "routes" }), /^BERHASIL: zentara routes\n[\s\S]*\/halo/);
+    assert.equal(asked.length, 0, "routes baca-saja, tanpa persetujuan");
+
+    assert.match(await run({ command: "make:job", args: ["laporan-harian", "--schedule", "0 7 * * *"] }), /^BERHASIL: zentara make:job laporan-harian/);
+    assert.equal(asked.length, 1);
+    assert.ok(fs.existsSync(path.join(root, "src", "app", "jobs", "laporan-harian.ts")));
+    assert.match(await run({ command: "jobs" }), /laporan-harian[\s\S]*0 7 \* \* \*/);
+    undoLatest(root);
+    assert.ok(!fs.existsSync(path.join(root, "src", "app", "jobs", "laporan-harian.ts")), "undo menghapus file buatan make:job");
+
+    await assert.rejects(run({ command: "dev" }), /tidak valid/);
+    await assert.rejects(run({ command: "make:route", args: ["../luar"] }), /tidak valid/);
+    await assert.rejects(run({ command: "jobs:run", args: [".env"] }), /tidak valid/);
+  });
+
+  it("list_routes memuat ulang kode proyek di proses baru (perubahan schema langsung terbaca)", async () => {
+    fs.mkdirSync(path.join(root, "src", "app", "routes"), { recursive: true });
+    fs.mkdirSync(path.join(root, "src", "app", "db"), { recursive: true });
+    fs.writeFileSync(path.join(root, "src", "app", "db", "schema.ts"), "export const a = 1;\n");
+    fs.writeFileSync(path.join(root, "src", "app", "routes", "a.ts"), 'import { a } from "../db/schema.js";\nexport const GET = () => ({ a });\n');
+    const list = () => agentTools.find((t) => t.spec.name === "list_routes")!.run({}, makeContext("auto"));
+    assert.match(await list(), /GET\|HEAD\|OPTIONS \/a -> src\/app\/routes\/a\.ts|GET \/a/);
+    fs.appendFileSync(path.join(root, "src", "app", "db", "schema.ts"), "export const b = 2;\n");
+    fs.writeFileSync(path.join(root, "src", "app", "routes", "b.ts"), 'import { b } from "../db/schema.js";\nexport const GET = () => ({ b });\n');
+    assert.match(await list(), /\/b -> src\/app\/routes\/b\.ts/);
+  });
+
   it("edit_file mewajibkan teks yang unik", async () => {
     fs.writeFileSync(path.join(root, "src", "b.ts"), "x\nx\n");
     const ctx = makeContext("auto");
