@@ -24,7 +24,7 @@ export interface ZenContext {
   /** Session request. Butuh middleware `session()`; melempar error bila belum dipasang. */
   readonly session: Session;
   /** Body mentah. Dibaca sekali lalu di-cache; melempar 413 bila melebihi `bodyLimit`. */
-  body(): Promise<Buffer>;
+  body(options?: { limit?: number }): Promise<Buffer>;
   text(): Promise<string>;
   /** Body sebagai JSON. `undefined` bila body kosong; melempar 400 bila JSON tidak valid. */
   json<T = unknown>(): Promise<T | undefined>;
@@ -118,8 +118,9 @@ export function createContext(
       if (!current) throw new Error(t().core.sessionMissing);
       return current;
     },
-    body() {
-      bodyPromise ??= readBody(req, res, options.bodyLimit);
+    body(bodyOptions) {
+      // Batas khusus (mis. unggahan file lewat readForm) hanya berlaku bila body belum dibaca.
+      bodyPromise ??= readBody(req, res, bodyOptions?.limit ?? options.bodyLimit);
       return bodyPromise;
     },
     async text() {

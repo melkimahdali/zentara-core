@@ -72,6 +72,16 @@ export async function readInput(ctx: ZenContext): Promise<unknown> {
   if (type.startsWith("application/x-www-form-urlencoded")) {
     return toQuery(new URLSearchParams(await ctx.text()));
   }
+  if (type.startsWith("multipart/form-data")) {
+    // Field teks menjadi string (atau array bila berulang), file menjadi objek File.
+    const { readForm } = await import("../backend/upload.js");
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of await readForm(ctx)) {
+      const existing = out[key];
+      out[key] = existing === undefined ? value : Array.isArray(existing) ? [...existing, value] : [existing, value];
+    }
+    return out;
+  }
   return ctx.json();
 }
 

@@ -44,6 +44,30 @@ export interface ZenConfig {
    * lalu Bahasa Indonesia.
    */
   locale: Locale;
+  /** Job latar belakang dan jadwal dari folder `jobs/` di samping `routes/`. */
+  jobs: JobsConfig;
+  /** Pengiriman email lewat sendMail(). Env MAIL_URL dan MAIL_FROM menang. */
+  mail: MailSettings;
+}
+
+export interface JobsConfig {
+  /** "sqlite" (bawaan; tahan restart) atau "memory" (bawaan saat NODE_ENV=test). */
+  store: "sqlite" | "memory";
+  /** File SQLite antrean. Default data/jobs.db. */
+  path: string;
+  /** Jalankan pekerja & penjadwal di proses server ini. Env ZENTARA_JOBS=off mematikan. Default true. */
+  worker: boolean;
+  /** Job yang berjalan bersamaan. Default 2. */
+  concurrency: number;
+  /** Selang pengecekan antrean (ms). Default 1000. */
+  pollMs: number;
+}
+
+export interface MailSettings {
+  /** smtp://user:pass@host:587, smtps://...:465, "log", atau "memory". */
+  url?: string;
+  /** Pengirim bawaan, mis. "Aplikasi <halo@contoh.id>". */
+  from?: string;
 }
 
 /** Pengaturan CLI interaktif `zentara`. */
@@ -57,7 +81,7 @@ export interface CliConfig {
   fullscreen?: boolean;
 }
 
-export type UserConfig = Partial<ZenConfig> & { cli?: CliConfig };
+export type UserConfig = Omit<Partial<ZenConfig>, "jobs" | "mail"> & { cli?: CliConfig; jobs?: Partial<JobsConfig>; mail?: MailSettings };
 
 export function defineConfig(config: UserConfig): UserConfig {
   return config;
@@ -100,8 +124,20 @@ export function resolveConfig(user: UserConfig = {}, env: NodeJS.ProcessEnv = pr
 
   // Server produksi tidak bergantung pada preferensi di folder home developer.
   const locale = resolveLocale({ env, config: user.locale, settings: envName === "production" ? {} : readSettings(env) });
+  const jobsFlag = env.ZENTARA_JOBS?.trim().toLowerCase();
+  const jobs: JobsConfig = {
+    store: user.jobs?.store ?? (envName === "test" ? "memory" : "sqlite"),
+    path: path.resolve(cwd, user.jobs?.path ?? path.join("data", "jobs.db")),
+    worker: jobsFlag ? !["0", "off", "false", "no"].includes(jobsFlag) : (user.jobs?.worker ?? true),
+    concurrency: user.jobs?.concurrency ?? 2,
+    pollMs: user.jobs?.pollMs ?? 1000,
+  };
+  if (jobs.store !== "sqlite" && jobs.store !== "memory") throw new Error(`Invalid jobs.store: ${String(jobs.store)}`);
+  if (!Number.isInteger(jobs.concurrency) || jobs.concurrency < 1) throw new Error(`Invalid jobs.concurrency: ${jobs.concurrency}`);
   return {
     locale,
+    jobs,
+    mail: { url: env.MAIL_URL || user.mail?.url, from: env.MAIL_FROM || user.mail?.from },
     appName: user.appName ?? "Zentara App",
     env: envName,
     debug,

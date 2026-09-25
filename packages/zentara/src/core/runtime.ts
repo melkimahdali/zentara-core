@@ -17,6 +17,8 @@ import { ZenPluginManager } from "./plugin.js";
 import { ZenResponse } from "./response.js";
 import { allowedMethods, resolveHandler, ZenRouter } from "./router.js";
 import { resolveStaticFile, sendStaticFile } from "./static.js";
+import { jobs, MemoryJobStore, SqliteJobStore } from "../backend/jobs.js";
+import { configureMail } from "../backend/mail.js";
 
 /** 404 karena tidak ada route yang cocok (bukan HttpError(404) yang dilempar aplikasi). */
 class RouteNotFoundError extends HttpError {
@@ -76,8 +78,20 @@ export class ZenRuntime {
     await this.plugins.load();
     await this.loadAppMiddleware();
     await this.router.loadRoutes(this.config.routesDir);
+    await this.loadJobs();
+    configureMail({ ...this.config.mail, logger: this.logger });
     this.publishAppInfo();
     this.initialized = true;
+  }
+
+  /** Job dari folder `jobs/` di samping `routes/` (mis. src/app/jobs). */
+  private async loadJobs(): Promise<void> {
+    const dir = path.join(path.dirname(this.config.routesDir), "jobs");
+    if (!fs.existsSync(dir)) return;
+    const { store, path: file, concurrency, pollMs } = this.config.jobs;
+    jobs.configure({ store: store === "memory" ? new MemoryJobStore() : new SqliteJobStore(file), logger: this.logger, concurrency, pollMs });
+    const defs = await jobs.load(dir);
+    this.logger.debug(`Loaded ${defs.length} jobs`);
   }
 
   /** Informasi untuk halaman sambutan & halaman error bawaan. */
@@ -235,6 +249,7 @@ export class ZenRuntime {
     const address = server.address() as AddressInfo;
     const shownHost = this.config.host === "0.0.0.0" || this.config.host === "::" ? "localhost" : this.config.host;
     this.logger.info(`🚀 Running at http://${shownHost}:${address.port}`);
+    if (this.config.jobs.worker && jobs.definitions.length) jobs.start();
     return address;
   }
 
@@ -242,6 +257,7 @@ export class ZenRuntime {
     const server = this.server;
     if (!server) return;
     this.server = undefined;
+    await jobs.stop();
     await new Promise<void>((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));
       server.closeIdleConnections();

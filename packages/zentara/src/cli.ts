@@ -22,7 +22,10 @@ import { defaultAppDir, loadConfigFile, resolveConfig, type UserConfig } from ".
 import type { DbCommandResult } from "./db/commands.js";
 import { ZenLogger } from "./core/logger.js";
 import { allowedMethods, HTTP_METHODS, segmentsFromFile, ZenRouter } from "./core/router.js";
-import { getLocale, LOCALE_NAMES, parseLocale, readSettings, resolveLocale, setLocale, t, writeSettings } from "./i18n/index.js";
+import { JobQueue, loadJobs, MemoryJobStore, SqliteJobStore } from "./backend/jobs.js";
+import { configureMail } from "./backend/mail.js";
+import { parseCron } from "./backend/cron.js";
+import { getLocale, intlLocale, LOCALE_NAMES, parseLocale, readSettings, resolveLocale, setLocale, t, writeSettings } from "./i18n/index.js";
 
 export interface CliIO {
   cwd: string;
@@ -50,7 +53,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     const [key, inline] = arg.slice(2).split("=", 2) as [string, string | undefined];
     const next = argv[i + 1];
     if (inline !== undefined) flags[key] = inline;
-    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name"].includes(key)) {
+    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule"].includes(key)) {
       flags[key] = next;
       i++;
     } else flags[key] = true;
@@ -145,6 +148,109 @@ export const ${fnName} = defineMiddleware(async (ctx, next) => {
   return 0;
 }
 
+function makeJob(args: ParsedArgs, io: CliIO): number {
+  const m = t().backend.cli;
+  const name = args.positional[1]?.replace(/\.(ts|js)$/, "");
+  if (!name || !/^[a-z0-9][a-z0-9-]*(\/[a-z0-9][a-z0-9-]*)*$/i.test(name)) {
+    io.err(m.makeUsage);
+    return 1;
+  }
+  const schedule = typeof args.flags.schedule === "string" ? args.flags.schedule : undefined;
+  if (schedule) {
+    try {
+      parseCron(schedule);
+    } catch (err) {
+      io.err((err as Error).message);
+      return 1;
+    }
+  }
+  const file = path.join(appDir(io, args.flags), "jobs", `${name}.ts`);
+  const lines = [
+    `import type { JobContext } from "${coreImport(file, io)}";`,
+    "",
+    `// ${m.template.retries}`,
+    "export const retries = 3;",
+    ...(schedule ? ["", `// ${m.template.schedule}`, `export const schedule = ${JSON.stringify(schedule)};`] : []),
+    "",
+    "export default async function (data: unknown, job: JobContext) {",
+    `  // ${m.template.handler}`,
+    "  job.logger.info(`${job.name} #${job.attempt}`, data);",
+    "}",
+    "",
+  ];
+  if (!writeNewFile(file, lines.join("\n"), args.flags.force === true, io)) return 1;
+  if (!schedule) io.out(m.enqueueHint(name));
+  return 0;
+}
+
+function jobsDir(config: { routesDir: string }): string {
+  return path.join(path.dirname(config.routesDir), "jobs");
+}
+
+/** `zentara jobs`: daftar job, jadwal berikutnya, dan isi antrean. */
+async function listJobs(args: ParsedArgs, io: CliIO): Promise<number> {
+  loadDotEnv(io.cwd);
+  const m = t().backend.cli;
+  const config = resolveConfig(await loadConfigFile(io.cwd), process.env, io.cwd);
+  const dir = jobsDir(config);
+  const defs = await loadJobs(dir);
+  let counts: Record<string, number> | undefined;
+  if (config.jobs.store === "sqlite" && fs.existsSync(config.jobs.path)) {
+    const store = new SqliteJobStore(config.jobs.path);
+    counts = store.counts();
+    store.close();
+  }
+  const rows = defs.map((d) => ({ name: d.name, retries: d.retries, schedule: d.schedule?.source ?? null, next: d.schedule ? d.schedule.next().toISOString() : null }));
+  if (args.flags.json) {
+    io.out(JSON.stringify({ jobs: rows, queue: counts ?? null }, null, 2));
+    return 0;
+  }
+  if (!rows.length) {
+    io.out(m.noJobs(path.relative(io.cwd, dir) || "."));
+    return 0;
+  }
+  const width = Math.max(m.header.length, ...rows.map((r) => r.name.length));
+  const cronWidth = Math.max(m.schedule.length, ...rows.map((r) => (r.schedule ?? "-").length));
+  io.out(`${m.header.padEnd(width)}  ${m.retries.padEnd(7)}  ${m.schedule.padEnd(cronWidth)}  ${m.next}`);
+  const fmt = new Intl.DateTimeFormat(intlLocale(), { dateStyle: "medium", timeStyle: "short" });
+  for (const r of rows) io.out(`${r.name.padEnd(width)}  ${String(r.retries).padEnd(7)}  ${(r.schedule ?? "-").padEnd(cronWidth)}  ${r.next ? fmt.format(new Date(r.next)) : "-"}`);
+  if (counts) io.out(c.dim(`\n${m.queue(counts.queued ?? 0, counts.running ?? 0, counts.failed ?? 0, counts.done ?? 0)}`));
+  return 0;
+}
+
+/** `zentara jobs:run <nama>`: jalankan satu job sekarang di proses ini (tanpa antrean). */
+async function runJob(args: ParsedArgs, io: CliIO): Promise<number> {
+  loadDotEnv(io.cwd);
+  const m = t().backend.cli;
+  const name = args.positional[1];
+  if (!name) {
+    io.err(m.runUsage);
+    return 1;
+  }
+  let data: unknown = null;
+  if (typeof args.flags.data === "string") {
+    try {
+      data = JSON.parse(args.flags.data);
+    } catch {
+      io.err(m.badData);
+      return 1;
+    }
+  }
+  const config = resolveConfig(await loadConfigFile(io.cwd), process.env, io.cwd);
+  const logger = new ZenLogger(config.logLevel);
+  configureMail({ ...config.mail, logger });
+  const queue = new JobQueue().configure({ logger, store: new MemoryJobStore() });
+  await queue.load(jobsDir(config));
+  try {
+    await queue.runNow(name, data);
+    io.out(c.green(m.ran(name)));
+    return 0;
+  } catch (err) {
+    io.err(c.red((err as Error).message));
+    return 1;
+  }
+}
+
 async function listRoutes(args: ParsedArgs, io: CliIO): Promise<number> {
   const config = resolveConfig(await loadConfigFile(io.cwd), process.env, io.cwd);
   const router = new ZenRouter(new ZenLogger("silent"));
@@ -174,7 +280,7 @@ async function listRoutes(args: ParsedArgs, io: CliIO): Promise<number> {
 }
 
 const KNOWN_COMMANDS = new Set([
-  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang",
+  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "make:job", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang", "jobs", "jobs:run",
 ]);
 
 /** Bahasa CLI: env ZENTARA_LANG, lalu `locale` di zentara.config.mjs, lalu preferensi global, lalu Indonesia. */
@@ -534,7 +640,7 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
     io.out(version());
     return 0;
   }
-  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "db:generate", "lang", undefined].includes(command);
+  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "make:job", "db:generate", "lang", undefined].includes(command);
   if (needsProjectCode || isNaturalLanguage(args.positional)) await ensureTypeScriptLoader(io.cwd);
   if (isNaturalLanguage(args.positional)) return runAi(args.positional.join(" "), args, io);
   switch (command) {
@@ -581,6 +687,12 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return makeRoute(args, io);
     case "make:middleware":
       return makeMiddleware(args, io);
+    case "make:job":
+      return makeJob(args, io);
+    case "jobs":
+      return listJobs(args, io);
+    case "jobs:run":
+      return runJob(args, io);
     case "lang":
       return lang(args, io, source);
     default:
