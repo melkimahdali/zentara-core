@@ -33,6 +33,7 @@ jobs:
       - name: Pastikan npm mendukung trusted publishing & staged publishing
         run: npm install -g npm@latest && npm --version
       - run: npm ci
+      - run: npm run build
       - run: npm run typecheck
       - run: npm test
       - run: npm run e2e

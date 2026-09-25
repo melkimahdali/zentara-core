@@ -12,7 +12,7 @@ const DOCS = path.join(ROOT, "docs");
 const OUT = path.join(ROOT, "site-dist");
 const DIST = path.join(ROOT, "packages", "zentara", "dist");
 const REPO = "https://github.com/melkimahdali/zentara-core";
-const GROUPS = ["Memulai", "Zentara AI", "Dasar", "Data & Keamanan", "Referensi"];
+const GROUPS = ["Memulai", "Zentara AI", "Dasar", "Front-End", "Data & Keamanan", "Referensi"];
 
 const load = (rel) => import(pathToFileURL(path.join(DIST, rel)).href);
 if (!fs.existsSync(path.join(DIST, "brand", "assets.js"))) {

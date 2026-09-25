@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { sendBuiltinAsset } from "./assets.js";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
@@ -113,6 +114,9 @@ export class ZenRuntime {
     const match = this.router.match(ctx.path);
 
     if (!match) {
+      if ((ctx.method === "GET" || ctx.method === "HEAD") && ctx.path.startsWith("/_zentara/") && sendBuiltinAsset(ctx.req, ctx.res, ctx.path)) {
+        return undefined;
+      }
       if ((ctx.method === "GET" || ctx.method === "HEAD") && this.config.publicDir) {
         const file = await resolveStaticFile(this.config.publicDir, ctx.path);
         if (file) {

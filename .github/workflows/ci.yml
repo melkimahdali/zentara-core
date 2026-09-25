@@ -37,9 +37,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
+      - run: npm run build
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
       - run: npm run docs:build
 
   # Simulasi publish: npm pack, buat proyek dari tarball, install, test, build, jalankan server.

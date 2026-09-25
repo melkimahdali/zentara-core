@@ -1,4 +1,4 @@
-// Naikkan versi kedua paket bersamaan: node scripts/version.mjs 0.6.1
+// Naikkan versi semua paket bersamaan: node scripts/version.mjs 0.6.1
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

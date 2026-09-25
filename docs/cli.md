@@ -31,6 +31,7 @@ npm install -g zentara
 |---|---|
 | `zentara` | CLI interaktif (gaya Claude Code) |
 | `zentara --continue` | CLI interaktif, langsung melanjutkan percakapan terakhir |
+| `zentara --classic` | CLI interaktif klasik (tanpa tampilan Ink) |
 | `zentara "<kalimat>" [--auto] [--dry-run]` | satu perintah AI |
 | `zentara ai:setup [provider]` | atur akses AI dengan menu panah |
 | `zentara ai:status` | cek provider AI |

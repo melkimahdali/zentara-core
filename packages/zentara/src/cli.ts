@@ -13,6 +13,7 @@ import { createTerminalSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
 import { startDevtools, type Devtools } from "./dev/devtools.js";
 import { startRepl } from "./repl/repl.js";
+import type { HostOptions } from "./repl/host.js";
 import { menuPrompts } from "./repl/prompts.js";
 import { banner, colorDepth } from "./brand/index.js";
 import { checkForUpdate } from "./update.js";
@@ -42,6 +43,7 @@ Bicara dengan AI (bahasa sehari-hari):
   zentara                                          CLI interaktif: chat dengan AI, server dev di latar
                                                    belakang (ditanya dulu; --no-dev untuk melewati)
   zentara --continue                               Lanjutkan percakapan terakhir (atau /resume di dalam CLI)
+  zentara --classic                                CLI interaktif klasik (tanpa tampilan Ink)
   zentara "buatkan API produk dengan nama dan harga"
   zentara ai "<perintah>" [--auto] [--dry-run]
   zentara ai:status                                Cek provider AI yang tersedia
@@ -300,9 +302,8 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
   } catch {
     // Config rusak: AI tetap bisa dipakai untuk memperbaikinya.
   }
-  return startRepl({
+  const options: HostOptions = {
     cwd: io.cwd,
-    io,
     version: version(),
     checkUpdate: () => checkForUpdate({ current: version() }),
     loadConfig: () => loadAiConfig(io, args.flags),
@@ -312,11 +313,23 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
     offerDevServer: args.flags["no-dev"] !== true,
     dryRun: args.flags["dry-run"] === true,
     continueLast: args.flags.continue === true,
-    runSetup: async (prompts, preset) => {
+    runSetup: async (prompts, preset, setupIo) => {
       const user = (await loadConfigFile(io.cwd)) as { ai?: AiUserConfig };
-      return interactiveSetup({ root: io.cwd, prompts, io, preset, configProviders: user.ai?.providers });
+      return interactiveSetup({ root: io.cwd, prompts, io: setupIo ?? io, preset, configProviders: user.ai?.providers });
     },
-  });
+  };
+  // Tampilan Ink (gaya Claude Code) adalah default; --classic atau ZENTARA_UI=classic memakai CLI lama.
+  if (args.flags.classic !== true && process.env.ZENTARA_UI !== "classic") {
+    let ink: typeof import("./tui/index.js") | undefined;
+    try {
+      // Dimuat hanya di sini agar perintah lain tidak ikut memuat React.
+      ink = await import("./tui/index.js");
+    } catch (err) {
+      io.err(c.yellow(`Tampilan Ink gagal dimuat (${(err as Error).message}); memakai CLI klasik.`));
+    }
+    if (ink) return ink.startInkRepl(options);
+  }
+  return startRepl({ ...options, io });
 }
 
 async function aiStatus(args: ParsedArgs, io: CliIO): Promise<number> {

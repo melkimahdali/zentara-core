@@ -72,6 +72,107 @@ describe("aplikasi contoh: auth + produk", () => {
     assert.equal((await fetch(`${base}/api/products/${created.id}`)).status, 404);
   });
 
+  // Formulir HTML (seperti browser: application/x-www-form-urlencoded, redirect tidak diikuti).
+  const form = (url: string, fields: Record<string, string>, cookie = "") =>
+    fetch(`${base}${url}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", cookie },
+      body: new URLSearchParams(fields).toString(),
+      redirect: "manual",
+    });
+  const page = (url: string, cookie = "") => fetch(`${base}${url}`, { headers: { cookie }, redirect: "manual" });
+
+  it("halaman: login, dasbor, dan kembali ke halaman asal", async () => {
+    const loginPage = await page("/login");
+    assert.equal(loginPage.status, 200);
+    assert.match(await loginPage.text(), /<form class="zu-form" method="post" action="\/login">/);
+    assert.equal((await page("/_zentara/ui.css")).status, 200);
+
+    const guest = await page("/dashboard");
+    assert.equal(guest.status, 303);
+    assert.equal(guest.headers.get("location"), "/login?next=%2Fdashboard");
+
+    const wrong = await form("/login", { email: "admin@zentara.test", password: "salah" });
+    assert.equal(wrong.status, 401);
+    const wrongHtml = await wrong.text();
+    assert.match(wrongHtml, /Email atau password salah/);
+    assert.match(wrongHtml, /value="admin@zentara.test"/, "email diisi ulang");
+
+    const empty = await form("/login", { email: "", password: "" });
+    assert.equal(empty.status, 422);
+    assert.match(await empty.text(), /Email wajib diisi/);
+
+    const ok = await form("/login", { email: "Admin@Zentara.test", password: "admin12345", next: "/admin/users" });
+    assert.equal(ok.status, 303);
+    assert.equal(ok.headers.get("location"), "/admin/users");
+    const cookie = cookieOf(ok);
+    const dash = await page("/dashboard", cookie);
+    assert.equal(dash.status, 200);
+    const dashHtml = await dash.text();
+    assert.match(dashHtml, /Halo, Admin/);
+    assert.match(dashHtml, /Kopi Gayo 250g/);
+    assert.match(dashHtml, /aria-current="page">Dasbor/);
+
+    // Hanya path lokal yang boleh jadi tujuan setelah login.
+    for (const next of ["https://jahat.id", "//jahat.id", "/\\jahat.id"]) {
+      const res = await form("/login", { email: "admin@zentara.test", password: "admin12345", next });
+      assert.equal(res.headers.get("location"), "/dashboard", next);
+    }
+    assert.equal((await page("/login", cookie)).headers.get("location"), "/dashboard", "sudah login -> ke dasbor");
+
+    const out = await form("/logout", {}, cookie);
+    assert.equal(out.status, 303);
+    assert.equal(out.headers.get("location"), "/login");
+  });
+
+  it("halaman: daftar akun, validasi, dan batas akses admin", async () => {
+    const invalid = await form("/register", { name: "B", email: "bukan-email", password: "123" });
+    assert.equal(invalid.status, 422);
+    const html = await invalid.text();
+    assert.match(html, /Nama minimal 2 karakter/);
+    assert.match(html, /Password minimal 8 karakter/);
+    assert.match(html, /value="bukan-email"/);
+    assert.ok(!html.includes('value="123"'), "password tidak diisi ulang");
+
+    const reg = await form("/register", { name: "Budi Santoso", email: "budi@mail.id", password: "rahasia123" });
+    assert.equal(reg.status, 303);
+    const budi = cookieOf(reg);
+    assert.match(await (await page("/dashboard", budi)).text(), /Halo, Budi/);
+    assert.equal((await form("/register", { name: "Budi", email: "budi@mail.id", password: "rahasia123" })).status, 409);
+
+    // User biasa: tidak ada menu Kelola dan tidak boleh membuka halaman admin.
+    assert.doesNotMatch(await (await page("/dashboard", budi)).text(), /\/admin\/products/);
+    assert.equal((await page("/admin/products", budi)).status, 403);
+    assert.equal((await form("/admin/products", { name: "Curang", price: "1", stock: "1" }, budi)).status, 403);
+  });
+
+  it("halaman admin: tambah, ubah, hapus produk", async () => {
+    const admin = cookieOf(await form("/login", { email: "admin@zentara.test", password: "admin12345" }));
+    const bad = await form("/admin/products", { name: "X", price: "-5", stock: "abc" }, admin);
+    assert.equal(bad.status, 422);
+    const badHtml = await bad.text();
+    assert.match(badHtml, /Nama minimal 2 karakter/);
+    assert.match(badHtml, /Harga tidak boleh negatif/);
+
+    const created = await form("/admin/products", { name: "Rendang Kaleng", price: "55000", stock: "0" }, admin);
+    assert.equal(created.headers.get("location"), "/admin/products?pesan=dibuat");
+    const list = await (await page("/admin/products?pesan=dibuat", admin)).text();
+    assert.match(list, /Produk ditambahkan/);
+    assert.match(list, /Rendang Kaleng/);
+    assert.match(list, /Rp55\.000/);
+    const id = /href="\/admin\/products\/(\d+)"[^>]*>Ubah<\/a>/.exec(list)![1];
+
+    assert.equal((await form(`/admin/products/${id}`, { name: "Rendang Kaleng 200g", price: "57000", stock: "3" }, admin)).status, 303);
+    const product = (await (await fetch(`${base}/api/products/${id}`)).json()) as { name: string; price: number };
+    assert.deepEqual([product.name, product.price], ["Rendang Kaleng 200g", 57000]);
+    assert.match(await (await page(`/admin/products/${id}`, admin)).text(), /Hapus Rendang Kaleng 200g\?/);
+
+    assert.equal((await form(`/admin/products/${id}/hapus`, {}, admin)).headers.get("location"), "/admin/products?pesan=dihapus");
+    assert.equal((await page(`/admin/products/${id}`, admin)).status, 404);
+    assert.equal((await page("/admin/products/abc", admin)).status, 404);
+    assert.match(await (await page("/admin/users", admin)).text(), /budi@mail\.id/);
+  });
+
   it("login salah -> 401 yang sama; brute force -> 429", async () => {
     const wrong = await post("/api/auth/login", { email: "admin@zentara.test", password: "salah" });
     const unknown = await post("/api/auth/login", { email: "siapa@mail.id", password: "salah" });

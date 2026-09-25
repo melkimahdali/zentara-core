@@ -72,7 +72,7 @@ Dengan cara ini:
 
 1. Naikkan versi kedua paket:
    ```bash
-   node scripts/version.mjs 0.6.2       # patch: perbaikan bug; minor (0.7.0): fitur baru
+   node scripts/version.mjs 0.6.2       # semua paket sekaligus; patch: perbaikan bug, minor (0.7.0): fitur baru
    npm install                          # memperbarui package-lock.json
    ```
 2. Tulis perubahan di `CHANGELOG.md`.
