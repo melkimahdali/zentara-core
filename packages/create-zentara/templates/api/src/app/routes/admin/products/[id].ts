@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { h, html, HttpError, readInput, redirect, tryParse, type ZenContext } from "zentara";
-import { Button, Card, Field, Form, FormRow, PostButton } from "zentara/ui";
+import { Button, Card, Field, Form, FormActions, FormRow, PostButton } from "zentara/ui";
 import { db } from "../../../db/index.js";
 import { products, type Product } from "../../../db/schema.js";
 import { requireAdminPage } from "../../../lib/auth.js";
@@ -23,7 +23,7 @@ function view(ctx: ZenContext, product: Product, form: { values?: Record<string,
   const str = (x: unknown) => (typeof x === "string" || typeof x === "number" ? x : undefined);
   return appPage(
     ctx,
-    { title: product.name, subtitle: "Ubah data produk", active: "/admin/products", actions: h(Button, { href: "/admin/products", variant: "ghost" }, "← Kembali") },
+    { title: product.name, subtitle: "Ubah nama, harga, atau stok.", active: "/admin/products", actions: h(Button, { href: "/admin/products", variant: "secondary" }, "Kembali ke daftar") },
     h(
       Card,
       null,
@@ -34,16 +34,16 @@ function view(ctx: ZenContext, product: Product, form: { values?: Record<string,
           FormRow,
           null,
           h(Field, { name: "name", label: "Nama", value: str(v.name), error: e.name, required: true }),
-          h(Field, { name: "price", label: "Harga (Rp)", type: "number", min: 0, step: 1, value: str(v.price), error: e.price, required: true }),
-          h(Field, { name: "stock", label: "Stok", type: "number", min: 0, step: 1, value: str(v.stock), error: e.stock }),
+          h(Field, { name: "price", label: "Harga (Rp)", type: "number", inputmode: "numeric", min: 0, step: 1, value: str(v.price), error: e.price, required: true }),
+          h(Field, { name: "stock", label: "Stok", type: "number", inputmode: "numeric", min: 0, step: 1, value: str(v.stock), error: e.stock }),
         ),
-        h("div", { class: "zu-row" }, h(Button, null, "Simpan perubahan"), h("span", { class: "zu-spacer" })),
+        h(FormActions, null, h(Button, { loading: "Menyimpan…" }, "Simpan perubahan"), h("a", { class: "zu-link", href: "/admin/products" }, "Batal")),
       ),
     ),
     h(
       Card,
       { title: "Hapus produk" },
-      h("div", { class: "zu-row" }, h("p", { class: "zu-muted zu-spacer" }, "Produk yang dihapus tidak bisa dikembalikan."), h(PostButton, { action: `/admin/products/${product.id}/hapus`, confirm: `Hapus ${product.name}?` }, "Hapus")),
+      h("div", { class: "zu-row" }, h("p", { class: "zu-muted zu-spacer" }, "Produk hilang dari daftar, dasbor, dan API. Tindakan ini tidak bisa dibatalkan."), h(PostButton, { action: `/admin/products/${product.id}/hapus`, confirm: `Hapus ${product.name}? Tindakan ini tidak bisa dibatalkan.` }, "Hapus produk")),
     ),
   );
 }

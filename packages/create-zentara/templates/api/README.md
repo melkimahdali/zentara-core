@@ -19,7 +19,7 @@ Database SQLite ada di `data/app.db`. Akun admin untuk pengembangan: `admin@zent
 | `/admin/products` | kelola produk (admin) |
 | `/admin/users` | daftar pengguna (admin) |
 
-Semua dibuat dengan kit UI `zentara/ui` (lihat https://zentara-core.morixa.id/ui.html). Nama aplikasi dan menu sidebar ada di `src/app/lib/ui.ts`.
+Semua dibuat dengan kit UI `zentara/ui` (lihat https://zentara-core.morixa.id/ui.html). Nama aplikasi dan menu navigasi ada di `src/app/lib/ui.ts`.
 
 ## Bicara dengan Zentara AI
 

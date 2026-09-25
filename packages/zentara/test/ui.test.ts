@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 import { h, login, requireAuth, session, tryParse, withMiddleware, type ZenContext } from "../src/core/index.js";
-import { Alert, AppShell, AuthCard, Button, Field, page, PostButton, rupiah, Table } from "../src/ui/index.js";
+import { Alert, AppShell, AuthCard, Button, Disclosure, Field, page, PostButton, rupiah, Search, Stat, StatGroup, Table } from "../src/ui/index.js";
 import { startServer } from "./helpers.js";
 
 describe("kit UI (zentara/ui)", () => {
@@ -13,6 +13,27 @@ describe("kit UI (zentara/ui)", () => {
     assert.match(html, /<title>Masuk &lt;x&gt;<\/title>/);
     assert.ok(!html.includes("<script>alert(1)"));
     assert.match(html, /<body class="zu">/);
+    assert.match(html, /<a class="zu-skip" href="#konten">Lewati ke konten<\/a>/);
+    assert.match(html, /<link rel="preload" href="\/_zentara\/fonts\/plus-jakarta-sans-latin\.woff2" as="font" type="font\/woff2" crossorigin="anonymous">/);
+    assert.match(html, /<script>document\.addEventListener\("submit"/);
+    assert.ok(!page({ title: "t", script: false }).includes("<script>"));
+  });
+
+  it("Button loading, Search, Disclosure, StatGroup", () => {
+    const html = page(
+      { title: "t" },
+      h(Button, { loading: "Menyimpan…" }, "Simpan"),
+      h(Search, { action: "/produk", value: '"kopi"' }),
+      h(Disclosure, { summary: "Tambah produk", open: true }, h("p", null, "isi")),
+      h(StatGroup, null, h(Stat, { label: "Produk", value: 3, hint: "jenis" })),
+    );
+    assert.match(html, /<button class="zu-btn primary" type="submit" data-loading="Menyimpan…">Simpan<\/button>/);
+    assert.match(html, /<form class="zu-search" method="get" action="\/produk" role="search">/);
+    assert.match(html, /value="&quot;kopi&quot;"/);
+    assert.match(html, /<a class="zu-link" href="\/produk">Hapus<\/a>/);
+    assert.match(html, /<details class="zu-disclosure" open><summary>Tambah produk<\/summary>/);
+    assert.match(html, /<section class="zu-stats" aria-label="Ringkasan"><div class="zu-stat"><span>Produk<\/span><b>3<\/b><small>jenis<\/small><\/div><\/section>/);
+    assert.ok(!page({ title: "t" }, h(Search, { action: "/produk" })).includes("Hapus"));
   });
 
   it("Field: label, error, aria; password tidak pernah diisi ulang", () => {
@@ -41,7 +62,9 @@ describe("kit UI (zentara/ui)", () => {
     const html = page({ title: "t" }, h(PostButton, { action: "/x/1/delete", confirm: `Hapus "a" </button>?` }, "Hapus"));
     assert.match(html, /onclick="return confirm\(&quot;Hapus \\&quot;a\\&quot; &lt;\/button&gt;\?&quot;\)"/);
     assert.equal(rupiah(45000), "Rp45.000");
-    assert.match(page({ title: "t" }, h(AuthCard, { title: "Masuk" }, h(Button, { block: true }, "Masuk"))), /zu-btn primary block/);
+    const auth = page({ title: "t" }, h(AuthCard, { title: "Masuk", aside: { title: "Semua data toko Anda", text: "Pantau stok." } }, h(Button, { block: true }, "Masuk")));
+    assert.match(auth, /zu-btn primary block/);
+    assert.match(auth, /Semua data toko Anda/);
   });
 });
 
@@ -61,6 +84,11 @@ describe("aset bawaan /_zentara", () => {
     assert.equal(logo.headers.get("content-type"), "image/webp");
     assert.equal((await logo.arrayBuffer()).byteLength > 1000, true);
     assert.equal((await fetch(`${base}/_zentara/favicon.png`)).headers.get("content-type"), "image/png");
+    const font = await fetch(`${base}/_zentara/fonts/plus-jakarta-sans-latin.woff2`);
+    assert.equal(font.headers.get("content-type"), "font/woff2");
+    assert.equal(Buffer.from(await font.arrayBuffer()).subarray(0, 4).toString(), "wOF2");
+    assert.equal((await fetch(`${base}/_zentara/fonts/plus-jakarta-sans-latin-ext.woff2`)).status, 200);
+    assert.match(await (await fetch(`${base}/_zentara/fonts/LICENSE.txt`)).text(), /SIL OPEN FONT LICENSE/i);
     assert.equal((await fetch(`${base}/_zentara/tidak-ada`)).status, 404);
     assert.equal((await fetch(`${base}/_zentara/ui.css`, { method: "POST" })).status, 404);
   });

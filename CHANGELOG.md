@@ -2,6 +2,33 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.10.2]
+
+Desain ulang kit UI dan halaman bawaan agar terasa seperti produk jadi, bukan tampilan generik. Audit dan perbaikannya mengikuti skill desain *taste* dan *redesign* (MIT, dari Leonxlnx/taste-skill) yang kini ada di `.claude/skills/` repo ini.
+
+### Diubah
+- **Font brand Plus Jakarta Sans di-host sendiri** oleh framework di `/_zentara/fonts/` (latin dan latin-ext, lisensi SIL OFL). Sebelumnya font ini disebut di CSS tetapi tidak pernah dimuat, sehingga browser memakai font sistem.
+- **Satu warna aksen**: UI memakai teal saja, sedangkan emas hanya dipakai di logo. Latar diberi cahaya teal lembut dan tekstur halus, dan mode gelap/terang disetel ulang.
+- **`AppShell` memakai navigasi atas** menggantikan sidebar untuk menu yang sedikit. Menu aktif diberi garis bawah, avatar berbentuk *squircle*, dan konten punya lebar maksimum.
+- **`AuthCard` bisa dibagi dua** lewat `aside: { title, text }`: panel brand di kiri, formulir di kanan.
+- `Stat` kini berupa angka polos. Kelompokkan dengan `StatGroup` agar tampil sebagai satu strip berpemisah, bukan tiga kartu kembar.
+- Label tabel dan formulir memakai huruf kalimat, bukan huruf kapital semua. Badge bersudut, bukan berbentuk pil.
+
+### Ditambahkan
+- Komponen baru: `StatGroup`, `Split`, `FormActions`, `List`, `Search`, dan `Disclosure`. Juga `Button` dengan `loading`, `Badge` dengan tone `warn`, `Field` dengan `inputmode`, dan kolom tabel dengan `align: "end"`.
+- Status yang dulu belum ada:
+  - saat formulir dikirim, tombol memuat (`aria-busy`, teks `loading`) sehingga tidak terkirim dua kali;
+  - efek tekan pada tombol;
+  - tampilan kosong yang menyarankan langkah berikutnya;
+  - tautan "Lewati ke konten";
+  - animasi masuk yang menghormati *reduced motion*.
+- Halaman bawaan template `api`:
+  - dasbor menampilkan strip ringkasan, stok menipis, dan tanggal hari ini;
+  - daftar produk bisa dicari dan menandai stok yang habis atau menipis;
+  - formulir tambah produk bisa dibuka-tutup;
+  - teks halaman masuk, daftar, dan admin ditulis ulang agar lebih jelas.
+- `scripts/brand/font.mjs` untuk membuat ulang modul font dari paket `@fontsource-variable/plus-jakarta-sans`.
+
 ## [0.10.1]
 
 ### Ditambahkan
