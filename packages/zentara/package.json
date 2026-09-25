@@ -37,6 +37,10 @@
       "types": "./dist/core/index.d.ts",
       "default": "./dist/core/index.js"
     },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "default": "./dist/ui/index.js"
+    },
     "./db": {
       "types": "./dist/db/index.d.ts",
       "default": "./dist/db/index.js"

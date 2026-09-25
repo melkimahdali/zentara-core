@@ -122,6 +122,12 @@ try {
         const products = await (await fetch(`http://127.0.0.1:${prodPort}/api/products`)).json();
         check(Array.isArray(products) && products.length === 3, "zentara start: /api/products dari database");
         check((await fetch(`http://127.0.0.1:${prodPort}/api/auth/me`)).status === 401, "zentara start: /api/auth/me butuh login");
+        const login = await fetch(`http://127.0.0.1:${prodPort}/login`);
+        check(login.status === 200 && (await login.text()).includes('href="/_zentara/ui.css'), "zentara start: halaman /login dengan kit UI");
+        const css = await fetch(`http://127.0.0.1:${prodPort}/_zentara/ui.css`);
+        check(css.status === 200 && /text\/css/.test(css.headers.get("content-type") ?? ""), "zentara start: /_zentara/ui.css");
+        const dash = await fetch(`http://127.0.0.1:${prodPort}/dashboard`, { redirect: "manual" });
+        check(dash.status === 303 && dash.headers.get("location") === "/login?next=%2Fdashboard", "zentara start: /dashboard mengarahkan tamu ke /login");
       }
     } finally {
       stop();

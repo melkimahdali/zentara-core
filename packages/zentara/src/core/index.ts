@@ -25,10 +25,12 @@ export { session, Session, type SessionOptions } from "./session.js";
 export {
   parse,
   readInput,
+  tryParse,
   validate,
   type InferOutput,
   type InputSchemas,
   type StandardSchemaV1,
+  type TryParseResult,
   type ValidatedInput,
   type ValidationIssue,
 } from "./validation.js";

@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { promisify } from "node:util";
 import type { ZenContext } from "./context.js";
 import { HttpError } from "./errors.js";
+import { redirect } from "./response.js";
 import type { Middleware } from "./middleware.js";
 
 const scrypt = promisify(crypto.scrypt) as (
@@ -97,19 +98,32 @@ export interface RequireAuthOptions<U> {
   loadUser?: (id: string | number, ctx: ZenContext) => U | undefined | Promise<U | undefined>;
   /** Ambil role dari user yang dimuat (default: `user.role`). Dipakai agar perubahan role langsung berlaku. */
   roleOf?: (user: U) => string | undefined;
+  /**
+   * Untuk halaman HTML: alih-alih 401, arahkan ke halaman login ini dengan `?next=<path asal>`
+   * (mis. "/login"). Role yang tidak sesuai tetap mendapat 403.
+   */
+  redirectTo?: string;
 }
 
 /** Middleware: tolak request yang belum login (401) atau role-nya tidak sesuai (403). */
 export function requireAuth<U = unknown>(options: RequireAuthOptions<U> = {}): Middleware {
   return async (ctx, next) => {
+    const toLogin = () => {
+      const target = ctx.method === "GET" ? `${ctx.path}${ctx.url.search}` : ctx.path;
+      return redirect(`${options.redirectTo}?next=${encodeURIComponent(target)}`, 303);
+    };
     const auth = currentUser(ctx);
-    if (!auth) throw new HttpError(401, "Silakan login terlebih dahulu");
+    if (!auth) {
+      if (options.redirectTo) return toLogin();
+      throw new HttpError(401, "Silakan login terlebih dahulu");
+    }
 
     let role = auth.role;
     if (options.loadUser) {
       const user = await options.loadUser(auth.id, ctx);
       if (user === undefined || user === null) {
         logout(ctx);
+        if (options.redirectTo) return toLogin();
         throw new HttpError(401, "Sesi tidak berlaku lagi, silakan login ulang");
       }
       ctx.state.user = user;

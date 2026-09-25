@@ -47,6 +47,25 @@ export async function parse<S extends StandardSchemaV1>(schema: S, value: unknow
 }
 
 /** Baca body sesuai Content-Type: form HTML (urlencoded) menjadi object, selain itu JSON. */
+export type TryParseResult<T> = { ok: true; data: T; errors?: undefined } | { ok: false; data?: undefined; errors: Record<string, string> };
+
+/**
+ * Validasi tanpa melempar error, untuk formulir HTML yang ditampilkan ulang dengan pesan per field:
+ *   const res = await tryParse(Schema, await readInput(ctx));
+ *   if (!res.ok) return html(renderForm({ errors: res.errors }), { status: 422 });
+ * `errors` berisi pesan pertama untuk setiap field (kunci = path, mis. "email"; error tingkat objek memakai "").
+ */
+export async function tryParse<S extends StandardSchemaV1>(schema: S, value: unknown): Promise<TryParseResult<InferOutput<S>>> {
+  const result = await schema["~standard"].validate(value);
+  if (!result.issues) return { ok: true, data: result.value as InferOutput<S> };
+  const errors: Record<string, string> = {};
+  for (const issue of result.issues) {
+    const key = formatPath(issue.path);
+    errors[key] ??= issue.message;
+  }
+  return { ok: false, errors };
+}
+
 export async function readInput(ctx: ZenContext): Promise<unknown> {
   const type = String(ctx.req.headers["content-type"] ?? "").toLowerCase();
   if (type.startsWith("application/x-www-form-urlencoded")) {
