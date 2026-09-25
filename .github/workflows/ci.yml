@@ -37,7 +37,6 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
-      # zentara-cli memakai tipe hasil build zentara (zentara/host), jadi build dulu.
       - run: npm run build
       - run: npm run typecheck
       - run: npm test

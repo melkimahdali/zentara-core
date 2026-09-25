@@ -1,4 +1,4 @@
-import { MarkdownLines, type ApprovalAnswer, type HostChoice, type HostUI, type PendingAction, type Tone } from "zentara/host";
+import { MarkdownLines, type ApprovalAnswer, type HostChoice, type HostUI, type PendingAction, type Tone } from "../repl/host.js";
 
 /** Satu baris/blok di riwayat layar (tidak berubah lagi setelah dicetak). */
 export type Item =
@@ -25,6 +25,8 @@ export interface State {
   dialog?: Dialog;
   /** Naik setiap kali status host berubah (memicu gambar ulang baris status). */
   version: number;
+  /** CLI sedang ditutup: hanya riwayat yang digambar (tanpa kotak input). */
+  closing?: boolean;
 }
 
 /**
@@ -65,6 +67,11 @@ export class Store {
   /** Tutup dialog aktif dan tampilkan yang mengantre. */
   closeDialog(): void {
     this.set({ dialog: this.queue.shift() });
+  }
+
+  /** Sembunyikan bagian dinamis (input, status) sebelum keluar. */
+  close(): void {
+    this.set({ closing: true, busy: undefined, live: "", dialog: undefined });
   }
 
   changed(): void {

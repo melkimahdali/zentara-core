@@ -19,7 +19,7 @@ import { platformCommand } from "../process.js";
 
 /**
  * Inti CLI interaktif tanpa tampilan: sesi AI, server dev, OmniRoute, dan perintah garis miring.
- * Tampilan apa pun (mis. paket `zentara-cli` berbasis Ink) cukup mengimplementasikan HostUI.
+ * Tampilan apa pun (tampilan Ink bawaan di src/tui, atau tampilan lain) cukup mengimplementasikan HostUI.
  * Naikkan HOST_API bila kontrak ini berubah tidak kompatibel.
  */
 export const HOST_API = 1;
@@ -573,7 +573,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     async startup() {
       const newer = await Promise.race([options.checkUpdate?.() ?? Promise.resolve(undefined), new Promise<undefined>((r) => setTimeout(() => r(undefined), 1500).unref())]);
       if (newer) {
-        ui.notice(`★ Versi baru v${newer} tersedia (Anda memakai v${options.version}). Perbarui: npm install -g zentara@latest zentara-cli@latest`, "warn");
+        ui.notice(`★ Versi baru v${newer} tersedia (Anda memakai v${options.version}). Perbarui: npm install -g zentara@latest`, "warn");
       }
       if (options.dryRun) ui.notice("Mode dry-run: tidak ada file yang diubah.", "warn");
 

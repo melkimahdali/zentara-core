@@ -1,18 +1,12 @@
 import { render } from "ink";
-import { createReplHost, type HostOptions } from "zentara/host";
+import { createReplHost, type HostOptions } from "../repl/host.js";
 import { App } from "./app.js";
 import { Store } from "./store.js";
 
 /**
- * Versi kontrak host yang dipakai paket ini (lihat HOST_API di zentara/host). Perintah `zentara`
- * hanya memakai tampilan Ink bila angkanya sama; bila tidak, CLI bawaan dipakai.
+ * CLI interaktif `zentara` dengan tampilan Ink (gaya Claude Code). Dimuat hanya saat CLI interaktif
+ * dibuka, jadi perintah lain (dev, build, start, db:*) tidak ikut memuat React.
  */
-export const HOST_API = 1;
-
-export { App } from "./app.js";
-export { Store } from "./store.js";
-
-/** Jalankan CLI interaktif dengan tampilan Ink. Mengembalikan kode keluar. */
 export async function startInkRepl(options: HostOptions): Promise<number> {
   const store = new Store();
   const host = await createReplHost(options, store.ui);
@@ -31,6 +25,7 @@ export async function startInkRepl(options: HostOptions): Promise<number> {
 
   const exitCode = await exited;
   store.ui.notice("Sampai jumpa!", "dim");
+  store.close();
   await instance.waitUntilRenderFlush();
   instance.unmount();
   return exitCode;

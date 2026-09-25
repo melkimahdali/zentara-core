@@ -13,7 +13,7 @@ import { createTerminalSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
 import { startDevtools, type Devtools } from "./dev/devtools.js";
 import { startRepl } from "./repl/repl.js";
-import { HOST_API, type HostOptions } from "./repl/host.js";
+import type { HostOptions } from "./repl/host.js";
 import { menuPrompts } from "./repl/prompts.js";
 import { banner, colorDepth } from "./brand/index.js";
 import { checkForUpdate } from "./update.js";
@@ -43,7 +43,7 @@ Bicara dengan AI (bahasa sehari-hari):
   zentara                                          CLI interaktif: chat dengan AI, server dev di latar
                                                    belakang (ditanya dulu; --no-dev untuk melewati)
   zentara --continue                               Lanjutkan percakapan terakhir (atau /resume di dalam CLI)
-  zentara --classic                                CLI bawaan (tanpa tampilan Ink dari paket zentara-cli)
+  zentara --classic                                CLI interaktif klasik (tanpa tampilan Ink)
   zentara "buatkan API produk dengan nama dan harga"
   zentara ai "<perintah>" [--auto] [--dry-run]
   zentara ai:status                                Cek provider AI yang tersedia
@@ -318,33 +318,18 @@ async function repl(args: ParsedArgs, io: CliIO, serverEnv: NodeJS.ProcessEnv): 
       return interactiveSetup({ root: io.cwd, prompts, io: setupIo ?? io, preset, configProviders: user.ai?.providers });
     },
   };
-  // Tampilan Ink (paket terpisah zentara-cli) dipakai bila terpasang; selain itu CLI bawaan.
-  const ink = args.flags.classic === true || process.env.ZENTARA_UI === "classic" ? undefined : await loadInkCli(io);
-  if (ink) return ink.startInkRepl(options);
+  // Tampilan Ink (gaya Claude Code) adalah default; --classic atau ZENTARA_UI=classic memakai CLI lama.
+  if (args.flags.classic !== true && process.env.ZENTARA_UI !== "classic") {
+    let ink: typeof import("./tui/index.js") | undefined;
+    try {
+      // Dimuat hanya di sini agar perintah lain tidak ikut memuat React.
+      ink = await import("./tui/index.js");
+    } catch (err) {
+      io.err(c.yellow(`Tampilan Ink gagal dimuat (${(err as Error).message}); memakai CLI klasik.`));
+    }
+    if (ink) return ink.startInkRepl(options);
+  }
   return startRepl({ ...options, io });
-}
-
-interface InkCli {
-  HOST_API?: number;
-  startInkRepl(options: HostOptions): Promise<number>;
-}
-
-/** Muat paket opsional `zentara-cli` (tampilan Ink). undefined bila tidak terpasang atau versinya tidak cocok. */
-async function loadInkCli(io: CliIO): Promise<InkCli | undefined> {
-  const name = "zentara-cli";
-  let mod: Partial<InkCli>;
-  try {
-    mod = (await import(name)) as Partial<InkCli>;
-  } catch (err) {
-    const code = (err as { code?: string }).code;
-    if (code !== "ERR_MODULE_NOT_FOUND" && code !== "MODULE_NOT_FOUND") io.err(c.yellow(`zentara-cli gagal dimuat (${(err as Error).message}); memakai CLI bawaan.`));
-    return undefined;
-  }
-  if (mod.HOST_API !== HOST_API || typeof mod.startInkRepl !== "function") {
-    io.err(c.yellow("zentara-cli tidak cocok dengan versi zentara ini; memakai CLI bawaan. Perbarui keduanya: npm install -g zentara@latest zentara-cli@latest"));
-    return undefined;
-  }
-  return mod as InkCli;
 }
 
 async function aiStatus(args: ParsedArgs, io: CliIO): Promise<number> {

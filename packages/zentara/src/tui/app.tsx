@@ -1,6 +1,6 @@
 import { Box, Static, Text, useApp, useInput, usePaste, useWindowSize } from "ink";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { BRAND, colorDepth, formatPreview, HOST_COMMANDS, terminalLogo, visibleWidth, type ApprovalAnswer, type HostStatus, type ReplHost, type Tone } from "zentara/host";
+import { BRAND, colorDepth, formatPreview, HOST_COMMANDS, terminalLogo, visibleWidth, type ApprovalAnswer, type HostStatus, type ReplHost, type Tone } from "../repl/host.js";
 import type { Dialog, Item, Store } from "./store.js";
 
 const TEAL = BRAND.teal;
@@ -390,6 +390,8 @@ export function App({ store, host, onExit }: { store: Store; host: ReplHost; onE
 
   const onDialogDone = () => store.closeDialog();
   const dialog = state.dialog;
+
+  if (state.closing) return <Static items={state.items}>{(item) => <TranscriptItem key={item.id} item={item} host={host} />}</Static>;
 
   return (
     <>

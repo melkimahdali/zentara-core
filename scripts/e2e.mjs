@@ -74,12 +74,9 @@ try {
 
   const zentara = pack(path.join(ROOT, "packages", "zentara"));
   check(zentara.files.includes("dist/cli.js") && zentara.files.includes("dist/core/index.d.ts"), "paket zentara berisi dist + tipe");
+  check(zentara.files.includes("dist/tui/index.js") && zentara.files.includes("dist/ui/index.js"), "paket zentara berisi tampilan Ink (tui) & kit UI");
   check(!zentara.files.some((f) => /^(src|test)\/|\.env$|\.db$/.test(f)), "paket zentara tanpa source/test/.env/database");
   check(zentara.files.includes("LICENSE") && zentara.files.includes("README.md"), "paket zentara berisi LICENSE & README");
-
-  const inkCli = pack(path.join(ROOT, "packages", "zentara-cli"));
-  check(inkCli.files.includes("dist/index.js") && inkCli.files.includes("LICENSE") && inkCli.files.includes("README.md"), "paket zentara-cli berisi dist, LICENSE, README");
-  check(!inkCli.files.some((f) => /^(src|test)\//.test(f)), "paket zentara-cli tanpa source/test");
 
   const create = pack(path.join(ROOT, "packages", "create-zentara"));
   check(create.files.includes("templates/api/_gitignore"), "template membawa _gitignore");

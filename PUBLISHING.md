@@ -68,18 +68,6 @@ Dengan cara ini:
 - setiap rilis punya tanda **provenance** (hanya bila repo GitHub **publik**; untuk repo private, workflow otomatis merilis tanpa provenance);
 - walaupun repo GitHub dibobol, versi berbahaya tetap tertahan sampai Anda setujui.
 
-## C2. Paket baru: zentara-cli (sekali saja)
-
-`zentara-cli` (tampilan Ink) ikut dirilis bersama `zentara` dan `create-zentara`. Seperti paket lain, rilis pertamanya harus manual. Sebelum itu, workflow Release melewatinya dengan peringatan, jadi tidak menghambat rilis paket lain.
-
-```bash
-git pull && npm ci && npm run build
-npm pack --dry-run -w zentara-cli                 # pastikan hanya dist, README, LICENSE
-npm publish -w zentara-cli --access public        # diminta 2FA
-```
-
-Lalu atur **Trusted Publisher** untuk `zentara-cli` persis seperti bagian C (repo `zentara-core`, workflow `release.yml`, tanpa centang "Allow npm publish"). Mulai rilis berikutnya, `npm run release:approve` ikut menyetujui `zentara-cli`.
-
 ## D. Rilis berikutnya
 
 1. Naikkan versi kedua paket:

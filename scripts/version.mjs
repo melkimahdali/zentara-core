@@ -21,10 +21,6 @@ const edit = (file, fn) => {
 console.log(`Versi -> ${version}`);
 edit("packages/zentara/package.json", (p) => (p.version = version));
 edit("packages/create-zentara/package.json", (p) => (p.version = version));
-edit("packages/zentara-cli/package.json", (p) => {
-  p.version = version;
-  p.peerDependencies.zentara = `^${version}`;
-});
 for (const t of fs.readdirSync(path.join(ROOT, "packages/create-zentara/templates"))) {
   edit(`packages/create-zentara/templates/${t}/package.json`, (p) => (p.dependencies.zentara = `^${version}`));
 }

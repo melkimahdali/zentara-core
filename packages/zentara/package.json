@@ -59,11 +59,13 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "test": "node --import tsx --test \"test/**/*.test.ts\" \"test/**/*.test.tsx\"",
     "prepack": "npm run build"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",
+    "ink": "^7.1.1",
+    "react": "^19.2.0",
     "tsx": "^4.23.15"
   },
   "peerDependencies": {
@@ -84,8 +86,10 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
+    "@types/react": "^19.2.0",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.3",
+    "ink-testing-library": "^4.0.0",
     "postgres": "^3.4.9",
     "typescript": "^5.9.3",
     "zod": "^4.6.5"

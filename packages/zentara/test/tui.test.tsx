@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { render } from "ink-testing-library";
-import type { HostStatus, ReplHost } from "zentara/host";
-import { App } from "../src/app.js";
-import { Store } from "../src/store.js";
+import type { HostStatus, ReplHost } from "../src/repl/host.js";
+import { App } from "../src/tui/app.js";
+import { Store } from "../src/tui/store.js";
 
 const strip = (s: string | undefined) => (s ?? "").replace(/\x1b\[[0-9;]*m/g, "");
 const tick = (ms = 30) => new Promise((r) => setTimeout(r, ms));
@@ -37,7 +37,7 @@ function fakeHost(overrides: Partial<ReplHost> = {}) {
   return host;
 }
 
-describe("tampilan Ink zentara-cli", () => {
+describe("tampilan Ink (CLI interaktif)", () => {
   it("header, input, dan baris status tampil", async () => {
     const store = new Store();
     const host = fakeHost();

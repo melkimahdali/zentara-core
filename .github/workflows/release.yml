@@ -43,7 +43,7 @@ jobs:
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
-          for pkg in zentara create-zentara zentara-cli; do
+          for pkg in zentara create-zentara; do
             v=$(node -p "require('./packages/$pkg/package.json').version")
             if [ "v$v" != "$TAG" ]; then
               echo "::error::Tag $TAG tidak cocok dengan versi $pkg ($v). Jalankan: node scripts/version.mjs <versi>"
@@ -56,15 +56,10 @@ jobs:
           # npm hanya bisa membuat provenance untuk repo publik; repo private tetap bisa rilis tanpa provenance.
           PROVENANCE: ${{ github.event.repository.private && '--no-provenance' || '--provenance' }}
         run: |
-          for pkg in zentara create-zentara zentara-cli; do
+          for pkg in zentara create-zentara; do
             v=$(node -p "require('./packages/$pkg/package.json').version")
             if npm view "$pkg@$v" version >/dev/null 2>&1; then
               echo "$pkg@$v sudah tayang di npm, dilewati"
-              continue
-            fi
-            # Paket baru harus diterbitkan manual sekali (lihat PUBLISHING.md) sebelum Trusted Publishing bisa dipakai.
-            if ! npm view "$pkg" name >/dev/null 2>&1; then
-              echo "::warning::$pkg belum pernah terbit di npm; dilewati. Terbitkan manual sekali lalu atur Trusted Publisher (PUBLISHING.md)."
               continue
             fi
             # npm stage tidak mengenal workspace: jalankan dari folder paketnya.

@@ -255,7 +255,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     if (!omniReady) console.log(`  npm install -g omniroute      ${c.dim("# AI gratis (sekali saja); atau pilih provider lain: npx zentara ai:setup")}`);
     console.log(`  npx zentara                   ${c.dim("# chat dengan Zentara AI + server dev di latar belakang")}`);
     console.log(`\nAtau jalankan server saja: ${runCmd} dev ${c.dim("(http://localhost:3000)")}`);
-    console.log(c.dim(`Tip: npm install -g zentara zentara-cli agar cukup mengetik "zentara" dari folder mana pun (zentara-cli = tampilan terminal gaya Claude Code).\n`));
+    console.log(c.dim(`Tip: npm install -g zentara agar cukup mengetik "zentara" dari folder mana pun.\n`));
     return 0;
   } catch (err) {
     rl?.close();

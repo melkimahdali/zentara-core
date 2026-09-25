@@ -18,19 +18,19 @@ Tahap 9: Front-End, ditambah CLI berbasis Ink.
   - Logika login dan daftar dipakai bersama oleh API JSON dan halaman.
 - `tryParse(schema, value)` untuk formulir HTML: validasi tanpa melempar error, dengan pesan pertama per field.
 - `requireAuth({ redirectTo: "/login" })` untuk halaman: tamu diarahkan ke `/login?next=…` (303), bukan dibalas 401.
-- **Paket baru `zentara-cli`**: tampilan CLI interaktif berbasis Ink, bergaya Claude Code. Isinya:
+- **CLI interaktif berbasis Ink** (bawaan paket `zentara`), bergaya Claude Code. Isinya:
   - logo dan info di atas;
   - jawaban AI yang mengalir dan dirender sebagai Markdown;
   - kotak input di bawah dengan riwayat dan saran perintah garis miring (Tab untuk melengkapi);
   - dialog menu, persetujuan, dan pertanyaan rahasia;
   - baris mode dan status server.
 
-  Perintah `zentara` memakainya otomatis bila terpasang (`npm install -g zentara zentara-cli`); tanpa paket itu, CLI bawaan tetap dipakai. `zentara --classic` memaksa CLI bawaan. Paket ini dipisah agar proyek tidak ikut memasang Ink dan React (±25 MB).
+  Tampilan ini dipakai otomatis oleh `zentara`; `zentara --classic` memakai CLI klasik. Ink dan React kini menjadi dependency `zentara` (±25 MB), tetapi hanya dimuat saat CLI interaktif dibuka.
 - `zentara/host`: inti CLI interaktif tanpa tampilan (`createReplHost`, `HostUI`, `HOST_API`), sehingga tampilan lain bisa memakai logika yang sama.
 - Dokumentasi: grup baru **Front-End** dengan halaman *Kit UI*. Zentara AI kini diarahkan memakai kit UI dan `appPage()` saat membuat halaman.
 
 ### Diubah
-- CI dan workflow Release menjalankan build sebelum typecheck. `zentara-cli` ikut dirilis setelah terbit manual pertama (lihat PUBLISHING.md).
+- CI dan workflow Release menjalankan build sebelum typecheck.
 
 ## [0.9.0]
 
