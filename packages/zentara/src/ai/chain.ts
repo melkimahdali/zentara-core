@@ -1,4 +1,5 @@
 import { ProviderUnavailableError, type CompletionRequest, type ModelProvider, type ModelTurn } from "./types.js";
+import { t } from "../i18n/index.js";
 
 export interface ChainEvents {
   /** Dipanggil saat satu provider gagal dan rantai pindah ke provider berikutnya. */
@@ -15,7 +16,7 @@ export class ProviderChain {
   readonly failures: { provider: string; reason: string }[] = [];
 
   constructor(private readonly providers: ModelProvider[], private readonly events: ChainEvents = {}) {
-    if (providers.length === 0) throw new Error("Belum ada provider AI yang dikonfigurasi");
+    if (providers.length === 0) throw new Error(t().ai.config.noProviders);
   }
 
   get current(): ModelProvider | undefined {
@@ -36,6 +37,6 @@ export class ProviderChain {
       }
     }
     const detail = this.failures.map((f) => `  - ${f.provider}: ${f.reason}`).join("\n");
-    throw new Error(`Semua provider AI tidak tersedia:\n${detail}`);
+    throw new Error(t().ai.config.allUnavailable(detail));
   }
 }

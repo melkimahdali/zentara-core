@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { readSettings, resolveLocale, t, type Locale } from "../i18n/index.js";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { isLogLevel, type LogLevel } from "./logger.js";
@@ -37,6 +38,36 @@ export interface ZenConfig {
    * Default: `app/middleware` di samping folder route. `false` untuk mematikan.
    */
   middlewareFile: string | false;
+  /**
+   * Bahasa Zentara untuk proyek ini: halaman bawaan, pesan error, kit UI, dan CLI ("id" atau "en").
+   * Env ZENTARA_LANG menang. Tanpa ini: preferensi global (`zentara lang`, hanya di luar produksi),
+   * lalu Bahasa Indonesia.
+   */
+  locale: Locale;
+  /** Job latar belakang dan jadwal dari folder `jobs/` di samping `routes/`. */
+  jobs: JobsConfig;
+  /** Pengiriman email lewat sendMail(). Env MAIL_URL dan MAIL_FROM menang. */
+  mail: MailSettings;
+}
+
+export interface JobsConfig {
+  /** "sqlite" (bawaan; tahan restart) atau "memory" (bawaan saat NODE_ENV=test). */
+  store: "sqlite" | "memory";
+  /** File SQLite antrean. Default data/jobs.db. */
+  path: string;
+  /** Jalankan pekerja & penjadwal di proses server ini. Env ZENTARA_JOBS=off mematikan. Default true. */
+  worker: boolean;
+  /** Job yang berjalan bersamaan. Default 2. */
+  concurrency: number;
+  /** Selang pengecekan antrean (ms). Default 1000. */
+  pollMs: number;
+}
+
+export interface MailSettings {
+  /** smtp://user:pass@host:587, smtps://...:465, "log", atau "memory". */
+  url?: string;
+  /** Pengirim bawaan, mis. "Aplikasi <halo@contoh.id>". */
+  from?: string;
 }
 
 /** Pengaturan CLI interaktif `zentara`. */
@@ -50,7 +81,7 @@ export interface CliConfig {
   fullscreen?: boolean;
 }
 
-export type UserConfig = Partial<ZenConfig> & { cli?: CliConfig };
+export type UserConfig = Omit<Partial<ZenConfig>, "jobs" | "mail"> & { cli?: CliConfig; jobs?: Partial<JobsConfig>; mail?: MailSettings };
 
 export function defineConfig(config: UserConfig): UserConfig {
   return config;
@@ -67,7 +98,7 @@ const CONFIG_FILES = ["zentara.config.mjs", "zentara.config.js"];
 function parsePort(value: unknown): number {
   const port = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
   if (typeof port !== "number" || !Number.isInteger(port) || port < 0 || port > 65535) {
-    throw new Error(`Invalid port: ${String(value)} (harus bilangan bulat 0-65535)`);
+    throw new Error(t().core.invalidPort(String(value)));
   }
   return port;
 }
@@ -91,7 +122,22 @@ export function resolveConfig(user: UserConfig = {}, env: NodeJS.ProcessEnv = pr
   const explicitDev = env.NODE_ENV ? env.NODE_ENV === "development" : user.env === "development";
   const debug = debugEnv ? ["1", "true", "yes", "on"].includes(debugEnv) : (user.debug ?? explicitDev);
 
+  // Server produksi tidak bergantung pada preferensi di folder home developer.
+  const locale = resolveLocale({ env, config: user.locale, settings: envName === "production" ? {} : readSettings(env) });
+  const jobsFlag = env.ZENTARA_JOBS?.trim().toLowerCase();
+  const jobs: JobsConfig = {
+    store: user.jobs?.store ?? (envName === "test" ? "memory" : "sqlite"),
+    path: path.resolve(cwd, user.jobs?.path ?? path.join("data", "jobs.db")),
+    worker: jobsFlag ? !["0", "off", "false", "no"].includes(jobsFlag) : (user.jobs?.worker ?? true),
+    concurrency: user.jobs?.concurrency ?? 2,
+    pollMs: user.jobs?.pollMs ?? 1000,
+  };
+  if (jobs.store !== "sqlite" && jobs.store !== "memory") throw new Error(`Invalid jobs.store: ${String(jobs.store)}`);
+  if (!Number.isInteger(jobs.concurrency) || jobs.concurrency < 1) throw new Error(`Invalid jobs.concurrency: ${jobs.concurrency}`);
   return {
+    locale,
+    jobs,
+    mail: { url: env.MAIL_URL || user.mail?.url, from: env.MAIL_FROM || user.mail?.from },
     appName: user.appName ?? "Zentara App",
     env: envName,
     debug,
@@ -120,7 +166,7 @@ export async function loadConfigFile(cwd = process.cwd()): Promise<UserConfig> {
     if (!fs.existsSync(file)) continue;
     const mod = (await import(pathToFileURL(file).href)) as { default?: unknown };
     if (mod.default === undefined || typeof mod.default !== "object" || mod.default === null) {
-      throw new Error(`${name} harus meng-export default sebuah object config`);
+      throw new Error(t().core.configExport(name));
     }
     return mod.default as UserConfig;
   }

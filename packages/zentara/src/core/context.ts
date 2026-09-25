@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { t } from "../i18n/index.js";
 import { Cookies } from "./cookies.js";
 import { HttpError } from "./errors.js";
 import type { ZenLogger } from "./logger.js";
@@ -23,7 +24,7 @@ export interface ZenContext {
   /** Session request. Butuh middleware `session()`; melempar error bila belum dipasang. */
   readonly session: Session;
   /** Body mentah. Dibaca sekali lalu di-cache; melempar 413 bila melebihi `bodyLimit`. */
-  body(): Promise<Buffer>;
+  body(options?: { limit?: number }): Promise<Buffer>;
   text(): Promise<string>;
   /** Body sebagai JSON. `undefined` bila body kosong; melempar 400 bila JSON tidak valid. */
   json<T = unknown>(): Promise<T | undefined>;
@@ -114,11 +115,12 @@ export function createContext(
     logger: options.logger,
     get session(): Session {
       const current = (ctx as unknown as Record<symbol, Session | undefined>)[SESSION_SLOT];
-      if (!current) throw new Error("ctx.session belum tersedia: pasang middleware session() terlebih dahulu");
+      if (!current) throw new Error(t().core.sessionMissing);
       return current;
     },
-    body() {
-      bodyPromise ??= readBody(req, res, options.bodyLimit);
+    body(bodyOptions) {
+      // Batas khusus (mis. unggahan file lewat readForm) hanya berlaku bila body belum dibaca.
+      bodyPromise ??= readBody(req, res, bodyOptions?.limit ?? options.bodyLimit);
       return bodyPromise;
     },
     async text() {

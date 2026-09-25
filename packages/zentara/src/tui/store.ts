@@ -1,3 +1,4 @@
+import { t } from "../i18n/index.js";
 import { MarkdownLines, type ApprovalAnswer, type HostChoice, type HostUI, type PendingAction, type Tone } from "../repl/host.js";
 
 /** Satu baris/blok di riwayat layar (tidak berubah lagi setelah dicetak). */
@@ -103,7 +104,7 @@ export class Store {
   readonly ui: HostUI = {
     thinking: () => {
       this.stream = undefined;
-      this.set({ live: "", busy: { label: "Berpikir", since: this.state.busy?.since ?? Date.now() } });
+      this.set({ live: "", busy: { label: t().tui.thinking, since: this.state.busy?.since ?? Date.now() } });
     },
     delta: (text) => {
       const s = (this.stream ??= { md: new MarkdownLines(), pending: "", started: false });
@@ -113,7 +114,7 @@ export class Store {
         this.flushStreamLine(s.pending.slice(0, nl));
         s.pending = s.pending.slice(nl + 1);
       }
-      this.set({ live: s.pending, busy: { label: "Menulis", since: this.state.busy?.since ?? Date.now() } });
+      this.set({ live: s.pending, busy: { label: t().tui.writing, since: this.state.busy?.since ?? Date.now() } });
     },
     assistant: (_text, rendered) => {
       const s = this.stream;
@@ -129,7 +130,7 @@ export class Store {
     },
     toolStart: (_call, title) => {
       this.push({ kind: "tool", title });
-      this.set({ busy: { label: "Bekerja", since: this.state.busy?.since ?? Date.now() } });
+      this.set({ busy: { label: t().tui.working, since: this.state.busy?.since ?? Date.now() } });
     },
     toolEnd: (_call, result, summary) => this.push({ kind: "toolEnd", summary, error: Boolean(result.isError) }),
     notice: (text, tone = "info") => {

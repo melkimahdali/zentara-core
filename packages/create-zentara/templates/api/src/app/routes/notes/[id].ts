@@ -36,7 +36,7 @@ function view(ctx: ZenContext, note: Note, form: { values?: Record<string, unkno
     h(
       Card,
       { title: "Hapus catatan" },
-      h("div", { class: "zu-row" }, h("p", { class: "zu-muted zu-spacer" }, "Catatan hilang dari daftar dan API. Tindakan ini tidak bisa dibatalkan."), h(PostButton, { action: `/notes/${note.id}/hapus`, confirm: `Hapus “${note.title}”? Tindakan ini tidak bisa dibatalkan.` }, "Hapus catatan")),
+      h("div", { class: "zu-row" }, h("p", { class: "zu-muted zu-spacer" }, "Catatan hilang dari daftar dan API. Tindakan ini tidak bisa dibatalkan."), h(PostButton, { action: `/notes/${note.id}/delete`, confirm: `Hapus “${note.title}”? Tindakan ini tidak bisa dibatalkan.` }, "Hapus catatan")),
     ),
   );
 }
@@ -51,5 +51,5 @@ export async function POST(ctx: ZenContext) {
   const input = await tryParse(NoteInput, raw);
   if (!input.ok) return html(view(ctx, note, { values: raw, errors: input.errors }), { status: 422 });
   await db.update(notes).set(input.data).where(eq(notes.id, note.id));
-  return redirect("/notes?pesan=diubah", 303);
+  return redirect("/notes?msg=updated", 303);
 }

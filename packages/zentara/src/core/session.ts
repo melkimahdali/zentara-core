@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { t } from "../i18n/index.js";
 import type { ZenContext } from "./context.js";
 import type { CookieOptions } from "./cookies.js";
 import type { Middleware } from "./middleware.js";
@@ -124,13 +125,13 @@ function resolveSecrets(option: SessionOptions["secret"]): { secrets: string[]; 
   const secrets = configured === undefined ? [] : typeof configured === "string" ? [configured] : [...configured];
   if (secrets.length === 0) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("session(): secret wajib diisi di production (atur env SESSION_SECRET)");
+      throw new Error(t().core.sessionSecretRequired);
     }
     return { secrets: [crypto.randomBytes(32).toString("hex")], generated: true };
   }
   for (const s of secrets) {
     if (typeof s !== "string" || s.length < MIN_SECRET_LENGTH) {
-      throw new Error(`session(): secret minimal ${MIN_SECRET_LENGTH} karakter`);
+      throw new Error(t().core.sessionSecretShort(MIN_SECRET_LENGTH));
     }
   }
   return { secrets, generated: false };
@@ -157,7 +158,7 @@ export function session(options: SessionOptions = {}): Middleware {
   return async (ctx: ZenContext, next) => {
     if (generated && !warned) {
       warned = true;
-      ctx.logger.warn("session(): SESSION_SECRET belum diatur; memakai secret acak (session hilang saat restart)");
+      ctx.logger.warn(t().core.sessionRandomSecret);
     }
 
     const existing = ctx.cookies.get(cookieName);
@@ -175,7 +176,7 @@ export function session(options: SessionOptions = {}): Middleware {
     }
 
     if (ctx.res.headersSent) {
-      if (current.changed) ctx.logger.warn(`session(): perubahan session di ${ctx.path} tidak tersimpan karena respons sudah terkirim`);
+      if (current.changed) ctx.logger.warn(t().core.sessionNotSaved(ctx.path));
       return result;
     }
     if (current.destroyed) {
@@ -183,7 +184,7 @@ export function session(options: SessionOptions = {}): Middleware {
     } else if (current.changed || (options.rolling && !current.isNew)) {
       const sealed = sealSession(current.toJSON(), Date.now() + maxAge * 1000, keys[0]!, cookieName);
       if (sealed.length > MAX_COOKIE_BYTES) {
-        throw new Error(`Session terlalu besar (${sealed.length} byte, batas ${MAX_COOKIE_BYTES}); simpan data besar di database`);
+        throw new Error(t().core.sessionTooLarge(sealed.length, MAX_COOKIE_BYTES));
       }
       ctx.cookies.set(cookieName, sealed, { ...cookieOptions, maxAge });
     } else if (existing && data === undefined) {

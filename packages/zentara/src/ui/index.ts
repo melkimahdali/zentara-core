@@ -1,5 +1,6 @@
 import { ZENTARA_VERSION } from "../core/devpage/theme.js";
 import { escapeHtml, h, raw, renderToString, type Child } from "../core/view.js";
+import { getLocale, intlLocale, parseLocale, t } from "../i18n/index.js";
 
 /**
  * Kit UI Zentara: komponen HTML server-side bergaya brand Zentara Core (Zentara Teal, mode gelap/terang,
@@ -12,7 +13,7 @@ import { escapeHtml, h, raw, renderToString, type Child } from "../core/view.js"
 
 export interface PageOptions {
   title: string;
-  /** Bahasa dokumen (default "id"). */
+  /** Bahasa dokumen (default: bahasa aktif Zentara, lihat `locale` di zentara.config.mjs). */
   lang?: string;
   description?: string;
   /** Elemen tambahan di <head>, mis. stylesheet aplikasi. */
@@ -42,9 +43,9 @@ export function page(options: PageOptions, ...body: Child[]): string {
     h("link", { rel: "stylesheet", href: `/_zentara/ui.css?v=${ZENTARA_VERSION}` }),
     options.head,
   ];
-  const skip = h("a", { class: "zu-skip", href: "#konten" }, "Lewati ke konten");
+  const skip = h("a", { class: "zu-skip", href: "#konten" }, t(parseLocale(options.lang) ?? getLocale()).ui.skip);
   const script = options.script === false ? null : h("script", null, raw(FORM_SCRIPT));
-  return `<!doctype html>${renderToString(h("html", { lang: options.lang ?? "id" }, h("head", null, head), h("body", { class: "zu" }, skip, body, script)))}`;
+  return `<!doctype html>${renderToString(h("html", { lang: options.lang ?? getLocale() }, h("head", null, head), h("body", { class: "zu" }, skip, body, script)))}`;
 }
 
 type WithChildren<P> = P & { children: Child[] };
@@ -75,7 +76,7 @@ export function AuthCard({
   children,
 }: WithChildren<{ title: string; subtitle?: string; footer?: Child; appName?: string; aside?: AuthAside }>): Child {
   const name = appName ?? "Zentara Core";
-  const panel = aside ?? { title: name, text: "Dibangun dengan Zentara Core." };
+  const panel = aside ?? { title: name, text: t().ui.builtWith };
   return h(
     "div",
     { class: "zu-auth" },
@@ -135,14 +136,14 @@ export function AppShell({
         "div",
         { class: "zu-top-in" },
         h(Brand, { name: appName, href: nav[0]?.href ?? "/" }),
-        h("nav", { class: "zu-nav", "aria-label": "Navigasi utama" }, links),
+        h("nav", { class: "zu-nav", "aria-label": t().ui.mainNav }, links),
         user
           ? h(
               "div",
               { class: "zu-user" },
               h("div", { class: "zu-user-text" }, h("b", null, user.name), h("small", null, user.email ?? user.role ?? "")),
               h(Avatar, { name: user.name }),
-              h("form", { method: "post", action: logoutAction }, h(Button, { variant: "ghost", small: true }, "Keluar")),
+              h("form", { method: "post", action: logoutAction }, h(Button, { variant: "ghost", small: true }, t().ui.logout)),
             )
           : null,
       ),
@@ -189,7 +190,7 @@ export function Stat({ label, value, hint }: WithChildren<{ label: string; value
 
 /** Strip angka ringkasan dengan pemisah tipis, pengganti deretan kartu kembar. */
 export function StatGroup({ children }: WithChildren<object>): Child {
-  return h("section", { class: "zu-stats", "aria-label": "Ringkasan" }, children);
+  return h("section", { class: "zu-stats", "aria-label": t().ui.summary }, children);
 }
 
 export interface FieldProps {
@@ -328,7 +329,7 @@ export interface Column {
 
 /** Tabel data. Tanpa baris, menampilkan `empty` (atau teks default). */
 export function Table({ columns, rows, empty }: WithChildren<{ columns: Column[]; rows: Child[][]; empty?: Child }>): Child {
-  if (rows.length === 0) return empty ?? h(EmptyState, { title: "Belum ada data" });
+  if (rows.length === 0) return empty ?? h(EmptyState, { title: t().ui.noData });
   return h(
     "div",
     { class: "zu-table-wrap" },
@@ -356,14 +357,14 @@ export function Search({
   action,
   name = "q",
   value,
-  label = "Cari",
-  placeholder = "Cari…",
+  label = t().ui.search,
+  placeholder = t().ui.searchPlaceholder,
 }: WithChildren<{ action: string; name?: string; value?: string; label?: string; placeholder?: string }>): Child {
   return h(
     "form",
     { class: "zu-search", method: "get", action, role: "search" },
     h("input", { class: "zu-input", type: "search", name, value, placeholder, "aria-label": label }),
-    value ? h("a", { class: "zu-link", href: action }, "Hapus") : null,
+    value ? h("a", { class: "zu-link", href: action }, t().ui.clearSearch) : null,
   );
 }
 
@@ -378,3 +379,19 @@ export function rupiah(value: number): string {
 }
 
 export { UI_CSS } from "./styles.js";
+
+/** Format mata uang sesuai bahasa aktif, mis. money(12.5, "USD") -> "$12.50" (en) atau "US$12,50" (id). */
+export function money(value: number, currency = getLocale() === "en" ? "USD" : "IDR"): string {
+  const fraction = currency === "IDR" ? 0 : undefined;
+  return new Intl.NumberFormat(intlLocale(), { style: "currency", currency, maximumFractionDigits: fraction }).format(value).replace(/\s/g, "");
+}
+
+/** Angka dengan pemisah ribuan sesuai bahasa aktif, mis. 12500 -> "12.500" (id) atau "12,500" (en). */
+export function formatNumber(value: number): string {
+  return new Intl.NumberFormat(intlLocale()).format(value);
+}
+
+/** Tanggal sesuai bahasa aktif, mis. "25 Sep 2026" (id) atau "Sep 25, 2026" (en). */
+export function formatDate(value: Date | string | number, style: "short" | "medium" | "long" | "full" = "medium"): string {
+  return new Intl.DateTimeFormat(intlLocale(), { dateStyle: style }).format(new Date(value));
+}

@@ -5,15 +5,16 @@ import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { defaultLang, messages, parseLang, type Lang } from "./messages.js";
 
-export const TEMPLATES = {
-  api: "Aplikasi web: login, dasbor, database (SQLite), contoh CRUD",
-  minimal: "Minimal: halaman & API sederhana, tanpa database",
-} as const;
+/** Template yang tersedia (keterangan dalam Bahasa Indonesia; lihat messages() untuk bahasa lain). */
+export const TEMPLATES = messages("id").templates;
 export type TemplateName = keyof typeof TEMPLATES;
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const TEMPLATES_DIR = path.join(here, "..", "templates");
+/** File pengganti per bahasa (mis. locales/en/api/...), disalin di atas template Bahasa Indonesia. */
+const LOCALES_DIR = path.join(here, "..", "locales");
 /** File yang tidak ikut ter-publish ke npm bila namanya diawali titik; di template disimpan dengan awalan "_". */
 const RENAMES: Record<string, string> = { _gitignore: ".gitignore" };
 const PACKAGE_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
@@ -56,6 +57,8 @@ export interface ScaffoldOptions {
   packageName?: string;
   /** Versi/spesifikasi dependency "zentara". Default: ^<versi create-zentara>. */
   zentaraSpec?: string;
+  /** Bahasa aplikasi contoh, README, test, dan `locale` Zentara. Default: "id". */
+  lang?: Lang;
 }
 
 function isEmptyDir(dir: string): boolean {
@@ -75,15 +78,19 @@ function copyDir(from: string, to: string): void {
 
 /** Salin template ke folder tujuan dan sesuaikan package.json serta .env. */
 export function scaffold(options: ScaffoldOptions): { packageName: string } {
+  const lang = options.lang ?? "id";
+  const m = messages(lang);
   const template = path.join(TEMPLATES_DIR, options.template);
-  if (!fs.existsSync(template)) throw new Error(`Template tidak dikenal: ${options.template}`);
+  if (!(options.template in TEMPLATES) || !fs.existsSync(template)) throw new Error(m.unknownTemplate(options.template, Object.keys(TEMPLATES).join(", ")));
   const target = path.resolve(options.targetDir);
-  if (!isEmptyDir(target)) throw new Error(`Folder ${target} sudah berisi file. Pilih nama folder lain atau kosongkan dulu.`);
+  if (!isEmptyDir(target)) throw new Error(m.folderNotEmpty(target));
 
   copyDir(template, target);
+  const overlay = path.join(LOCALES_DIR, lang, options.template);
+  if (lang !== "id" && fs.existsSync(overlay)) copyDir(overlay, target);
 
   const packageName = options.packageName ?? toPackageName(path.basename(target));
-  if (!PACKAGE_NAME.test(packageName)) throw new Error(`Nama paket tidak valid: ${packageName}`);
+  if (!PACKAGE_NAME.test(packageName)) throw new Error(m.invalidPackage(packageName));
   const pkgFile = path.join(target, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgFile, "utf8")) as { name: string; dependencies: Record<string, string> };
   pkg.name = packageName;
@@ -144,6 +151,7 @@ function run(command: string, args: string[], cwd: string): Promise<boolean> {
 interface CliArgs {
   dir?: string;
   template?: string;
+  lang?: string;
   install: boolean;
   yes: boolean;
   zentaraSpec?: string;
@@ -157,6 +165,8 @@ export function parseArgs(argv: readonly string[]): CliArgs {
     const next = () => argv[++i];
     if (a === "--template" || a === "-t") args.template = next();
     else if (a.startsWith("--template=")) args.template = a.slice(11);
+    else if (a === "--lang" || a === "-l") args.lang = next();
+    else if (a.startsWith("--lang=")) args.lang = a.slice(7);
     else if (a === "--no-install") args.install = false;
     else if (a === "--yes" || a === "-y") args.yes = true;
     else if (a === "--help" || a === "-h") args.help = true;
@@ -166,18 +176,21 @@ export function parseArgs(argv: readonly string[]): CliArgs {
   return args;
 }
 
-const HELP = `Buat proyek Zentara baru
-
-  npm create zentara@latest [folder] [-- --template api|minimal] [--no-install] [--yes]
-
-Template:
-${Object.entries(TEMPLATES).map(([k, v]) => `  ${k.padEnd(8)} ${v}`).join("\n")}
-`;
 
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   const args = parseArgs(argv);
+  let lang: Lang = defaultLang();
+  if (args.lang !== undefined) {
+    const parsed = parseLang(args.lang);
+    if (!parsed) {
+      console.error(c.red(messages(lang).unknownLang(args.lang)));
+      return 1;
+    }
+    lang = parsed;
+  }
   if (args.help) {
-    console.log(HELP);
+    const m = messages(lang);
+    console.log(m.help(Object.entries(m.templates).map(([k, v]) => `  ${k.padEnd(8)} ${v}`).join("\n")));
     return 0;
   }
   console.log(`\n${c.teal("Z>")} ${c.bold("Zentara")} ${c.bold(c.teal("Core"))} ${c.dim(`v${ownVersion()}`)}`);
@@ -187,50 +200,59 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY) && !args.yes;
   const rl = interactive ? readline.createInterface({ input: process.stdin, output: process.stdout }) : undefined;
   try {
+    // Bahasa ditanyakan lebih dulu (dua bahasa sekaligus), lalu semua pertanyaan berikutnya memakainya.
+    if (rl && args.lang === undefined) {
+      console.log(`Bahasa / Language:`);
+      console.log(`  1. Bahasa Indonesia`);
+      console.log(`  2. English`);
+      const answer = (await rl.question(`Nomor / Number ${c.dim(`(${lang === "en" ? 2 : 1})`)}: `)).trim();
+      lang = answer === "2" ? "en" : answer === "1" ? "id" : lang;
+    }
+    const m = messages(lang);
     let dir = args.dir;
-    if (!dir) dir = rl ? (await rl.question(`Nama folder proyek ${c.dim("(zentara-app)")}: `)).trim() || "zentara-app" : "zentara-app";
+    if (!dir) dir = rl ? (await rl.question(`${m.folderQuestion} ${c.dim("(zentara-app)")}: `)).trim() || "zentara-app" : "zentara-app";
 
     let template = args.template as TemplateName | undefined;
     if (template && !(template in TEMPLATES)) {
-      console.error(c.red(`Template tidak dikenal: ${template}. Pilihan: ${Object.keys(TEMPLATES).join(", ")}`));
+      console.error(c.red(m.unknownTemplate(template, Object.keys(TEMPLATES).join(", "))));
       return 1;
     }
     if (!template) {
       if (rl) {
         const names = Object.keys(TEMPLATES) as TemplateName[];
-        console.log("Pilih template:");
-        names.forEach((n, i) => console.log(`  ${i + 1}. ${c.bold(n.padEnd(8))} ${TEMPLATES[n]}`));
-        const answer = (await rl.question(`Nomor ${c.dim("(1)")}: `)).trim();
+        console.log(m.chooseTemplate);
+        names.forEach((n, i) => console.log(`  ${i + 1}. ${c.bold(n.padEnd(8))} ${m.templates[n]}`));
+        const answer = (await rl.question(`${m.number} ${c.dim("(1)")}: `)).trim();
         template = names[Number(answer || "1") - 1] ?? "api";
       } else template = "api";
     }
 
     let install = args.install;
     if (rl && install) {
-      const answer = (await rl.question(`Pasang dependency sekarang? ${c.dim("(Y/n)")}: `)).trim().toLowerCase();
+      const answer = (await rl.question(`${m.installQuestion} ${c.dim("(Y/n)")}: `)).trim().toLowerCase();
       install = answer === "" || answer.startsWith("y");
     }
     // Zentara AI memakai OmniRoute (gratis, tanpa API key) sebagai provider default.
     const omniInstalled = commandExists("omniroute");
     let installOmni = false;
     if (rl && !omniInstalled) {
-      console.log(`\nZentara AI memakai ${c.bold("OmniRoute")} sebagai provider default: ${c.teal("gratis")}, tanpa API key.`);
-      const answer = (await rl.question(`Pasang OmniRoute sekarang (npm install -g omniroute, sekali saja)? ${c.dim("(Y/n)")}: `)).trim().toLowerCase();
+      console.log(m.omnirouteIntro(c.bold("OmniRoute"), c.teal(m.free)));
+      const answer = (await rl.question(`${m.omnirouteQuestion} ${c.dim("(Y/n)")}: `)).trim().toLowerCase();
       installOmni = answer === "" || answer.startsWith("y");
     }
     rl?.close();
 
     const target = path.resolve(dir);
-    const { packageName } = scaffold({ targetDir: target, template, zentaraSpec: args.zentaraSpec });
+    const { packageName } = scaffold({ targetDir: target, template, zentaraSpec: args.zentaraSpec, lang });
     const rel = path.relative(process.cwd(), target) || ".";
-    console.log(`\n${c.green("✓")} Proyek ${c.bold(packageName)} dibuat di ${rel} (template ${template})`);
+    console.log(`\n${c.green("✓")} ${m.created(c.bold(packageName), rel, template)}`);
 
     const pm = detectPackageManager();
     let ready = false;
     if (install) {
       console.log(c.dim(`\n${pm} install...`));
       ready = await run(pm, ["install"], target);
-      if (!ready) console.error(c.red(`Gagal memasang dependency. Coba jalankan manual: cd ${rel} && ${pm} install`));
+      if (!ready) console.error(c.red(m.installFailed(rel, pm)));
       if (ready && template === "api") {
         const cli = path.join(target, "node_modules", "zentara", "dist", "cli.js");
         ready = (await run(process.execPath, [cli, "db:migrate"], target)) && (await run(process.execPath, [cli, "db:seed"], target));
@@ -241,21 +263,21 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     if (installOmni) {
       console.log(c.dim("\nnpm install -g omniroute..."));
       omniReady = (await run("npm", ["install", "-g", "omniroute"], target)) && commandExists("omniroute");
-      if (omniReady) console.log(`${c.green("✓")} OmniRoute terpasang. ${c.dim("npx zentara akan menawarkan menjalankannya di latar belakang.")}`);
-      else console.error(c.red("Gagal memasang OmniRoute. Coba manual: npm install -g omniroute (di Windows mungkin perlu terminal Administrator)."));
+      if (omniReady) console.log(`${c.green("✓")} ${m.omnirouteInstalled} ${c.dim(m.omnirouteOffer)}`);
+      else console.error(c.red(m.omnirouteFailed));
     }
 
     const runCmd = pm === "npm" ? "npm run" : pm;
-    console.log(`\nLangkah berikutnya:\n`);
+    console.log(m.nextSteps);
     if (rel !== ".") console.log(`  cd ${rel}`);
     if (!ready) {
       console.log(`  ${pm} install`);
       if (template === "api") console.log(`  npx zentara db:migrate && npx zentara db:seed`);
     }
-    if (!omniReady) console.log(`  npm install -g omniroute      ${c.dim("# AI gratis (sekali saja); atau pilih provider lain: npx zentara ai:setup")}`);
-    console.log(`  npx zentara                   ${c.dim("# chat dengan Zentara AI + server dev di latar belakang")}`);
-    console.log(`\nAtau jalankan server saja: ${runCmd} dev ${c.dim("(http://localhost:3000)")}`);
-    console.log(c.dim(`Tip: npm install -g zentara agar cukup mengetik "zentara" dari folder mana pun.\n`));
+    if (!omniReady) console.log(`  npm install -g omniroute      ${c.dim(m.omnirouteHint)}`);
+    console.log(`  npx zentara                   ${c.dim(m.zentaraHint)}`);
+    console.log(`${m.serverOnly(runCmd)} ${c.dim("(http://localhost:3000)")}`);
+    console.log(c.dim(m.globalTip));
     return 0;
   } catch (err) {
     rl?.close();

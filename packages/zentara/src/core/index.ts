@@ -38,3 +38,10 @@ export { HTTP_METHODS, type HttpMethod, type RouteHandler, type RouteModule } fr
 export { loadZenStyles } from "./style.js";
 export { escapeHtml, Fragment, h, raw, renderToString, type Child, type Component } from "./view.js";
 export { welcomePage } from "./devpage/welcome.js";
+export { getLocale, intlLocale, LOCALES, type Locale } from "../i18n/index.js";
+export { cache, MemoryCache, type CacheOptions } from "../backend/cache.js";
+export { parseCron, type CronSchedule } from "../backend/cron.js";
+export { parseBytes, parseDuration, type Duration } from "../backend/duration.js";
+export { enqueue, jobs, JobQueue, MemoryJobStore, SqliteJobStore, type EnqueueOptions, type JobContext, type JobHandler, type JobRecord, type JobStatus, type JobStore } from "../backend/jobs.js";
+export { configureMail, outbox, sendMail, type MailAttachment, type MailMessage, type SentMail } from "../backend/mail.js";
+export { readForm, saveUpload, type SavedUpload, type SaveUploadOptions } from "../backend/upload.js";

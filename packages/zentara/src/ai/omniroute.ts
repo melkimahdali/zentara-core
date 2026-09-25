@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { t } from "../i18n/index.js";
 import { commandExists } from "../dev/server.js";
 import { platformCommand } from "../process.js";
 
@@ -45,7 +46,6 @@ export function installOmniRoute(): Promise<boolean> {
 }
 
 /** Petunjuk singkat setelah OmniRoute berjalan. */
-export const OMNIROUTE_TIPS = [
-  `Dashboard OmniRoute: ${OMNIROUTE.dashboard} (tambah provider gratis di menu Providers, mis. OpenCode Free atau Kiro)`,
-  'Model "auto" sudah bisa dipakai tanpa API key; OmniRoute memilih provider gratis yang sedang sehat.',
-];
+export function OMNIROUTE_TIPS(): string[] {
+  return t().ai.omnirouteTips(OMNIROUTE.dashboard);
+}

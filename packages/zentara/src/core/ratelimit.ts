@@ -1,4 +1,5 @@
 import type { ZenContext } from "./context.js";
+import { t } from "../i18n/index.js";
 import { HttpError } from "./errors.js";
 import type { Middleware } from "./middleware.js";
 
@@ -30,7 +31,7 @@ export function clientIp(ctx: ZenContext, trustProxy = false): string {
 export function rateLimit(options: RateLimitOptions = {}): Middleware {
   const windowMs = options.windowMs ?? 60_000;
   const max = options.max ?? 60;
-  if (!(windowMs > 0) || !Number.isInteger(max) || max < 1) throw new Error("rateLimit(): windowMs dan max harus positif");
+  if (!(windowMs > 0) || !Number.isInteger(max) || max < 1) throw new Error(t().core.rateLimitOptions);
   const hits = new Map<string, { count: number; resetAt: number }>();
   let lastSweep = Date.now();
 
@@ -53,7 +54,7 @@ export function rateLimit(options: RateLimitOptions = {}): Middleware {
     ctx.res.setHeader("RateLimit-Remaining", String(remaining));
     ctx.res.setHeader("RateLimit-Reset", String(resetSeconds));
     if (entry.count > max) {
-      throw new HttpError(429, options.message ?? "Terlalu banyak percobaan, coba lagi nanti", {
+      throw new HttpError(429, options.message ?? t().core.tooManyAttempts, {
         headers: { "Retry-After": String(resetSeconds) },
       });
     }

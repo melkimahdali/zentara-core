@@ -34,7 +34,7 @@ export async function GET(ctx: ZenContext) {
       title: "Dasbor",
       subtitle: `Halo, ${user.name.split(" ")[0]}. Hari ini ${today()}.`,
       active: "/dashboard",
-      actions: h(Button, { href: "/notes?baru=1", variant: "secondary" }, "Tulis catatan"),
+      actions: h(Button, { href: "/notes?new=1", variant: "secondary" }, "Tulis catatan"),
     },
     h(
       StatGroup,
@@ -56,7 +56,7 @@ export async function GET(ctx: ZenContext) {
                 h("span", { class: "zu-muted" }, relativeDate(n.updatedAt)),
               ]),
             })
-          : h(EmptyState, { title: "Belum ada catatan", text: "Catatan yang Anda tulis akan muncul di sini.", action: h(Button, { href: "/notes?baru=1", small: true }, "Tulis catatan") }),
+          : h(EmptyState, { title: "Belum ada catatan", text: "Catatan yang Anda tulis akan muncul di sini.", action: h(Button, { href: "/notes?new=1", small: true }, "Tulis catatan") }),
       ),
       h(
         "div",

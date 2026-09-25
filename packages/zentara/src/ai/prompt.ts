@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { getLocale, t } from "../i18n/index.js";
 
 /** Instruksi tetap untuk agen. Dijaga stabil (tanpa data dinamis) agar prompt caching efektif. */
 export const SYSTEM_PROMPT = `You are Zentara AI, the built-in developer assistant of Zentara Core, a TypeScript web framework from Indonesia. Developers describe what they want in plain language in their terminal, and you carry it out inside their project using the tools provided.
@@ -40,7 +41,13 @@ Database (Drizzle ORM):
 Auth:
 - Core helpers: hashPassword, verifyPassword, fakeVerify, needsRehash, login(ctx, { id, role }), logout(ctx), currentUser(ctx), requireAuth({ loadUser, roles }), rateLimit({ windowMs, max }).
 - The app already provides src/app/lib/auth.ts with requireUser, requireAdmin, and publicUser(user). Protect a single method with withMiddleware([requireAdmin], handler); protect a whole route file with export const middleware = [requireUser].
-- Never return passwordHash or other secrets in responses; use publicUser(). Put rateLimit on login/register-like endpoints.`;
+- Never return passwordHash or other secrets in responses; use publicUser(). Put rateLimit on login/register-like endpoints.
+
+Back-end features (all imported from "zentara"):
+- Background jobs: one file per job in src/app/jobs/<name>.ts with \`export default async function (data, job: JobContext) {...}\`, optional \`export const retries = 3\` and \`export const schedule = "0 7 * * *"\` (5-field cron, server local time). Queue work from routes with \`await enqueue("<name>", data, { delay: "10m" })\`; data must be JSON-serializable. Use jobs for slow work (emails, reports, webhooks) instead of doing it inside the request. Scaffold with \`zentara make:job <name> [--schedule "<cron>"]\`.
+- Email: \`await sendMail({ to, subject, text, html })\`. Delivery is configured with the MAIL_URL and MAIL_FROM env vars (smtp://user:pass@host:587); in development it only logs, in tests it collects into \`outbox\`. Send emails from a job when possible.
+- File uploads: forms need enctype="multipart/form-data". In the handler use \`const form = await readForm(ctx, { maxBytes: "10mb" })\`, check \`form.get("file") instanceof File\`, then \`await saveUpload(file, { types: ["image/*"], maxBytes: "5mb" })\`, which returns { name, url, path, size, type } and saves to public/uploads by default. Never build file paths from the user's file name.
+- Cache: \`await cache.remember("key", "5m", () => expensive())\`, \`cache.clear("prefix:")\` after data changes. It is in-process memory only.`;
 
 /** Ringkasan proyek yang ditambahkan ke pesan pertama agar agen langsung punya konteks. */
 export function projectSnapshot(root: string): string {
@@ -52,16 +59,18 @@ export function projectSnapshot(root: string): string {
       dependencies?: Record<string, string>;
       devDependencies?: Record<string, string>;
     };
-    lines.push(`Project: ${pkg.name ?? "(tanpa nama)"}`);
+    lines.push(`Project: ${pkg.name ?? t().ai.session.untitledProject}`);
     lines.push(`Scripts: ${Object.keys(pkg.scripts ?? {}).join(", ") || "-"}`);
     lines.push(`Dependencies: ${Object.keys(pkg.dependencies ?? {}).join(", ") || "-"}`);
     lines.push(`Dev dependencies: ${Object.keys(pkg.devDependencies ?? {}).join(", ") || "-"}`);
   } catch {
-    lines.push("Project: (package.json tidak ditemukan)");
+    lines.push(`Project: ${t().ai.session.noPackageJson}`);
   }
   const top = fs.existsSync(root)
     ? fs.readdirSync(root).filter((f) => !["node_modules", ".git", "dist", ".zentara"].includes(f))
     : [];
   lines.push(`Top-level: ${top.sort().join(", ")}`);
+  // Bahasa proyek: teks yang dilihat pengguna aplikasi (label, pesan, halaman) ditulis dalam bahasa ini.
+  lines.push(`App language: ${getLocale() === "en" ? "English (en)" : "Bahasa Indonesia (id)"}; write user-facing app text in this language.`);
   return lines.join("\n");
 }

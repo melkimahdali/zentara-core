@@ -1,4 +1,5 @@
 import readline from "node:readline/promises";
+import { t } from "../i18n/index.js";
 import { Agent, type AgentResult, type AgentUI } from "./agent.js";
 import { ApprovalPolicy, denyPrompter, type Prompter } from "./approval.js";
 import { ProviderChain } from "./chain.js";
@@ -79,7 +80,7 @@ export function createAiSession(options: AiSessionOptions): AiSession {
     try {
       saveSession(root, { id, title, createdAt, updatedAt: new Date().toISOString(), messages: agent.history });
     } catch (err) {
-      ui.info(`Percakapan tidak bisa disimpan: ${(err as Error).message}`);
+      ui.info(t().ai.session.saveFailed((err as Error).message));
     }
   }
 
@@ -104,11 +105,11 @@ export function createAiSession(options: AiSessionOptions): AiSession {
     async run(task, runOptions = {}) {
       const limit = config.compactAt;
       if (limit > 0 && estimateTokens(agent.history) > limit) {
-        ui.info(`Percakapan sudah panjang (~${Math.round(estimateTokens(agent.history) / 1000)}k token), meringkas dulu...`);
+        ui.info(t().ai.session.compacting(Math.round(estimateTokens(agent.history) / 1000)));
         try {
           await compact(runOptions.signal);
         } catch (err) {
-          ui.info(`Gagal meringkas percakapan: ${(err as Error).message}`);
+          ui.info(t().ai.session.compactFailed((err as Error).message));
         }
       }
       const text = first ? `<project>\n${projectSnapshot(root)}\n</project>\n\n${task}` : task;
@@ -145,16 +146,10 @@ export function createAiSession(options: AiSessionOptions): AiSession {
 
 /** Ringkasan akhir satu perintah AI untuk terminal. */
 export function printResult(io: Output, result: AgentResult): void {
-  const statusText = {
-    done: c.green("✓ Selesai"),
-    incomplete: c.yellow("… Belum selesai (batas langkah)"),
-    refused: c.yellow("✗ Ditolak model"),
-    verification_failed: c.red("✗ Verifikasi gagal"),
-    interrupted: c.yellow("■ Dihentikan"),
-  }[result.status];
-  const providers = result.providersUsed.length ? ` · provider: ${result.providersUsed.join(", ")}` : "";
-  io.out(`${statusText} ${c.dim(`· ${result.steps} langkah${providers}`)}`);
-  if (result.changedFiles.length) io.out(c.dim(`  File berubah: ${result.changedFiles.join(", ")}  (batalkan dengan: zentara undo)`));
+  const m = t().ai.session;
+  const color = result.status === "done" ? c.green : result.status === "verification_failed" ? c.red : c.yellow;
+  io.out(`${color(m.result[result.status])} ${c.dim(m.steps(result.steps, result.providersUsed.join(", ")))}`);
+  if (result.changedFiles.length) io.out(c.dim(m.changedFiles(result.changedFiles.join(", "))));
 }
 
 export interface TerminalSessionOptions {

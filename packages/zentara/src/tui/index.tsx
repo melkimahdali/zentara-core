@@ -1,4 +1,5 @@
 import { render } from "ink";
+import { t } from "../i18n/index.js";
 import { createReplHost, type HostOptions } from "../repl/host.js";
 import { App, type Layout } from "./app.js";
 import { CLEAR_SCREEN, MIN_FULLSCREEN_ROWS } from "./layout.js";
@@ -74,7 +75,7 @@ export async function startInkRepl(options: HostOptions, ink: InkOptions = {}): 
     exitCode = await exited;
   } finally {
     for (const signal of EXIT_SIGNALS) process.off(signal, onSignal);
-    store.ui.notice("Sampai jumpa!", "dim");
+    store.ui.notice(t().tui.goodbye, "dim");
     store.close();
     await instance.waitUntilRenderFlush();
     instance.unmount();

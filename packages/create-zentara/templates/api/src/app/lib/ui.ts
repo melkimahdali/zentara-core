@@ -44,9 +44,9 @@ export function appPage(ctx: ZenContext, options: AppPageOptions, ...children: C
   );
 }
 
-/** Pesan singkat setelah redirect (?pesan=kode). Hanya kode yang dikenal yang ditampilkan, bukan teks bebas dari URL. */
+/** Pesan singkat setelah redirect (?msg=kode). Hanya kode yang dikenal yang ditampilkan, bukan teks bebas dari URL. */
 export function flash(ctx: ZenContext, messages: Record<string, string>): string | undefined {
-  const code = ctx.query.pesan;
+  const code = ctx.query.msg;
   return typeof code === "string" ? messages[code] : undefined;
 }
 

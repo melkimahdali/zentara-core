@@ -1,4 +1,5 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
+import { t } from "../i18n/index.js";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { AgentResult } from "../ai/agent.js";
@@ -55,7 +56,7 @@ function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
     req.on("data", (chunk: Buffer) => {
       size += chunk.length;
       if (size > MAX_BODY) {
-        reject(new Error("body terlalu besar"));
+        reject(new Error(t().dev.devtools.bodyTooLarge));
         req.destroy();
       } else chunks.push(chunk);
     });
@@ -65,7 +66,7 @@ function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
         const data = text ? (JSON.parse(text) as unknown) : {};
         resolve(typeof data === "object" && data !== null && !Array.isArray(data) ? (data as Record<string, unknown>) : {});
       } catch {
-        reject(new Error("JSON tidak valid"));
+        reject(new Error(t().dev.devtools.invalidJson));
       }
     });
     req.on("error", reject);
@@ -121,7 +122,7 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
       signal?.addEventListener("abort", onAbort, { once: true });
       pending.set(id, done);
       emit({ type: "approval", id, risk: action.risk, summary: action.summary, reason: action.reason, preview: action.preview });
-      log(c.dim(`  [AI browser] menunggu persetujuan di browser: ${action.summary}`));
+      log(c.dim(t().dev.devtools.waitingBrowser(action.summary)));
     });
 
   async function getSession(): Promise<AiSession> {
@@ -139,14 +140,14 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
     const body = await readBody(req);
     const message = typeof body.message === "string" ? body.message.trim() : "";
     const context = typeof body.context === "string" ? body.context.slice(0, MAX_CONTEXT) : "";
-    if (!message) return json(res, 400, { error: "Pesan kosong." });
-    if (lock.owner) return json(res, 409, { error: `Zentara AI sedang mengerjakan tugas lain (${lock.owner}). Tunggu sampai selesai.` });
+    if (!message) return json(res, 400, { error: t().dev.devtools.emptyMessage });
+    if (lock.owner) return json(res, 409, { error: t().dev.devtools.busy(lock.owner === "terminal" ? t().host.terminal : lock.owner) });
 
     let current: AiSession;
     try {
       current = await getSession();
     } catch (err) {
-      return json(res, 500, { error: `Zentara AI belum bisa dipakai: ${(err as Error).message}. Jalankan: npx zentara ai:setup` });
+      return json(res, 500, { error: t().dev.devtools.notReady((err as Error).message) });
     }
 
     lock.owner = "browser";
@@ -163,11 +164,12 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
     });
 
     log(`${c.cyan("◆ Zentara AI (browser)")} ${message.split("\n")[0]!.slice(0, 100)}`);
-    const task = context ? `${message}\n\n<konteks dari halaman browser>\n${context}\n</konteks dari halaman browser>` : message;
+    const tag = t().dev.devtools.contextTag;
+    const task = context ? `${message}\n\n<${tag}>\n${context}\n</${tag}>` : message;
     try {
       const result: AgentResult = await current.run(task, { signal });
       emit({ type: "done", status: result.status, steps: result.steps, providers: result.providersUsed, changedFiles: result.changedFiles });
-      log(c.dim(`  [AI browser] ${result.status} · ${result.changedFiles.length} file berubah`));
+      log(c.dim(t().dev.devtools.finished(result.status, result.changedFiles.length)));
     } catch (err) {
       emit({ type: "error", message: (err as Error).message });
       log(c.red(`  [AI browser] ${(err as Error).message}`));
@@ -183,10 +185,10 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
   const server = http.createServer((req, res) => {
     const port = (server.address() as AddressInfo | null)?.port;
     const host = req.headers.host ?? "";
-    if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return json(res, 403, { error: "Host tidak diizinkan" });
+    if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return json(res, 403, { error: t().dev.devtools.hostDenied });
     const origin = req.headers.origin;
     if (origin !== undefined) {
-      if (!LOCAL_ORIGIN.test(origin)) return json(res, 403, { error: "Origin tidak diizinkan" });
+      if (!LOCAL_ORIGIN.test(origin)) return json(res, 403, { error: t().dev.devtools.originDenied });
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Vary", "Origin");
     }
@@ -200,7 +202,7 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
       return res.end();
     }
     const given = req.headers["x-zentara-token"];
-    if (!sameToken(typeof given === "string" ? given : undefined, token)) return json(res, 401, { error: "Token devtools tidak valid" });
+    if (!sameToken(typeof given === "string" ? given : undefined, token)) return json(res, 401, { error: t().dev.devtools.badToken });
 
     const route = `${req.method} ${(req.url ?? "/").split("?")[0]}`;
     const handle = async () => {
@@ -223,18 +225,18 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
           const body = await readBody(req);
           const answer = body.answer;
           const resolve = typeof body.id === "string" ? pending.get(body.id) : undefined;
-          if (!resolve || (answer !== "yes" && answer !== "no" && answer !== "all")) return json(res, 404, { error: "Persetujuan tidak ditemukan" });
+          if (!resolve || (answer !== "yes" && answer !== "no" && answer !== "all")) return json(res, 404, { error: t().dev.devtools.approvalMissing });
           resolve(answer);
-          log(c.dim(`  [AI browser] ${answer === "no" ? "ditolak" : "disetujui"} dari browser`));
+          log(c.dim(t().dev.devtools.answered(answer === "no")));
           return json(res, 200, { ok: true });
         }
         case "POST /stop":
           controller?.abort();
           return json(res, 200, { ok: true });
         case "POST /undo": {
-          if (lock.owner) return json(res, 409, { ok: false, error: "Tunggu sampai tugas AI selesai." });
+          if (lock.owner) return json(res, 409, { ok: false, error: t().dev.devtools.waitTask });
           const undone = undoLatest(options.root);
-          if (!undone) return json(res, 200, { ok: false, error: "Tidak ada perubahan AI yang bisa dibatalkan." });
+          if (!undone) return json(res, 200, { ok: false, error: t().dev.devtools.nothingToUndo });
           log(c.dim(`  [AI browser] undo: ${undone.entries.map((e) => e.path).join(", ")}`));
           return json(res, 200, { ok: true, files: undone.entries.map((e) => e.path) });
         }
@@ -242,7 +244,7 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
           if (!lock.owner) session?.reset();
           return json(res, 200, { ok: true });
         default:
-          return json(res, 404, { error: "Tidak ditemukan" });
+          return json(res, 404, { error: t().dev.devtools.notFound });
       }
     };
     handle().catch((err: unknown) => {

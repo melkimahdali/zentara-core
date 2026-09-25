@@ -1,6 +1,6 @@
 {
   "name": "zentara",
-  "version": "0.10.3",
+  "version": "0.12.0",
   "description": "Framework web TypeScript AI-driven asal Nusantara: routing berbasis file, auth, database, dan AI yang membangun aplikasi dari bahasa sehari-hari.",
   "keywords": [
     "framework",
@@ -59,7 +59,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"test/**/*.test.ts\" \"test/**/*.test.tsx\"",
+    "test": "node --import tsx --import ./test/setup.mjs --test \"test/**/*.test.ts\" \"test/**/*.test.tsx\"",
     "prepack": "npm run build"
   },
   "dependencies": {

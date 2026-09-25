@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { t } from "./i18n/index.js";
 import http from "node:http";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -38,7 +39,7 @@ async function serveBootError(err: unknown, user: UserConfig, cwd: string): Prom
   });
   const shownHost = config.host === "0.0.0.0" || config.host === "::" ? "localhost" : config.host;
   console.error("Boot error:", err);
-  console.error(`\n⚠ Aplikasi gagal dijalankan. Detail error ada di http://${shownHost}:${config.port} — perbaiki file-nya, server akan mulai ulang otomatis.`);
+  console.error(t().dev.server.bootFailed(`http://${shownHost}:${config.port}`));
   return true;
 }
 
@@ -62,11 +63,11 @@ export async function serve(options: ServeOptions = {}): Promise<ZenRuntime | un
   }
 
   const shutdown = (signal: string) => {
-    runtime.logger.info(`${signal} diterima, mematikan server...`);
+    runtime.logger.info(t().dev.server.signal(signal));
     runtime.stop().then(
       () => process.exit(0),
       (err) => {
-        runtime.logger.error("Gagal mematikan server", err);
+        runtime.logger.error(t().dev.server.stopFailed, err);
         process.exit(1);
       },
     );

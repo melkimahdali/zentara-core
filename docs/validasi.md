@@ -23,7 +23,7 @@ export const POST = validate(
 );
 ```
 
-Body dibaca sesuai `Content-Type`: JSON atau form HTML (`application/x-www-form-urlencoded`). Input yang tidak valid dijawab `422` dengan daftar error per field:
+Body dibaca sesuai `Content-Type`: JSON, form HTML (`application/x-www-form-urlencoded`), atau `multipart/form-data` (lihat [unggah file](upload.html)). Input yang tidak valid dijawab `422` dengan daftar error per field:
 
 ```json
 { "error": { "status": 422, "message": "Validasi gagal",

@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { t } from "../i18n/index.js";
 import fs from "node:fs";
 import path from "node:path";
 import type { ChatMessage } from "./types.js";
@@ -31,7 +32,7 @@ export function newSessionId(now = new Date()): string {
 }
 
 function file(root: string, id: string): string {
-  if (!ID.test(id)) throw new Error(`ID sesi tidak valid: ${id}`);
+  if (!ID.test(id)) throw new Error(t().ai.session.invalidId(id));
   return path.join(root, DIR, `${id}.json`);
 }
 

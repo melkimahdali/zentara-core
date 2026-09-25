@@ -1,4 +1,5 @@
 import type { TokenParam } from "../presets.js";
+import { t } from "../../i18n/index.js";
 import {
   AbortedError,
   ProviderUnavailableError,
@@ -106,7 +107,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
   }
 
   describe(): string {
-    return `${this.baseUrl} (${this.resolvedModel ?? "model otomatis"})`;
+    return `${this.baseUrl} (${this.resolvedModel ?? t().ai.providers.autoModel})`;
   }
 
   private headers(): Record<string, string> {
@@ -130,7 +131,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
       } catch (cause) {
         if (signal?.aborted) throw new AbortedError();
         const timedOut = cause instanceof Error && cause.name === "TimeoutError";
-        throw new ProviderUnavailableError(this.name, timedOut ? "timeout" : `tidak bisa terhubung ke ${this.baseUrl}`, { cause });
+        throw new ProviderUnavailableError(this.name, timedOut ? t().ai.providers.timeout : t().ai.providers.connectFailed(this.baseUrl), { cause });
       }
       if (res.ok) return res;
       body = await res.text();
@@ -142,7 +143,8 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
     const detail = body.slice(0, 300).replace(/\s+/g, " ");
     if (UNAVAILABLE_STATUS.has(res.status) || res.status >= 500) {
-      const label = res.status === 402 ? "kredit habis" : res.status === 429 ? "kuota/rate limit habis" : "tidak tersedia";
+      const m = t().ai.providers;
+      const label = res.status === 402 ? m.creditLabel : res.status === 429 ? m.quotaLabel : m.unavailableLabel;
       throw new ProviderUnavailableError(this.name, `${label} (${res.status}) ${detail}`.trim());
     }
     throw new RequestRejectedError(res.status, detail, this.name);
@@ -154,7 +156,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
     try {
       return JSON.parse(body) as unknown;
     } catch (cause) {
-      throw new ProviderUnavailableError(this.name, "respons bukan JSON yang valid", { cause });
+      throw new ProviderUnavailableError(this.name, t().ai.providers.badJson, { cause });
     }
   }
 
@@ -184,13 +186,13 @@ export class OpenAICompatibleProvider implements ModelProvider {
   async model(): Promise<string> {
     if (this.resolvedModel) return this.resolvedModel;
     const id = (await this.listModels())[0];
-    if (!id) throw new ProviderUnavailableError(this.name, "server tidak melaporkan model apa pun");
+    if (!id) throw new ProviderUnavailableError(this.name, t().ai.providers.noModels);
     this.resolvedModel = id;
     return id;
   }
 
   async check(): Promise<string> {
-    if (!this.resolvedModel) return `model ${await this.model()} siap`;
+    if (!this.resolvedModel) return t().ai.providers.modelReady(await this.model());
     // Model sudah diatur: pastikan server mengenalnya (bila server mau memberi daftar model).
     const models = await this.listModels().catch((err: unknown) => {
       // Sebagian gateway (mis. OmniRoute) meminta API key untuk daftar model tapi tidak untuk chat:
@@ -200,9 +202,9 @@ export class OpenAICompatibleProvider implements ModelProvider {
       return undefined;
     });
     if (models && models.length > 0 && !models.includes(this.resolvedModel)) {
-      return `terhubung, tapi model "${this.resolvedModel}" tidak ada di daftar model akun ini`;
+      return t().ai.providers.modelNotListed(this.resolvedModel);
     }
-    return `model ${this.resolvedModel} siap`;
+    return t().ai.providers.modelReady(this.resolvedModel);
   }
 
   private toMessages(system: string, messages: ChatMessage[]): unknown[] {
@@ -250,7 +252,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
       } catch {
         return;
       }
-      if (chunk.error) throw new ProviderUnavailableError(this.name, `error dari server: ${JSON.stringify(chunk.error).slice(0, 200)}`);
+      if (chunk.error) throw new ProviderUnavailableError(this.name, t().ai.providers.serverError(JSON.stringify(chunk.error).slice(0, 200)));
       model ??= chunk.model;
       if (chunk.usage) usage = chunk.usage;
       const choice = chunk.choices?.[0];
@@ -345,7 +347,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
         try {
           return JSON.parse(body) as OpenAIResponse;
         } catch (cause) {
-          throw new ProviderUnavailableError(this.name, "respons bukan JSON yang valid", { cause });
+          throw new ProviderUnavailableError(this.name, t().ai.providers.badJson, { cause });
         }
       }
       return this.readStream(res, request.onText!, request.signal);
@@ -371,7 +373,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
 
     const choice = data.choices?.[0];
-    if (!choice?.message) throw new ProviderUnavailableError(this.name, "respons tidak berisi jawaban");
+    if (!choice?.message) throw new ProviderUnavailableError(this.name, t().ai.providers.noAnswer);
 
     const toolCalls: ModelTurn["toolCalls"] = [];
     for (const [i, call] of (choice.message.tool_calls ?? []).entries()) {

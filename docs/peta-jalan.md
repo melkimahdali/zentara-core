@@ -24,27 +24,29 @@ Zentara adalah framework web umum, bukan framework untuk jenis aplikasi tertentu
 | 7 | 0.8 | Brand Zentara Core dan situs dokumentasi |
 | 8 | 0.9 | Arsitektur dan keamanan Zentara AI: streaming, sesi tersimpan, `run_command` aman, diff |
 | 9 | 0.10 | Front-End: kit UI `zentara/ui`, halaman bawaan, dan CLI berbasis Ink |
+| 10 | 0.12 | [Bahasa Inggris](bahasa.html): CLI, Zentara AI, halaman bawaan, kit UI, template, dan dokumentasi dalam `id` dan `en` |
+| 11 | 0.12 | Back-End: [job & jadwal](jobs.html), [email](email.html), [unggah file](upload.html), [cache](cache.html) |
+
+Tahap 10 dan 11 dirilis bersama di 0.12.
 
 ## Berikutnya
 
 | Tahap | Versi | Isi |
 |---|---|---|
-| **10** | **0.11** | **Bahasa Inggris (i18n)**, rinciannya di bawah |
-| 11 | 0.12 | Back-End: job latar belakang, jadwal (cron), unggah file, email, cache |
 | 12 | 0.13 | Data dan panel admin: CRUD otomatis dari schema, relasi, paginasi, filter |
 | 13 | 0.14 | Testing: helper uji route dan halaman, data uji (factory), laporan cakupan |
 | 14 | 0.15 | Deploy: adapter Docker, Vercel, Cloudflare, dan panduan server sendiri |
 | 15 | 1.0 | Ekosistem: plugin, MCP, subagent, language server, API stabil |
 
-## Tahap 10: Bahasa Inggris
+## Tahap 10: Bahasa Inggris (selesai)
 
 Tujuannya agar Zentara bisa dipakai penuh dalam Bahasa Indonesia **atau** Bahasa Inggris, tanpa mengubah perilaku bagi pengguna yang sudah ada. Bahasa Indonesia tetap menjadi default.
 
-Tahap ini sengaja ditempatkan sebelum Back-End. Dengan begitu, fitur di Tahap 11 sampai 15 langsung ditulis dalam dua bahasa, tidak perlu diterjemahkan belakangan.
+Tahap ini dikerjakan sebelum Back-End, jadi fitur di Tahap 11 sampai 15 langsung ditulis dalam dua bahasa.
 
 1. **Fondasi i18n di core**
    - Katalog pesan `id` dan `en` serta fungsi `t()` yang bertipe (kunci yang salah menjadi error TypeScript).
-   - Bahasa dipilih lewat `zentara.config.mjs` (`locale: "en"`), env `ZENTARA_LANG`, atau otomatis dari bahasa sistem.
+   - Bahasa dipilih lewat `zentara.config.mjs` (`locale: "en"`), env `ZENTARA_LANG`, atau `zentara lang en`.
 2. **CLI dan Zentara AI**
    - Semua teks CLI klasik, CLI Ink, `ai:setup`, dan pesan error diambil dari katalog.
    - Zentara AI menjawab dalam bahasa pengguna, dan instruksi sistemnya tersedia dalam Bahasa Inggris.
@@ -59,7 +61,7 @@ Tahap ini sengaja ditempatkan sebelum Back-End. Dengan begitu, fitur di Tahap 11
    - Template `api` dan `minimal` tersedia dalam dua bahasa: teks halaman, pesan validasi, README, dan test.
 6. **Dokumentasi**
    - Situs dokumentasi Bahasa Inggris di `/en/` dengan tombol pindah bahasa.
-   - README paket npm dan catatan rilis dalam Bahasa Inggris.
+   - README paket npm dalam dua bahasa, dan catatan rilis Bahasa Inggris mulai 0.12.
 7. **Pengujian**
    - Test memastikan setiap kunci katalog ada di kedua bahasa.
    - e2e menjalankan alur utama dalam `id` dan `en`.

@@ -1,4 +1,5 @@
 import { AnthropicProvider, type AnthropicProviderOptions } from "./providers/anthropic.js";
+import { t } from "../i18n/index.js";
 import { findPreset, PRESETS, presetBaseUrl, type TokenParam } from "./presets.js";
 import { OpenAICompatibleProvider } from "./providers/openai-compatible.js";
 import type { ModelProvider } from "./types.js";
@@ -58,7 +59,7 @@ export function defaultProviders(env: NodeJS.ProcessEnv = process.env): Provider
     .filter(Boolean);
   for (const name of order) {
     const preset = findPreset(name);
-    if (!preset) throw new Error(`ZENTARA_AI_ORDER: provider tidak dikenal "${name}". Pilihan: ${PRESETS.map((p) => p.name).join(", ")}`);
+    if (!preset) throw new Error(t().ai.config.unknownOrder(name, PRESETS.map((p) => p.name).join(", ")));
     if (!enabled.includes(preset)) enabled.push(preset);
   }
   const rank = (name: string) => {
@@ -77,28 +78,28 @@ export function defaultProviders(env: NodeJS.ProcessEnv = process.env): Provider
 
 export function resolveAiConfig(user: AiUserConfig | undefined, env: NodeJS.ProcessEnv = process.env): AiConfig {
   const mode = (env.ZENTARA_AI_MODE as ApprovalMode | undefined) ?? user?.mode ?? "ask";
-  if (mode !== "ask" && mode !== "auto") throw new Error(`ai.mode tidak valid: ${String(mode)} (pilih "ask" atau "auto")`);
+  if (mode !== "ask" && mode !== "auto") throw new Error(t().ai.config.badMode(String(mode)));
   const maxSteps = user?.maxSteps ?? 40;
-  if (!Number.isInteger(maxSteps) || maxSteps < 1) throw new Error(`ai.maxSteps tidak valid: ${maxSteps}`);
+  if (!Number.isInteger(maxSteps) || maxSteps < 1) throw new Error(t().ai.config.badMaxSteps(maxSteps));
 
   const allowedCommands = user?.allowedCommands ?? [];
   if (!Array.isArray(allowedCommands) || allowedCommands.some((c) => typeof c !== "string" || !c.trim())) {
-    throw new Error("ai.allowedCommands harus berupa daftar string, mis. [\"npm run lint\"]");
+    throw new Error(t().ai.config.badAllowed);
   }
   const compactAt = user?.compactAt ?? 60_000;
-  if (!Number.isInteger(compactAt) || compactAt < 0) throw new Error(`ai.compactAt tidak valid: ${compactAt}`);
+  if (!Number.isInteger(compactAt) || compactAt < 0) throw new Error(t().ai.config.badCompactAt(compactAt));
 
   const providers = user?.providers ?? defaultProviders(env);
   const names = new Set<string>();
   for (const p of providers) {
     const name = p.name ?? "claude";
-    if (names.has(name)) throw new Error(`Nama provider AI duplikat: ${name}`);
+    if (names.has(name)) throw new Error(t().ai.config.duplicate(name));
     names.add(name);
     if (p.type === "openai-compatible" && !/^https?:\/\//.test(p.baseUrl)) {
-      throw new Error(`Provider ${name}: baseUrl harus diawali http:// atau https://`);
+      throw new Error(t().ai.config.badBaseUrl(name));
     }
     if (p.type !== "anthropic" && p.type !== "openai-compatible") {
-      throw new Error(`Provider ${name}: type tidak dikenal "${(p as { type: string }).type}"`);
+      throw new Error(t().ai.config.badType(name, (p as { type: string }).type));
     }
   }
   return { providers, mode, maxSteps, allowedCommands, compactAt };

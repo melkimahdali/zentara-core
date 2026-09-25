@@ -1,6 +1,7 @@
 import { Box, Static, Text, useApp, useInput, usePaste, useStdout, useWindowSize, type Key } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { BRAND, colorDepth, formatPreview, HOST_COMMANDS, terminalLogo, terminalLogoFrame, visibleWidth, type ApprovalAnswer, type HostStatus, type ReplHost, type Tone } from "../repl/host.js";
+import { t } from "../i18n/index.js";
+import { BRAND, colorDepth, formatPreview, hostCommands, terminalLogo, terminalLogoFrame, visibleWidth, type ApprovalAnswer, type HostStatus, type ReplHost, type Tone } from "../repl/host.js";
 import { CLEAR_SCREEN, frameHeight, logWindow, scrollDown, scrollUp } from "./layout.js";
 import type { Dialog, Item, Store } from "./store.js";
 
@@ -28,9 +29,10 @@ export type Layout = "fullscreen" | "inline";
 type DialogOf<K extends Dialog["kind"]> = Extract<Dialog, { kind: K }>;
 
 function aiLabel(status: HostStatus): string {
-  if (!status.provider) return "AI belum diatur · /setup";
-  const provider = status.provider === "omniroute" ? "OmniRoute (gratis)" : status.provider;
-  return `${provider} · ${status.mode === "auto" ? "mode otomatis" : "minta persetujuan"}`;
+  const m = t().tui;
+  if (!status.provider) return m.aiNotSet;
+  const provider = status.provider === "omniroute" ? m.freeOmniroute : status.provider;
+  return `${provider} · ${status.mode === "auto" ? m.modeAuto : m.modeAsk}`;
 }
 
 function serverLabel(status: HostStatus): { text: string; color: string } {
@@ -39,13 +41,13 @@ function serverLabel(status: HostStatus): { text: string; color: string } {
     case "external":
       return { text: `● ${status.server.url}`, color: "green" };
     case "starting":
-      return { text: "● server dev dimulai...", color: "yellow" };
+      return { text: t().host.server.starting, color: "yellow" };
     case "crashed":
-      return { text: "● server dev berhenti (/logs)", color: "red" };
+      return { text: t().host.server.crashed, color: "red" };
     case "stopped":
-      return { text: "○ server dev mati (/dev start)", color: SLATE };
+      return { text: t().host.server.stopped, color: SLATE };
     default:
-      return { text: "○ di luar proyek Zentara", color: SLATE };
+      return { text: t().host.server.none, color: SLATE };
   }
 }
 
@@ -102,7 +104,7 @@ function Header({ host, progress = 1 }: { host: ReplHost; progress?: number }) {
  */
 function PinnedHeader({ host, status, columns, above }: { host: ReplHost; status: HostStatus; columns: number; above: number }) {
   const server = serverLabel(status);
-  const marker = above > 0 ? `── ↑ ${above} pesan sebelumnya · PgUp/PgDn untuk menggulir ` : "";
+  const marker = above > 0 ? t().tui.earlier(above) : "";
   return (
     <Box flexDirection="column" flexShrink={0} width={columns}>
       <Box paddingX={1} gap={2}>
@@ -204,7 +206,7 @@ function Spinner({ label, since }: { label: string; since: number }) {
     <Box marginTop={1}>
       <Text color={TEAL}>{frame} </Text>
       <Text color={SLATE}>
-        {label}… ({seconds}s · esc untuk berhenti)
+        {t().tui.spinner(label, seconds)}
       </Text>
     </Box>
   );
@@ -251,9 +253,9 @@ function ChooseDialog({ dialog, onDone, maxLines }: DialogProps<"choose">) {
   return (
     <Box flexDirection="column" marginTop={1} paddingX={1}>
       <Text bold>{dialog.question}</Text>
-      {filter ? <Text color={SLATE}>Cari: {filter}</Text> : null}
-      {list.length === 0 ? <Text color={SLATE}> (tidak ada yang cocok)</Text> : null}
-      {offset > 0 ? <Text color={SLATE}> ↑ {offset} lainnya</Text> : null}
+      {filter ? <Text color={SLATE}>{t().tui.search(filter)}</Text> : null}
+      {list.length === 0 ? <Text color={SLATE}>{t().tui.noMatch}</Text> : null}
+      {offset > 0 ? <Text color={SLATE}> ↑ {t().tui.more(offset)}</Text> : null}
       {list.slice(offset, offset + visible).map((choice, i) => {
         const on = offset + i === active;
         return (
@@ -266,8 +268,8 @@ function ChooseDialog({ dialog, onDone, maxLines }: DialogProps<"choose">) {
           </Text>
         );
       })}
-      {offset + visible < list.length ? <Text color={SLATE}> ↓ {list.length - offset - visible} lainnya</Text> : null}
-      <Text color={SLATE}>↑/↓ pilih · Enter setuju · Esc batal · ketik untuk mencari</Text>
+      {offset + visible < list.length ? <Text color={SLATE}> ↓ {t().tui.more(list.length - offset - visible)}</Text> : null}
+      <Text color={SLATE}>{t().tui.menuHelp}</Text>
     </Box>
   );
 }
@@ -276,9 +278,9 @@ function ApproveDialog({ dialog, onDone, maxLines }: DialogProps<"approve">) {
   const { action } = dialog;
   const critical = action.risk === "critical";
   const choices: { label: string; value: ApprovalAnswer }[] = [
-    { label: "Ya", value: "yes" },
-    ...(critical ? [] : [{ label: "Ya, dan setujui semua perubahan biasa di sesi ini", value: "all" as const }]),
-    { label: "Tidak", value: "no" },
+    { label: t().tui.yes, value: "yes" },
+    ...(critical ? [] : [{ label: t().tui.yesAll, value: "all" as const }]),
+    { label: t().tui.no, value: "no" },
   ];
   const [index, setIndex] = useState(0);
   const preview = useMemo(() => formatPreview(action, Math.max(3, Math.min(30, maxLines ?? 30))), [action, maxLines]);
@@ -298,10 +300,10 @@ function ApproveDialog({ dialog, onDone, maxLines }: DialogProps<"approve">) {
   return (
     <Box flexDirection="column" marginTop={1} borderStyle="round" borderColor={critical ? "red" : GOLD} paddingX={1}>
       <Text bold color={critical ? "red" : undefined}>
-        {critical ? "⚠ AKSI KRUSIAL: " : "✎ "}
+        {critical ? t().tui.critical : "✎ "}
         {action.summary}
       </Text>
-      {action.reason ? <Text color={critical ? "red" : SLATE}>Perlu persetujuan: {action.reason}</Text> : null}
+      {action.reason ? <Text color={critical ? "red" : SLATE}>{t().tui.needsApproval(action.reason)}</Text> : null}
       {preview.length ? (
         <Box flexDirection="column" marginY={1}>
           {preview.map((line, i) => (
@@ -311,7 +313,7 @@ function ApproveDialog({ dialog, onDone, maxLines }: DialogProps<"approve">) {
           ))}
         </Box>
       ) : null}
-      <Text bold>{critical ? "Izinkan aksi krusial ini?" : "Lanjutkan?"}</Text>
+      <Text bold>{critical ? t().tui.allowCritical : t().tui.proceed}</Text>
       {choices.map((choice, i) => (
         <Text key={choice.value} color={i === index ? TEAL : undefined}>
           {i === index ? "→ " : "  "}
@@ -421,7 +423,7 @@ function AskDialog({ dialog, onDone }: DialogProps<"ask">) {
       <Box borderStyle="round" borderColor={TEAL} paddingX={1}>
         <Line text={editor.text} cursor={editor.cursor} secret={dialog.secret} placeholder={dialog.placeholder} active />
       </Box>
-      <Text color={SLATE}>Enter kirim · Esc batal{dialog.secret ? " · isi disembunyikan" : ""}</Text>
+      <Text color={SLATE}>{t().tui.askHelp(dialog.secret)}</Text>
     </Box>
   );
 }
@@ -433,11 +435,14 @@ function Footer({ status, hint, keys, showServer }: { status: HostStatus; hint?:
   const mode =
     status.mode === "auto" ? (
       <Text>
-        <Text color={GOLD}>▸▸ mode otomatis</Text>
-        <Text color={SLATE}> (shift+tab ganti)</Text>
+        <Text color={GOLD}>{t().tui.modeAutoLine}</Text>
+        <Text color={SLATE}>{t().tui.toggle}</Text>
       </Text>
     ) : (
-      <Text color={SLATE}>▸ minta persetujuan (shift+tab ganti)</Text>
+      <Text color={SLATE}>
+        {t().tui.modeAskLine}
+        {t().tui.toggle}
+      </Text>
     );
   return (
     <Box paddingX={1} width={columns} gap={2}>
@@ -516,7 +521,7 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
     const armed = exitArmed.current;
     if (armed.label === label && Date.now() - armed.at < EXIT_WINDOW_MS) return exit();
     exitArmed.current = { at: Date.now(), label };
-    showHint(`Tekan ${label} sekali lagi untuk keluar`);
+    showHint(t().tui.pressAgain(label));
   };
 
   const submit = (text: string) => {
@@ -535,7 +540,7 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
   };
 
   const editor = useLineEditor(submit, { history, active: !dialog && !running && !state.closing });
-  const suggestions = editor.text.startsWith("/") && !editor.text.includes(" ") ? HOST_COMMANDS.filter(([cmd]) => cmd.startsWith(editor.text)).slice(0, 6) : [];
+  const suggestions = editor.text.startsWith("/") && !editor.text.includes(" ") ? hostCommands().filter(([cmd]) => cmd.startsWith(editor.text)).slice(0, 6) : [];
   // Tinggi seksi log = frame - header (3 baris) - seksi input (kotak 4 + status 1 + saran, atau dialog).
   const bottomRows = dialog ? Math.min(height - 6, dialog.kind === "ask" ? 5 : height / 2) : 5 + suggestions.length;
   const windowOptions = { height: Math.max(1, Math.floor(height - 3 - bottomRows - (scrollEnd === undefined ? 0 : 1))), columns, end: scrollEnd };
@@ -588,7 +593,7 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
     <Box flexDirection="column" marginTop={1} flexShrink={0}>
       <Box borderStyle="round" borderColor={running ? SLATE : TEAL} paddingX={1}>
         <Text color={TEAL}>❯ </Text>
-        {running ? <Text color={SLATE}>Zentara AI sedang bekerja… (Esc untuk menghentikan)</Text> : <Line text={editor.text} cursor={editor.cursor} placeholder='Tulis permintaan, mis. "buatkan halaman portofolio" · /help' active />}
+        {running ? <Text color={SLATE}>{t().tui.busyInput}</Text> : <Line text={editor.text} cursor={editor.cursor} placeholder={t().tui.placeholder} active />}
       </Box>
       {suggestions.length ? (
         <Box flexDirection="column" paddingX={2}>
@@ -600,7 +605,7 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
           ))}
         </Box>
       ) : null}
-      <Footer status={status} hint={hint} showServer={!fullscreen} keys={fullscreen ? "PgUp/PgDn gulir · Esc keluar" : undefined} />
+      <Footer status={status} hint={hint} showServer={!fullscreen} keys={fullscreen ? t().tui.keys : undefined} />
     </Box>
   ) : null;
   const liveAndSpinner = (
@@ -663,7 +668,8 @@ export function App({ store, host, onExit, intro = false, layout = "fullscreen" 
       </Box>
       {!following ? (
         <Text color={GOLD}>
-          {"  "}↓ {win.below} pesan lebih baru · PgDn atau Esc untuk kembali ke bawah
+          {"  "}
+          {t().tui.newer(win.below)}
         </Text>
       ) : null}
       {/* Seksi 3: input interaktif (kotak input atau dialog) dan baris status. */}

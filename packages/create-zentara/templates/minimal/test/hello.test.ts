@@ -7,7 +7,7 @@ describe("aplikasi", () => {
   let runtime: ZenRuntime;
 
   before(async () => {
-    runtime = new ZenRuntime({ port: 0, host: "127.0.0.1", logLevel: "silent" });
+    runtime = new ZenRuntime({ port: 0, host: "127.0.0.1", logLevel: "silent", locale: "id" });
     const { port } = await runtime.start();
     base = `http://127.0.0.1:${port}`;
   });

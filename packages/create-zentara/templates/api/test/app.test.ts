@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { ZenRuntime } from "zentara";
+import { jobs, outbox, ZenRuntime } from "zentara";
 
 // Uji aplikasi contoh (src/app) dengan database SQLite di memori.
 process.env.DATABASE_URL = ":memory:";
@@ -18,7 +18,7 @@ describe("aplikasi contoh: auth + catatan", () => {
     await migrateDatabase(db, path.join(ROOT, "drizzle"));
     const seed = (await import("../src/app/db/seed.js")).default;
     await seed(db);
-    runtime = new ZenRuntime({ port: 0, host: "127.0.0.1", logLevel: "silent", publicDir: false });
+    runtime = new ZenRuntime({ port: 0, host: "127.0.0.1", logLevel: "silent", publicDir: false, locale: "id", jobs: { store: "memory" }, mail: { url: "memory" } });
     const { port } = await runtime.start();
     base = `http://127.0.0.1:${port}`;
   });
@@ -39,6 +39,11 @@ describe("aplikasi contoh: auth + catatan", () => {
     assert.equal((await post("/api/auth/register", { name: "Sari", email: "sari@mail.id", password: "rahasia123" })).status, 409);
     const out = await post("/api/auth/logout", {}, cookie);
     assert.equal(out.status, 204);
+
+    // Email sambutan dikirim oleh job di latar belakang.
+    await jobs.drain();
+    const welcome = outbox.find((m) => m.to.includes("sari@mail.id"));
+    assert.match(welcome?.subject ?? "", /Selamat datang di Zentara App/);
   });
 
   it("API catatan: butuh login, milik sendiri, filter, update sebagian", async () => {
@@ -161,8 +166,8 @@ describe("aplikasi contoh: auth + catatan", () => {
     assert.match(badHtml, /<details class="zu-disclosure" open>/);
 
     const created = await form("/notes", { title: "Rapat <tim>", body: "Bahas rilis" }, budi);
-    assert.equal(created.headers.get("location"), "/notes?pesan=dibuat");
-    const list = await (await page("/notes?pesan=dibuat", budi)).text();
+    assert.equal(created.headers.get("location"), "/notes?msg=created");
+    const list = await (await page("/notes?msg=created", budi)).text();
     assert.match(list, /Catatan disimpan/);
     assert.match(list, /Rapat &lt;tim&gt;/);
     assert.match(list, /aria-current="page">Catatan/);
@@ -176,9 +181,9 @@ describe("aplikasi contoh: auth + catatan", () => {
     // Admin pun tidak bisa membuka catatan milik orang lain.
     const admin = cookieOf(await form("/login", { email: "admin@zentara.test", password: "admin12345" }));
     assert.equal((await page(`/notes/${id}`, admin)).status, 404);
-    assert.equal((await form(`/notes/${id}/hapus`, {}, admin)).status, 404);
+    assert.equal((await form(`/notes/${id}/delete`, {}, admin)).status, 404);
 
-    assert.equal((await form(`/notes/${id}/hapus`, {}, budi)).headers.get("location"), "/notes?pesan=dihapus");
+    assert.equal((await form(`/notes/${id}/delete`, {}, budi)).headers.get("location"), "/notes?msg=deleted");
     assert.equal((await page(`/notes/${id}`, budi)).status, 404);
     assert.equal((await page("/notes/abc", budi)).status, 404);
     assert.equal((await page("/admin", admin)).headers.get("location"), "/admin/users");

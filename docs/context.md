@@ -28,7 +28,7 @@ export async function GET(ctx: ZenContext) {
 | `session` | session terenkripsi (butuh middleware `session()`) |
 | `logger` | logger aplikasi |
 | `req` · `res` | objek `http` asli Node.js |
-| `await ctx.json()` · `ctx.text()` · `ctx.body()` | body request sebagai JSON, teks, atau `Buffer` |
+| `await ctx.json()` · `ctx.text()` · `ctx.body()` | body request sebagai JSON, teks, atau `Buffer` (formulir dan file: [`readForm`](upload.html)) |
 
 ## Mengembalikan respons
 

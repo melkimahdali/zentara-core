@@ -1,4 +1,5 @@
 import type { ZenContext } from "./context.js";
+import { t } from "../i18n/index.js";
 
 export type Next = () => Promise<unknown>;
 
@@ -19,7 +20,7 @@ export function compose(middleware: readonly Middleware[], final: (ctx: ZenConte
   return (ctx: ZenContext): Promise<unknown> => {
     let last = -1;
     const dispatch = async (i: number): Promise<unknown> => {
-      if (i <= last) throw new Error("next() dipanggil lebih dari sekali dalam satu middleware");
+      if (i <= last) throw new Error(t().core.nextTwice);
       last = i;
       const fn = middleware[i];
       return fn ? fn(ctx, () => dispatch(i + 1)) : final(ctx);

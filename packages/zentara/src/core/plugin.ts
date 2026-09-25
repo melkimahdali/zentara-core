@@ -1,4 +1,5 @@
 import type { ZenRuntime } from "./runtime.js";
+import { t } from "../i18n/index.js";
 
 export interface ZenPlugin {
   name: string;
@@ -17,7 +18,7 @@ export class ZenPluginManager {
   async load(): Promise<void> {
     for (const plugin of this.plugins) {
       if (!plugin || typeof plugin.setup !== "function") {
-        throw new Error(`Plugin tidak valid: ${JSON.stringify(plugin?.name ?? plugin)}`);
+        throw new Error(t().core.pluginInvalid(JSON.stringify(plugin?.name ?? plugin)));
       }
       await plugin.setup(this.runtime);
       this.loaded.push(plugin.name);

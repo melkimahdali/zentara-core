@@ -1,4 +1,5 @@
 import readline from "node:readline/promises";
+import { t } from "../i18n/index.js";
 import { BRAND, brandPaint, colorDepth } from "../brand/index.js";
 import type { AgentUI } from "./agent.js";
 import type { ApprovalAnswer, PendingAction, Prompter } from "./approval.js";
@@ -29,20 +30,6 @@ export interface Output {
 }
 
 /** Nama tool yang ramah dibaca, gaya "Baca(src/app/x.ts)". */
-const TOOL_NAMES: Record<string, string> = {
-  list_files: "Daftar",
-  read_file: "Baca",
-  search: "Cari",
-  list_routes: "Route",
-  write_file: "Tulis",
-  edit_file: "Ubah",
-  delete_file: "Hapus",
-  run_check: "Cek",
-  run_command: "Jalankan",
-  database: "Database",
-  install_package: "Pasang",
-  dev_server: "Server",
-};
 
 function mainArg(call: ToolCall): string | undefined {
   const input = (call.input ?? {}) as Record<string, unknown>;
@@ -57,7 +44,7 @@ export function summarizeCall(call: ToolCall): string {
 
 export function toolTitle(call: ToolCall): string {
   const main = mainArg(call);
-  return `${c.bold(TOOL_NAMES[call.name] ?? call.name)}${main ? `(${main})` : ""}`;
+  return `${c.bold(t().ai.toolNames[call.name] ?? call.name)}${main ? `(${main})` : ""}`;
 }
 
 /** Ringkasan hasil tool dalam satu baris. */
@@ -67,12 +54,12 @@ export function toolResultSummary(call: ToolCall, result: ToolResult): string {
   const lines = result.content.split("\n").filter(Boolean).length;
   switch (call.name) {
     case "read_file":
-      return `${result.content.split("\n").length} baris`;
+      return t().ai.summary.lines(result.content.split("\n").length);
     case "list_files":
     case "list_routes":
-      return result.content.startsWith("(") ? result.content : `${lines} ${call.name === "list_files" ? "file" : "route"}`;
+      return result.content.startsWith("(") ? result.content : call.name === "list_files" ? t().ai.summary.files(lines) : t().ai.summary.routes(lines);
     case "search":
-      return result.content === "Tidak ada hasil." ? result.content : `${lines} hasil`;
+      return result.content === t().ai.tools.noResults ? result.content : t().ai.summary.hits(lines);
     default:
       return first;
   }
@@ -119,7 +106,7 @@ export function formatPreview(action: PendingAction, maxLines = 40): string[] {
     if (l.startsWith("… (+")) return c.dim(l);
     return `${c.gray(String(i + 1).padStart(3))} ${action.tool === "write_file" ? c.green(l) : l}`;
   });
-  if (lines.length > maxLines) shown.push(c.dim(`… (+${lines.length - maxLines} baris)`));
+  if (lines.length > maxLines) shown.push(c.dim(t().ai.summary.moreLines(lines.length - maxLines)));
   return shown;
 }
 
@@ -139,7 +126,7 @@ export class TerminalUI implements AgentUI {
     this.stream = undefined;
     if (this.verbose) {
       this.beforePrint();
-      this.io.out(c.dim(`… ${provider} berpikir`));
+      this.io.out(c.dim(t().ai.terminal.thinking(provider)));
     }
   }
 
@@ -204,8 +191,8 @@ export class TerminalUI implements AgentUI {
     // Jawaban yang terputus di tengah jalan akan diulang oleh provider berikutnya.
     this.stream = undefined;
     this.beforePrint();
-    this.io.out(c.yellow(`  ✗ ${from} tidak tersedia: ${reason}`));
-    if (to) this.io.out(c.yellow(`  → pindah ke ${to}...`));
+    this.io.out(c.yellow(t().ai.terminal.unavailable(from, reason)));
+    if (to) this.io.out(c.yellow(t().ai.terminal.switching(to)));
   }
 }
 
@@ -213,8 +200,8 @@ export class TerminalUI implements AgentUI {
 export function printApprovalHeader(io: Output, action: PendingAction): void {
   const critical = action.risk === "critical";
   io.out("");
-  io.out(critical ? c.red(c.bold(`  ⚠ AKSI KRUSIAL: ${action.summary}`)) : c.bold(`  ✎ ${action.summary}`));
-  if (action.reason) io.out(c.red(`    Perlu persetujuan: ${action.reason}`));
+  io.out(critical ? c.red(c.bold(`  ${t().ai.approval.critical}${action.summary}`)) : c.bold(`  ✎ ${action.summary}`));
+  if (action.reason) io.out(c.red(`    ${t().ai.approval.needsApproval(action.reason)}`));
   const preview = formatPreview(action);
   if (preview.length) {
     io.out(c.gray("  ╭" + "─".repeat(40)));
@@ -228,12 +215,13 @@ export function terminalPrompter(rl: readline.Interface, io: Output): Prompter {
   return async (action: PendingAction): Promise<ApprovalAnswer> => {
     const critical = action.risk === "critical";
     printApprovalHeader(io, action);
-    const choices = critical ? "[y] ya  [n] tidak" : "[y] ya  [n] tidak  [s] setujui semua perubahan biasa";
+    const m = t().ai.approval;
+    const choices = critical ? m.promptCritical : m.prompt;
     for (;;) {
       const answer = (await rl.question(`  ${choices} > `)).trim().toLowerCase();
-      if (["y", "ya", "yes"].includes(answer)) return "yes";
-      if (["n", "t", "tidak", "no", ""].includes(answer)) return "no";
-      if (!critical && ["s", "semua", "all", "a"].includes(answer)) return "all";
+      if (m.yesWords.includes(answer)) return "yes";
+      if (m.noWords.includes(answer)) return "no";
+      if (!critical && m.allWords.includes(answer)) return "all";
     }
   };
 }

@@ -8,7 +8,7 @@ import { appPage, excerpt, flash, relativeDate } from "../../lib/ui.js";
 
 export const middleware = [requireUserPage];
 
-const MESSAGES: Record<string, string> = { dibuat: "Catatan disimpan.", diubah: "Perubahan disimpan.", dihapus: "Catatan dihapus." };
+const MESSAGES: Record<string, string> = { created: "Catatan disimpan.", updated: "Perubahan disimpan.", deleted: "Catatan dihapus." };
 
 type FormState = { values?: Record<string, unknown>; errors?: Record<string, string> };
 
@@ -20,7 +20,7 @@ async function view(ctx: ZenContext, form: FormState = {}): Promise<string> {
   const v = form.values ?? {};
   const e = form.errors ?? {};
   const str = (x: unknown) => (typeof x === "string" ? x : undefined);
-  const openForm = Boolean(form.errors) || ctx.query.baru === "1";
+  const openForm = Boolean(form.errors) || ctx.query.new === "1";
 
   return appPage(
     ctx,
@@ -62,5 +62,5 @@ export async function POST(ctx: ZenContext) {
   const input = await tryParse(NoteInput, raw);
   if (!input.ok) return html(await view(ctx, { values: raw, errors: input.errors }), { status: 422 });
   await db.insert(notes).values({ ...input.data, userId: (ctx.state.user as User).id });
-  return redirect("/notes?pesan=dibuat", 303);
+  return redirect("/notes?msg=created", 303);
 }

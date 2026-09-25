@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { setLocale } from "../i18n/index.js";
+import { t } from "../i18n/index.js";
 import { sendBuiltinAsset } from "./assets.js";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -15,6 +17,8 @@ import { ZenPluginManager } from "./plugin.js";
 import { ZenResponse } from "./response.js";
 import { allowedMethods, resolveHandler, ZenRouter } from "./router.js";
 import { resolveStaticFile, sendStaticFile } from "./static.js";
+import { jobs, MemoryJobStore, SqliteJobStore } from "../backend/jobs.js";
+import { configureMail } from "../backend/mail.js";
 
 /** 404 karena tidak ada route yang cocok (bukan HttpError(404) yang dilempar aplikasi). */
 class RouteNotFoundError extends HttpError {
@@ -34,6 +38,7 @@ export class ZenRuntime {
 
   constructor(userConfig: UserConfig = {}) {
     this.config = resolveConfig(userConfig);
+    setLocale(this.config.locale);
     this.logger = new ZenLogger(this.config.logLevel);
     this.router = new ZenRouter(this.logger);
     this.plugins = new ZenPluginManager(this, this.config.plugins);
@@ -42,9 +47,9 @@ export class ZenRuntime {
 
   /** Tambahkan middleware global. Hanya bisa dipanggil sebelum server berjalan (mis. di `setup()` plugin). */
   use(...middleware: Middleware[]): this {
-    if (this.server) throw new Error("runtime.use() harus dipanggil sebelum start()");
+    if (this.server) throw new Error(t().core.useAfterStart);
     for (const m of middleware) {
-      if (typeof m !== "function") throw new Error("runtime.use() hanya menerima function middleware");
+      if (typeof m !== "function") throw new Error(t().core.useFunction);
     }
     this.middleware.push(...middleware);
     return this;
@@ -60,10 +65,10 @@ export class ZenRuntime {
     const mod = (await import(pathToFileURL(file).href)) as { default?: unknown };
     const list = mod.default;
     if (!Array.isArray(list) || !list.every((m) => typeof m === "function")) {
-      throw new Error(`${path.basename(file)} harus meng-export default array middleware`);
+      throw new Error(t().core.middlewareFile(path.basename(file)));
     }
     this.use(...(list as Middleware[]));
-    this.logger.debug(`Loaded ${list.length} middleware dari ${path.basename(file)}`);
+    this.logger.debug(t().core.middlewareLoaded(list.length, path.basename(file)));
   }
 
   async init(): Promise<void> {
@@ -73,8 +78,20 @@ export class ZenRuntime {
     await this.plugins.load();
     await this.loadAppMiddleware();
     await this.router.loadRoutes(this.config.routesDir);
+    await this.loadJobs();
+    configureMail({ ...this.config.mail, logger: this.logger });
     this.publishAppInfo();
     this.initialized = true;
+  }
+
+  /** Job dari folder `jobs/` di samping `routes/` (mis. src/app/jobs). */
+  private async loadJobs(): Promise<void> {
+    const dir = path.join(path.dirname(this.config.routesDir), "jobs");
+    if (!fs.existsSync(dir)) return;
+    const { store, path: file, concurrency, pollMs } = this.config.jobs;
+    jobs.configure({ store: store === "memory" ? new MemoryJobStore() : new SqliteJobStore(file), logger: this.logger, concurrency, pollMs });
+    const defs = await jobs.load(dir);
+    this.logger.debug(`Loaded ${defs.length} jobs`);
   }
 
   /** Informasi untuk halaman sambutan & halaman error bawaan. */
@@ -207,7 +224,7 @@ export class ZenRuntime {
       if (this.config.debug && status >= 500) return renderErrorPage(err, req, status);
       return renderStatusPage(status, httpError?.expose ? httpError.message : undefined);
     } catch (renderErr) {
-      this.logger.error("Gagal membuat halaman error", renderErr);
+      this.logger.error(t().core.errorPageFailed, renderErr);
       return `<!doctype html><title>${status}</title><h1>${status}</h1>`;
     }
   }
@@ -232,6 +249,7 @@ export class ZenRuntime {
     const address = server.address() as AddressInfo;
     const shownHost = this.config.host === "0.0.0.0" || this.config.host === "::" ? "localhost" : this.config.host;
     this.logger.info(`🚀 Running at http://${shownHost}:${address.port}`);
+    if (this.config.jobs.worker && jobs.definitions.length) jobs.start();
     return address;
   }
 
@@ -239,6 +257,7 @@ export class ZenRuntime {
     const server = this.server;
     if (!server) return;
     this.server = undefined;
+    await jobs.stop();
     await new Promise<void>((resolve, reject) => {
       server.close((err) => (err ? reject(err) : resolve()));
       server.closeIdleConnections();
