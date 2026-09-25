@@ -24,7 +24,7 @@ The interface is built with [Ink](https://github.com/vadimdemedes/ink), in the s
 
 ## Full screen, like a chat room
 
-When it opens, `zentara` switches to the terminal's alternate screen (like vim or htop), so earlier output such as `npm install` is hidden and can't be scrolled to. The terminal tab title becomes *Zentara Core · folder-name*. The screen has three sections:
+When it opens, `zentara` switches to the terminal's alternate screen (like vim or htop), so earlier output such as `npm install` is hidden and can't be scrolled to. The terminal tab title becomes *zentara*. The screen has three sections:
 
 1. **A framed header pinned at the top:** a small Z logo, the Zentara Core name and version, the tagline, the active AI and mode, and the project folder; on wide terminals also command tips and the dev server status. On short terminals (fewer than 24 rows) the header shrinks to two lines. The header does not scroll.
 2. **The conversation log in the middle:** new messages push old ones up. Scroll with **PgUp/PgDn**; while you read older messages, new ones don't pull the screen down. **Esc** jumps back to the latest message.

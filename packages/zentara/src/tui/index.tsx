@@ -1,4 +1,3 @@
-import path from "node:path";
 import { render } from "ink";
 import { t } from "../i18n/index.js";
 import { createReplHost, type HostOptions } from "../repl/host.js";
@@ -46,8 +45,8 @@ export async function startInkRepl(options: HostOptions, ink: InkOptions = {}): 
   const exited = new Promise<number>((resolve) => (resolveExit = resolve));
 
   const out = process.stdout;
-  // Judul tab terminal: "Zentara Core · <folder>". Judul semula dikembalikan saat keluar.
-  if (out.isTTY) out.write(PUSH_TITLE + setTitle(`Zentara Core · ${path.basename(host.info.cwd) || host.info.cwd}`));
+  // Judul tab terminal menjadi "zentara"; judul semula dikembalikan saat keluar.
+  if (out.isTTY) out.write(PUSH_TITLE + setTitle("zentara"));
   // Layar penuh memakai layar alternatif: output sebelumnya (npm install, dll.) tidak terlihat dan
   // tidak bisa digulir. Bila proses berakhir tiba-tiba, layar biasa tetap dikembalikan.
   let inAltScreen = false;

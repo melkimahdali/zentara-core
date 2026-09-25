@@ -377,7 +377,7 @@ describe("tata letak layar penuh (fungsi murni)", () => {
     assert.deepEqual(headerLayout(30, 50), { logo: false, height: 5 });
     assert.equal(ENTER_ALT_SCREEN, "\u001b[?1049h\u001b[2J\u001b[H", "masuk layar alternatif lalu bersihkan");
     assert.equal(LEAVE_ALT_SCREEN, "\u001b[?1049l");
-    assert.equal(setTitle("Zentara Core · toko\u0007\u001b"), "\u001b]0;Zentara Core · toko\u0007", "karakter kontrol dibuang");
+    assert.equal(setTitle("zentara\u0007\u001b"), "\u001b]0;zentara\u0007", "karakter kontrol dibuang");
     assert.ok(RESTORE_TITLE.endsWith("\u001b[23;0t"));
   });
 });

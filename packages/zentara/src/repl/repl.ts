@@ -1,4 +1,3 @@
-import path from "node:path";
 import readline from "node:readline";
 import readlinePromises from "node:readline/promises";
 import type { ApprovalAnswer } from "../ai/approval.js";
@@ -124,7 +123,7 @@ export async function startRepl(options: ReplOptions): Promise<number> {
   printBanner(io, host.info, host.status());
   // Judul tab terminal selama CLI terbuka; dikembalikan saat keluar.
   const tty = process.stdout.isTTY;
-  if (tty) process.stdout.write(PUSH_TITLE + setTitle(`Zentara Core · ${path.basename(host.info.cwd) || host.info.cwd}`));
+  if (tty) process.stdout.write(PUSH_TITLE + setTitle("zentara"));
   const restoreTitle = () => {
     if (tty) process.stdout.write(RESTORE_TITLE);
   };
