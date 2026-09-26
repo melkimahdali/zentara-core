@@ -26,6 +26,7 @@ Zentara adalah framework web umum, bukan framework untuk jenis aplikasi tertentu
 | 9 | 0.10 | Front-End: kit UI `zentara/ui`, halaman bawaan, dan CLI berbasis Ink |
 | 10 | 0.12 | [Bahasa Inggris](bahasa.html): CLI, Zentara AI, halaman bawaan, kit UI, template, dan dokumentasi dalam `id` dan `en` |
 | 11 | 0.12 | Back-End: [job & jadwal](jobs.html), [email](email.html), [unggah file](upload.html), [cache](cache.html) |
+| 12 | 0.12.5 | [Chat Zentara AI di setiap halaman](ai-browser.html) saat pengembangan (hilang otomatis di produksi), dan AI yang bisa melihat tampilan lewat tool `view_page` |
 
 Tahap 10 dan 11 dirilis bersama di 0.12.
 
@@ -33,23 +34,24 @@ Tahap 10 dan 11 dirilis bersama di 0.12.
 
 | Tahap | Versi | Isi |
 |---|---|---|
-| 12 | 0.13 | Data dan panel admin: CRUD otomatis dari schema, relasi, paginasi, filter, dan interaksi tanpa muat ulang halaman dengan [htmx](https://htmx.org) |
-| 13 | 0.14 | Testing: helper uji route dan halaman, data uji (factory), laporan cakupan |
-| 14 | 0.15 | Deploy: adapter Docker, Vercel, Cloudflare, dan panduan server sendiri |
-| 15 | 1.0 | Ekosistem: katalog plugin resmi yang bisa ditawarkan Zentara AI sebagai pilihan, MCP, subagent, language server, API stabil |
+| 13 | 0.13 | Panel admin dan htmx: htmx di inti (`/_zentara/htmx.js`, `isHtmx(ctx)`), komponen paginasi, filter, tab, dialog konfirmasi, dan tabel yang bisa diedit, serta `zentara make:admin <tabel>` (CRUD dari schema, relasi, otomatis masuk menu) yang juga dipakai Zentara AI |
+| 14 | 0.14 | Testing: `testApp()`, login sebagai user tertentu, data uji (factory) dari schema, AI menulis tes untuk fitur yang dibuatnya, `zentara test --coverage` |
+| 15 | 0.15 | Deploy: `zentara deploy` dengan adapter Docker, VPS/PM2, Vercel, dan Cloudflare, panduan server sendiri dan domain, serta cek sebelum produksi |
+| 16 | 0.16 | Ekosistem: katalog plugin resmi (`zentara add`/`zentara remove`) yang ditawarkan Zentara AI hanya bila dibutuhkan, MCP, subagent, dan language server |
+| 17 | 1.0 | Stabil: API dibekukan (semver ketat) dengan panduan migrasi, audit keamanan dan uji performa, dokumentasi lengkap dua bahasa |
 
 ## Integrasi framework lain
 
 Zentara tetap memakai satu sistem tampilan, yaitu kit UI `zentara/ui`, supaya semua halaman (termasuk yang dibuat Zentara AI) seragam dan tanpa build step.
 
-- **Tahap 12:** [htmx](https://htmx.org) masuk inti untuk paginasi, filter, dan simpan formulir tanpa memuat ulang halaman. Server tetap mengirim HTML.
-- **Tahap 15:** Tailwind, grafik, editor teks, peta, pembayaran, login Google/GitHub, dan "island" React/Preact menjadi plugin opsional dari katalog resmi (`zentara add <plugin>`). Zentara AI hanya menawarkannya sebagai pilihan saat permintaan memang membutuhkannya, dengan opsi "tanpa plugin" sebagai default, dan pemasangannya selalu meminta persetujuan.
+- **Tahap 13:** [htmx](https://htmx.org) masuk inti untuk paginasi, filter, dan simpan formulir tanpa memuat ulang halaman. Server tetap mengirim HTML.
+- **Tahap 16:** Tailwind, grafik, editor teks, peta, pembayaran, login Google/GitHub, dan "island" React/Preact menjadi plugin opsional dari katalog resmi (`zentara add <plugin>`). Zentara AI hanya menawarkannya sebagai pilihan saat permintaan memang membutuhkannya, dengan opsi "tanpa plugin" sebagai default, dan pemasangannya selalu meminta persetujuan.
 
 ## Tahap 10: Bahasa Inggris (selesai)
 
 Tujuannya agar Zentara bisa dipakai penuh dalam Bahasa Indonesia **atau** Bahasa Inggris, tanpa mengubah perilaku bagi pengguna yang sudah ada. Bahasa Indonesia tetap menjadi default.
 
-Tahap ini dikerjakan sebelum Back-End, jadi fitur di Tahap 11 sampai 15 langsung ditulis dalam dua bahasa.
+Tahap ini dikerjakan sebelum Back-End, jadi fitur di Tahap 11 sampai 17 langsung ditulis dalam dua bahasa.
 
 1. **Fondasi i18n di core**
    - Katalog pesan `id` dan `en` serta fungsi `t()` yang bertipe (kunci yang salah menjadi error TypeScript).

@@ -33,6 +33,7 @@ Perintah manual:
   zentara make:route <path> [--methods GET,POST]   Buat file route baru, mis. api/events/[id]
   zentara make:middleware <nama>                   Buat file middleware baru
   zentara make:job <nama> [--schedule "<cron>"]    Buat file job baru, mis. kirim-laporan
+  zentara view <path> [--text "a,b"] [--json]     Lihat versi teks halaman dari server yang berjalan
   zentara lang [id|en]                             Lihat atau ganti bahasa Zentara (disimpan global)
   zentara help                                     Tampilkan bantuan ini
   zentara --version
@@ -41,6 +42,8 @@ Opsi:
   --force        Timpa file yang sudah ada
   --dir <path>   Folder aplikasi (default: src/app)
 `,
+  viewUsage: "Pakai: zentara view <path> [--url http://localhost:3000] [--text \"teks1,teks2\"] [--json]",
+  viewFailed: (base: string, reason: string) => `Tidak bisa membuka halaman dari ${base || "server"}: ${reason}. Pastikan server berjalan (npx zentara dev).`,
   fileExists: (file: string) => `File sudah ada: ${file} (pakai --force untuk menimpa)`,
   created: (file: string) => `Dibuat: ${file}`,
   makeRouteUsage: "Pemakaian: zentara make:route <path> [--methods GET,POST]",

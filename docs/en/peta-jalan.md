@@ -26,6 +26,7 @@ Zentara is a general-purpose web framework, not a framework for one kind of app.
 | 9 | 0.10 | Front-end: the `zentara/ui` kit, built-in pages, and the Ink-based CLI |
 | 10 | 0.12 | [English support](bahasa.html): CLI, Zentara AI, built-in pages, UI kit, templates, and docs in `id` and `en` |
 | 11 | 0.12 | Back-end: [jobs & schedules](jobs.html), [email](email.html), [file uploads](upload.html), [cache](cache.html) |
+| 12 | 0.12.5 | [Zentara AI chat on every page](ai-browser.html) during development (gone automatically in production), and an AI that can see the page through the `view_page` tool |
 
 Stages 10 and 11 shipped together in 0.12.
 
@@ -33,23 +34,24 @@ Stages 10 and 11 shipped together in 0.12.
 
 | Stage | Version | Contents |
 |---|---|---|
-| 12 | 0.13 | Data and admin panel: automatic CRUD from the schema, relations, pagination, filters, and interactions without full page reloads using [htmx](https://htmx.org) |
-| 13 | 0.14 | Testing: route and page test helpers, test data (factories), coverage reports |
-| 14 | 0.15 | Deploy: Docker, Vercel, and Cloudflare adapters, plus a self-hosting guide |
-| 15 | 1.0 | Ecosystem: an official plugin catalog that Zentara AI can offer as options, MCP, subagents, a language server, a stable API |
+| 13 | 0.13 | Admin panel and htmx: htmx in the core (`/_zentara/htmx.js`, `isHtmx(ctx)`), pagination, filter, tab, confirm dialog, and inline-editable table components, and `zentara make:admin <table>` (CRUD from the schema, relations, added to the menu automatically), also used by Zentara AI |
+| 14 | 0.14 | Testing: `testApp()`, signing in as a given user, test data (factories) from the schema, the AI writes tests for the features it builds, `zentara test --coverage` |
+| 15 | 0.15 | Deploy: `zentara deploy` with Docker, VPS/PM2, Vercel, and Cloudflare adapters, a self-hosting and domain guide, and pre-production checks |
+| 16 | 0.16 | Ecosystem: an official plugin catalog (`zentara add`/`zentara remove`) that Zentara AI offers only when needed, MCP, subagents, and a language server |
+| 17 | 1.0 | Stable: frozen API (strict semver) with a migration guide, a security audit and performance tests, complete docs in both languages |
 
 ## Integrating other frameworks
 
 Zentara keeps a single UI system, the `zentara/ui` kit, so every page (including the ones Zentara AI builds) looks consistent and needs no build step.
 
-- **Stage 12:** [htmx](https://htmx.org) joins the core for pagination, filters, and form saves without full page reloads. The server still sends HTML.
-- **Stage 15:** Tailwind, charts, rich text editors, maps, payments, Google/GitHub sign-in, and React/Preact "islands" become optional plugins from an official catalog (`zentara add <plugin>`). Zentara AI only offers them as options when a request actually needs one, with "no plugin" as the default, and installing always asks for approval.
+- **Stage 13:** [htmx](https://htmx.org) joins the core for pagination, filters, and form saves without full page reloads. The server still sends HTML.
+- **Stage 16:** Tailwind, charts, rich text editors, maps, payments, Google/GitHub sign-in, and React/Preact "islands" become optional plugins from an official catalog (`zentara add <plugin>`). Zentara AI only offers them as options when a request actually needs one, with "no plugin" as the default, and installing always asks for approval.
 
 ## Stage 10: English (done)
 
 The goal: Zentara can be used fully in Indonesian **or** English, without changing behavior for existing users. Indonesian stays the default.
 
-This stage came before the back-end work, so stages 11 to 15 are written in both languages from the start.
+This stage came before the back-end work, so stages 11 to 17 are written in both languages from the start.
 
 1. **i18n foundation in the core**
    - `id` and `en` message catalogs and a typed `t()` (a wrong key is a TypeScript error).

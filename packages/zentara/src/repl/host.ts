@@ -238,7 +238,7 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     fallback: (from, reason, to) => ui.notice(t().host.fallback(from, reason, to), "warn"),
   };
   const newSession = (cfg: AiConfig): AiSession =>
-    createAiSession({ root: cwd, config: cfg, ui: sessionUI, prompter: (a, s) => ui.approve(a, s), dryRun: options.dryRun, extraTools: [devServerTool], persist: true });
+    createAiSession({ root: cwd, config: cfg, ui: sessionUI, prompter: (a, s) => ui.approve(a, s), dryRun: options.dryRun, extraTools: [devServerTool], persist: true, viewer: devtools?.viewer });
   let session = newSession(config);
 
   /** Output wizard ai:setup diteruskan sebagai pemberitahuan. */

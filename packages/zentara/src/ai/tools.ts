@@ -11,6 +11,8 @@ import { layoutWarning } from "./layout.js";
 import type { ToolSpec } from "./types.js";
 import { unifiedDiff } from "./diff.js";
 import { classifyCommand, CommandRejected, parseCommand, redactSecrets, secretValues } from "./command.js";
+import { viewPage, type PageViewer, type ViewExpect } from "../dev/view.js";
+import { DEV_ONLY_ENV } from "../core/devpage/info.js";
 
 /** Hasil tool ditambah catatan bila route yang ditulis membuat layout HTML/CSS sendiri. */
 function withLayoutWarning(result: string, root: string, rel: string, content: string): string {
@@ -33,6 +35,8 @@ export interface ToolContext {
   runCommand?: (argv: string[], options?: { timeoutMs?: number; signal?: AbortSignal }) => Promise<CommandResult>;
   /** Awalan perintah yang diizinkan pengguna (ai.allowedCommands). */
   allowedCommands?: string[];
+  /** Tab browser yang memuat widget chat (lewat devtools). Tanpa ini `view_page` memakai versi teks. */
+  viewer?: PageViewer;
 }
 
 export type DbAction = "generate" | "migrate" | "seed";
@@ -464,6 +468,48 @@ export const agentTools: AgentTool[] = [
   },
   {
     spec: {
+      name: "view_page",
+      description:
+        "Look at a page of the running app the way the developer sees it. When a browser tab with the Zentara chat widget is open, the page is loaded there and you get the visible elements with their position and size, the page text, console errors, and failed requests. Otherwise you get a text version fetched from the dev server (no JavaScript, not logged in). Use it after changing a page to confirm it looks right, e.g. the table is shown and there are no console errors. Read-only.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          path: { type: "string", description: 'Page path, e.g. "/notes" or "/notes/3?tab=edit" (a full http://localhost URL is also accepted)' },
+          expect: {
+            type: "object",
+            description: "Optional checks, reported as PASS/FAIL",
+            properties: {
+              text: { type: "array", items: { type: "string" }, description: "Texts that must appear on the page" },
+              selector: { type: "array", items: { type: "string" }, description: 'CSS selectors that must match at least one element, e.g. "table", "button.export" (browser view only)' },
+              noErrors: { type: "boolean", description: "true = no console errors, failed requests, or HTTP error status" },
+            },
+            additionalProperties: false,
+          },
+        },
+        required: ["path"],
+        additionalProperties: false,
+      },
+    },
+    async run(input, ctx) {
+      const path = str(input, "path")!;
+      const raw = (input.expect && typeof input.expect === "object" ? input.expect : {}) as Record<string, unknown>;
+      const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 20) : undefined);
+      const expect: ViewExpect = { text: strings(raw.text), selector: strings(raw.selector), noErrors: raw.noErrors === true };
+      try {
+        const result = await viewPage({ path, expect }, ctx.viewer, {
+          fallbackBase: `http://localhost:${process.env.PORT ?? 3000}`,
+          signal: ctx.signal,
+          changedAt: latestChange(ctx.root),
+        });
+        // Awal hasil (status, error, elemen teratas) paling penting: potong bagian akhirnya.
+        return result.text.length > 12_000 ? `${result.text.slice(0, 12_000)}\n...(truncated)` : result.text;
+      } catch (err) {
+        throw new ToolError((err as Error).message);
+      }
+    },
+  },
+  {
+    spec: {
       name: "install_package",
       description: "Install an npm package. Always asks the developer for approval.",
       inputSchema: {
@@ -492,6 +538,30 @@ export const agentTools: AgentTool[] = [
   },
 ];
 
+/**
+ * Env untuk skrip proyek (typecheck, test). PORT dan variabel server pengembangan tidak diteruskan: proses
+ * CLI memuat .env (PORT=3000), dan PORT mengalahkan `port: 0` di test, sehingga test bentrok dengan server
+ * dev yang sedang berjalan (EADDRINUSE) dan verifikasi AI selalu gagal selama server dev hidup.
+ */
+function scriptEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, FORCE_COLOR: "0" };
+  for (const key of ["PORT", ...DEV_ONLY_ENV]) delete env[key];
+  return env;
+}
+
+/** Waktu perubahan terakhir file di src/ (ms epoch), untuk menunggu server dev dimulai ulang sebelum melihat halaman. */
+function latestChange(root: string): number {
+  let latest = 0;
+  for (const rel of listFiles(root, path.join(root, "src"), 5_000, true)) {
+    try {
+      latest = Math.max(latest, fs.statSync(path.join(root, rel)).mtimeMs);
+    } catch {
+      // File terhapus di tengah jalan.
+    }
+  }
+  return latest;
+}
+
 /** Jalankan skrip npm di proyek (tanpa shell), dengan batas waktu. */
 export function createScriptRunner(root: string, timeoutMs = 5 * 60 * 1000) {
   return (script: string, args: string[] = [], signal?: AbortSignal): Promise<CommandResult> => {
@@ -502,7 +572,7 @@ export function createScriptRunner(root: string, timeoutMs = 5 * 60 * 1000) {
     }
     return new Promise((resolve) => {
       const cmd = platformCommand("npm", argv);
-      const child = spawn(cmd.command, cmd.args, { cwd: root, env: { ...process.env, FORCE_COLOR: "0" }, timeout: timeoutMs, shell: cmd.shell, signal });
+      const child = spawn(cmd.command, cmd.args, { cwd: root, env: scriptEnv(), timeout: timeoutMs, shell: cmd.shell, signal });
       let output = "";
       child.stdout.on("data", (c: Buffer) => (output += c.toString()));
       child.stderr.on("data", (c: Buffer) => (output += c.toString()));

@@ -9,7 +9,8 @@ import { pathToFileURL } from "node:url";
 import { resolveConfig, type UserConfig, type ZenConfig } from "./config.js";
 import { createContext, parseRequestUrl, type ZenContext } from "./context.js";
 import { renderErrorPage, renderNotFoundPage, renderStatusPage } from "./devpage/error.js";
-import { appInfo, setAppInfo } from "./devpage/info.js";
+import { appInfo, devtoolsClient, setAppInfo } from "./devpage/info.js";
+import { announceAppUrl, injectDevTools, sendDevAsset } from "./devpage/widget.js";
 import { HttpError } from "./errors.js";
 import { ZenLogger } from "./logger.js";
 import { compose, type Middleware } from "./middleware.js";
@@ -131,6 +132,11 @@ export class ZenRuntime {
     const match = this.router.match(ctx.path);
 
     if (!match) {
+      // Script widget chat pengembangan: hanya ada saat devtools aktif, selain itu 404.
+      if (ctx.path.startsWith("/_zentara/dev/")) {
+        if ((ctx.method === "GET" || ctx.method === "HEAD") && sendDevAsset(ctx.req, ctx.res, ctx.path)) return undefined;
+        throw new RouteNotFoundError();
+      }
       if ((ctx.method === "GET" || ctx.method === "HEAD") && ctx.path.startsWith("/_zentara/") && sendBuiltinAsset(ctx.req, ctx.res, ctx.path)) {
         return undefined;
       }
@@ -171,11 +177,22 @@ export class ZenRuntime {
       response = new ZenResponse(JSON.stringify(result), { headers: { "Content-Type": "application/json; charset=utf-8" } });
     }
 
+    let body = response.body;
+    if (typeof body === "string" && isHtml(response.headers)) body = this.withDevTools(req, body);
+
     res.statusCode = response.status;
     for (const [key, value] of Object.entries(response.headers)) res.setHeader(key, value);
     const noBody = response.status === 204 || response.status === 304;
-    if (response.body !== null && !noBody) res.setHeader("Content-Length", Buffer.byteLength(response.body));
-    res.end(req.method === "HEAD" || noBody ? undefined : response.body ?? undefined);
+    if (body !== null && !noBody) res.setHeader("Content-Length", Buffer.byteLength(body));
+    res.end(req.method === "HEAD" || noBody ? undefined : body ?? undefined);
+  }
+
+  /** Saat pengembangan: sisipkan widget chat Zentara AI ke halaman HTML. Di produksi tidak mengubah apa pun. */
+  private withDevTools(req: IncomingMessage, html: string): string {
+    if (!devtoolsClient()) return html;
+    const file = this.router.match(parseRequestUrl(req.url).pathname)?.route.file;
+    const route = file ? path.relative(process.cwd(), file).split(path.sep).join("/") : undefined;
+    return injectDevTools(html, { route, headers: req.headers });
   }
 
   private sendError(req: IncomingMessage, res: ServerResponse, err: unknown): void {
@@ -204,7 +221,7 @@ export class ZenRuntime {
       type = "application/json; charset=utf-8";
     } else if (wantsHtml) {
       // Browser: halaman error yang rapi. Detail (stack trace, kode) hanya saat debug.
-      body = this.errorHtml(req, err, status, httpError);
+      body = this.withDevTools(req, this.errorHtml(req, err, status, httpError));
       type = "text/html; charset=utf-8";
     } else {
       body = message;
@@ -249,6 +266,7 @@ export class ZenRuntime {
     const address = server.address() as AddressInfo;
     const shownHost = this.config.host === "0.0.0.0" || this.config.host === "::" ? "localhost" : this.config.host;
     this.logger.info(`🚀 Running at http://${shownHost}:${address.port}`);
+    announceAppUrl(`http://${shownHost}:${address.port}`);
     if (this.config.jobs.worker && jobs.definitions.length) jobs.start();
     return address;
   }
@@ -263,4 +281,9 @@ export class ZenRuntime {
       server.closeIdleConnections();
     });
   }
+}
+
+function isHtml(headers: Record<string, unknown>): boolean {
+  const key = Object.keys(headers).find((k) => k.toLowerCase() === "content-type");
+  return key !== undefined && String(headers[key]).toLowerCase().startsWith("text/html");
 }

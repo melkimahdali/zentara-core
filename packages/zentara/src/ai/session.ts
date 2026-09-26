@@ -9,6 +9,7 @@ import { projectSnapshot, SYSTEM_PROMPT } from "./prompt.js";
 import { c, terminalPrompter, TerminalUI, type Output } from "./terminal.js";
 import { agentTools, createDbRunner, createScriptRunner, type AgentTool } from "./tools.js";
 import { createCommandRunner } from "./command.js";
+import type { PageViewer } from "../dev/view.js";
 import { estimateTokens, loadSession, newSessionId, saveSession } from "./sessions.js";
 
 /** Tampilan sesi AI: terminal, browser (devtools), atau tes. */
@@ -27,6 +28,8 @@ export interface AiSessionOptions {
   extraTools?: AgentTool[];
   /** Simpan percakapan ke .zentara/sessions setelah setiap permintaan (untuk /resume). */
   persist?: boolean;
+  /** Tab browser yang terhubung ke devtools, untuk tool `view_page`. Tanpa ini dipakai versi teks. */
+  viewer?: PageViewer;
 }
 
 export interface AiSession {
@@ -60,6 +63,7 @@ export function createAiSession(options: AiSessionOptions): AiSession {
     runDb: createDbRunner(root),
     runCommand: createCommandRunner(root),
     allowedCommands: config.allowedCommands,
+    viewer: options.viewer,
   };
   const agent = new Agent({
     chain,

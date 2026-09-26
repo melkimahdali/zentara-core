@@ -50,10 +50,10 @@ async function waitFor(url, timeoutMs = 30_000) {
   throw new Error(`Server tidak merespons: ${url}`);
 }
 
-function startServer(cwd, args, port) {
+function startServer(cwd, args, port, extraEnv = {}) {
   const child = spawn(process.execPath, [path.join(cwd, "node_modules", "zentara", "dist", "cli.js"), ...args], {
     cwd,
-    env: { ...process.env, PORT: String(port), LOG_LEVEL: "warn" },
+    env: { ...process.env, PORT: String(port), LOG_LEVEL: "warn", ...extraEnv },
     stdio: ["ignore", "inherit", "inherit"],
     detached: !isWindows,
   });
@@ -116,16 +116,19 @@ try {
       check(/No schema changes/.test(sh(process.execPath, [...cli, "db:generate"], app)), "db:generate (drizzle-kit) berjalan");
     }
 
-    // Produksi: zentara start (dist/app)
+    // Produksi: zentara start (dist/app). Env server pengembangan sengaja "terbawa": widget chat tetap tidak boleh muncul.
+    const LEAKED_DEV_ENV = { ZENTARA_DEV: "1", ZENTARA_DEVTOOLS_PORT: "4999", ZENTARA_DEVTOOLS_TOKEN: "bocor" };
+    const noWidget = (html) => !html.includes("/_zentara/dev/") && !html.includes("zentara-dev-widget") && !html.includes("bocor");
     const prodPort = port++;
-    let stop = startServer(app, ["start"], prodPort);
+    let stop = startServer(app, ["start"], prodPort, LEAKED_DEV_ENV);
     try {
       const home = await waitFor(`http://127.0.0.1:${prodPort}/`);
       const homeHtml = await home.text();
-      check(home.status === 200 && homeHtml.includes(expect.home) && !homeHtml.includes("window.ZentaraChat"), "zentara start: halaman sambutan tanpa chat AI");
+      check(home.status === 200 && homeHtml.includes(expect.home) && !homeHtml.includes("window.ZentaraChat") && noWidget(homeHtml), "zentara start: halaman sambutan tanpa chat AI dan tanpa widget");
+      for (const asset of ["widget.js", "probe.js"]) check((await fetch(`http://127.0.0.1:${prodPort}/_zentara/dev/${asset}`)).status === 404, `zentara start: /_zentara/dev/${asset} tidak ada (404)`);
       const missing = await fetch(`http://127.0.0.1:${prodPort}/tidak-ada`, { headers: { accept: "text/html" } });
       const missingHtml = await missing.text();
-      check(missing.status === 404 && missingHtml.includes(expect.notFound) && !missingHtml.includes(expect.devRoutes), "zentara start: halaman 404 tanpa detail internal");
+      check(missing.status === 404 && missingHtml.includes(expect.notFound) && !missingHtml.includes(expect.devRoutes) && noWidget(missingHtml), "zentara start: halaman 404 tanpa detail internal dan tanpa widget");
       const hello = await (await fetch(`http://127.0.0.1:${prodPort}/api/hello?name=Nusantara`)).json();
       check(hello.message === "Hello from Nusantara API", "zentara start: /api/hello");
       if (template === "api") {
@@ -142,7 +145,22 @@ try {
         check(css.status === 200 && /text\/css/.test(css.headers.get("content-type") ?? ""), "zentara start: /_zentara/ui.css");
         const dash = await fetch(`http://127.0.0.1:${prodPort}/dashboard`, { redirect: "manual" });
         check(dash.status === 303 && dash.headers.get("location") === "/login?next=%2Fdashboard", "zentara start: /dashboard mengarahkan tamu ke /login");
+        const dashboard = await fetch(`http://127.0.0.1:${prodPort}/dashboard`, { headers: { cookie } });
+        check(dashboard.status === 200 && noWidget(loginHtml) && noWidget(await dashboard.text()), "zentara start: /login dan /dashboard (login) tanpa widget chat");
       }
+    } finally {
+      stop();
+    }
+    check(!fs.readdirSync(path.join(app, "dist"), { recursive: true }).some((f) => /\.js$/.test(f) && fs.readFileSync(path.join(app, "dist", f), "utf8").includes("_zentara/dev")), "zentara build: dist/ tidak memuat widget chat");
+
+    // Produksi dengan ZENTARA_DEBUG=1 (halaman error lengkap) + env pengembangan yang terbawa: tetap tanpa widget.
+    const debugPort = port++;
+    stop = startServer(app, ["start"], debugPort, { ...LEAKED_DEV_ENV, ZENTARA_DEBUG: "1" });
+    try {
+      const debugHome = await (await waitFor(`http://127.0.0.1:${debugPort}/`)).text();
+      const debugMissing = await (await fetch(`http://127.0.0.1:${debugPort}/tidak-ada`, { headers: { accept: "text/html" } })).text();
+      check(noWidget(debugHome) && noWidget(debugMissing) && !debugMissing.includes("window.ZentaraChat"), "zentara start + ZENTARA_DEBUG=1: tetap tanpa chat dan widget");
+      check((await fetch(`http://127.0.0.1:${debugPort}/_zentara/dev/widget.js`)).status === 404, "zentara start + ZENTARA_DEBUG=1: /_zentara/dev/widget.js 404");
     } finally {
       stop();
     }
@@ -160,6 +178,23 @@ try {
       check(status.status === 200 && Array.isArray((await status.json()).providers), "zentara dev: server devtools (chat AI) menjawab");
       const notFound = await (await fetch(`http://127.0.0.1:${devPort}/belum-ada`, { headers: { accept: "text/html" } })).text();
       check(notFound.includes(expect.devRoutes) && notFound.includes("/api/hello"), "zentara dev: halaman 404 pengembangan");
+      // Widget chat: halaman yang sudah punya chat hanya mendapat kanal halaman, halaman lain tombol mengambang.
+      check(/\/_zentara\/dev\/widget\.js[^>]*data-ui="off"/.test(welcome) && welcome.includes("/_zentara/dev/probe.js"), "zentara dev: halaman sambutan terhubung ke kanal halaman (tanpa widget ganda)");
+      const widgetJs = await fetch(`http://127.0.0.1:${devPort}/_zentara/dev/widget.js`);
+      check(widgetJs.status === 200 && (await widgetJs.text()).includes("zentara-dev-widget"), "zentara dev: /_zentara/dev/widget.js tersedia");
+      const cliView = [path.join(app, "node_modules", "zentara", "dist", "cli.js"), "view", "/api/hello?name=Nusantara", "--url", `http://127.0.0.1:${devPort}`, "--text", "Nusantara"];
+      check(sh(process.execPath, cliView, app).includes("HTTP 200"), "zentara view: versi teks halaman dari server dev");
+      if (template === "api") {
+        const devLogin = await (await fetch(`http://127.0.0.1:${devPort}/login`)).text();
+        check(/\/_zentara\/dev\/widget\.js[^>]*data-ui="on"/.test(devLogin) && /<head[^>]*><script src="\/_zentara\/dev\/probe\.js"/.test(devLogin), "zentara dev: /login memuat probe dan widget chat mengambang");
+        check(/data-route="src\/app\/routes\/login\.ts"/.test(devLogin), "zentara dev: widget tahu file route halaman ini");
+        const loginView = [path.join(app, "node_modules", "zentara", "dist", "cli.js"), "view", "/login", "--url", `http://127.0.0.1:${devPort}`, "--text", expect.signIn];
+        check(sh(process.execPath, loginView, app).includes(`- h1 "${expect.signIn}"`), "zentara view /login: heading halaman terbaca");
+        const signin = await fetch(`http://127.0.0.1:${devPort}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "admin@zentara.test", password: "admin12345" }) });
+        const cookie = signin.headers.getSetCookie()[0]?.split(";")[0] ?? "";
+        const devDash = await (await fetch(`http://127.0.0.1:${devPort}/dashboard`, { headers: { cookie } })).text();
+        check(devDash.includes('data-ui="on"'), "zentara dev: /dashboard (login) memuat widget chat");
+      }
     } finally {
       stop();
     }

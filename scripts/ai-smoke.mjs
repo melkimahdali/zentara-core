@@ -2,6 +2,9 @@
 // build & pack -> buat proyek minimal dari tarball -> minta AI membuat route lewat bahasa biasa
 // -> pastikan file dibuat, typecheck & test lulus, dan route-nya benar-benar merespons.
 //
+// Lalu (bila paket playwright tersedia) uji widget chat di Chromium: minta "tambah tombol di halaman ini"
+// dari widget, setujui di browser, dan pastikan AI memeriksa hasilnya dengan view_page.
+//
 // Butuh minimal satu API key di env (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, ...).
 // Pilih provider dengan ZENTARA_AI_ORDER, mis. ZENTARA_AI_ORDER=openai node scripts/ai-smoke.mjs
 import { execFileSync, spawn } from "node:child_process";
@@ -38,6 +41,54 @@ const pack = (dir) => {
   return path.join(WORK, info.filename);
 };
 
+/** Widget chat di browser sungguhan: permintaan dari halaman, persetujuan di browser, lalu view_page. */
+async function widgetFlow(app) {
+  let chromium;
+  try {
+    ({ chromium } = await import("playwright"));
+  } catch {
+    console.log("\n(playwright tidak terpasang: uji widget di browser dilewati. Pasang dengan: npm install --no-save playwright && npx playwright install chromium)");
+    return;
+  }
+  const route = path.join(app, "src", "app", "routes", "halo.ts");
+  fs.writeFileSync(route, 'import { h } from "zentara";\nimport { page } from "zentara/ui";\n\nexport const GET = () => page({ title: "Halo" }, h("main", null, h("h1", null, "Halo")));\n');
+  let ready = false;
+  for (let i = 0; i < 60 && !ready; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    ready = await fetch("http://127.0.0.1:4499/halo").then((r) => r.ok, () => false);
+  }
+  if (!ready) throw new Error("/halo tidak bisa dibuka");
+  const browser = await chromium.launch(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {});
+  try {
+    const tab = await browser.newPage();
+    await tab.goto("http://localhost:4499/halo");
+    await tab.waitForSelector("#zentara-dev-widget", { state: "attached" });
+    const inWidget = (fn, arg) => tab.evaluate(([code, a]) => new Function("root", "arg", code)(document.querySelector("#zentara-dev-widget").shadowRoot, a), [fn, arg]);
+    await inWidget('root.querySelector(".zw-launch").click()');
+    await inWidget('root.querySelector("textarea").value = arg; root.querySelector("form").requestSubmit()', 'Tambah tombol bertuliskan "Ekspor" di halaman ini.');
+    console.log("\n→ widget: tambah tombol Ekspor di /halo");
+    // Setujui setiap perubahan dari browser sampai AI selesai.
+    const until = Date.now() + 5 * 60_000;
+    let done = false;
+    while (!done && Date.now() < until) {
+      await new Promise((r) => setTimeout(r, 1000));
+      done = await inWidget('var b = root.querySelector(".zc-approval:not(.done) [data-answer=yes]"); if (b) b.click(); return Boolean(root.querySelector(".zc-done"));');
+    }
+    const log = await inWidget('return root.querySelector(".zc-log").innerText');
+    console.log(`--- chat widget ---\n${log}`);
+    if (!done) throw new Error("AI tidak selesai dalam 5 menit");
+    if (!/view page \/halo/.test(log)) throw new Error("AI tidak memeriksa halaman dengan view_page");
+    // Verifikasi (typecheck & test) harus lulus walau server dev sedang berjalan di PORT yang sama dengan .env.
+    if (!/✓ (Selesai|Done)/.test(log)) throw new Error("AI tidak selesai dengan verifikasi lulus");
+    if (!fs.readFileSync(route, "utf8").includes("Ekspor")) throw new Error("src/app/routes/halo.ts tidak memuat tombol Ekspor");
+    await tab.reload();
+    await tab.getByRole("button", { name: "Ekspor" }).first().waitFor({ timeout: 20_000 });
+    console.log("✓ widget: tombol Ekspor muncul dan AI memeriksanya dengan view_page");
+  } finally {
+    await browser.close();
+  }
+}
+
 try {
   run("npm", ["run", "build"], ROOT);
   const zentara = pack(path.join(ROOT, "packages", "zentara"));
@@ -68,6 +119,7 @@ try {
     }
     if (!body || body.ok !== true) throw new Error(`/api/ping tidak merespons { ok: true }: ${JSON.stringify(body)}`);
     console.log(`\n✓ /api/ping -> ${JSON.stringify(body)}`);
+    await widgetFlow(app);
   } finally {
     try {
       if (isWindows) execFileSync("taskkill", ["/pid", String(server.pid), "/T", "/F"], { stdio: "ignore" });

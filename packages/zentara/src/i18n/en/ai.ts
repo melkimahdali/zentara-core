@@ -14,6 +14,7 @@ export const ai: Messages["ai"] = {
     database: "Database",
     zentara: "Zentara",
     install_package: "Install",
+    view_page: "View",
     dev_server: "Server",
   },
   summary: {
@@ -21,6 +22,8 @@ export const ai: Messages["ai"] = {
     files: (n) => `${n} ${n === 1 ? "file" : "files"}`,
     routes: (n) => `${n} ${n === 1 ? "route" : "routes"}`,
     hits: (n) => `${n} ${n === 1 ? "match" : "matches"}`,
+    view: (browser: boolean, errors: number, failed: number) =>
+      `${browser ? "in the browser" : "text version"}${errors ? ` · ${errors} console errors` : ""}${failed ? ` · ${failed} checks failed` : ""}`,
     moreLines: (n) => `… (+${n} ${n === 1 ? "line" : "lines"})`,
   },
   tools: {

@@ -2,6 +2,21 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.5]
+
+### Ditambahkan
+- **Chat Zentara AI di setiap halaman aplikasi** saat `zentara dev` atau CLI interaktif. Tombol **Tanya Zentara AI** mengambang di pojok kanan bawah, dengan fungsi yang sama seperti chat di halaman error: minta perubahan, diff dengan Setujui/Tolak, Batalkan perubahan (undo), Berhenti, dan Percakapan baru. Percakapan dan status panel tetap ada setelah halaman dimuat ulang. Widget dipasang di Shadow DOM, jadi gaya aplikasi dan widget tidak saling memengaruhi.
+- **AI bisa melihat halaman.** Setiap pesan dari widget melampirkan tampilan halaman saat ini: URL, file route yang melayaninya, elemen yang terlihat beserta posisi dan ukurannya, teks, error console, dan request yang gagal. Isi field password, field tersembunyi, dan field bertanda `data-private` tidak pernah dikirim. Tombol widget menampilkan jumlah error console dan request gagal di halaman itu.
+- **Tool `view_page` untuk Zentara AI.** Setelah mengubah halaman, AI membukanya di tab browser Anda (di iframe tersembunyi, jadi chat tidak terputus dan cookie login ikut) lalu memastikan tampilannya benar, mis. `{ path: "/notes", expect: { text: ["Tambah"], selector: ["table"], noErrors: true } }`. Bila tidak ada tab yang terbuka, AI memakai versi teks dari server (tanpa JavaScript) dan menyebut bila halaman butuh login.
+- **`zentara view <path>`**: versi teks halaman dari server yang sedang berjalan, dengan `--text "a,b"` untuk memeriksa teks dan `--json`.
+
+### Diperbaiki
+- **Verifikasi Zentara AI tidak lagi gagal selama server dev berjalan.** Proses CLI memuat `.env` (mis. `PORT=3000`), dan `PORT` mengalahkan `port: 0` di test, sehingga `npm test` dari AI bentrok dengan server dev (`EADDRINUSE`) dan verifikasi selalu gagal di CLI interaktif maupun chat browser. Skrip typecheck dan test dari AI kini dijalankan tanpa `PORT` dan variabel server pengembangan. Uji AI smoke memeriksa alur ini dari widget.
+
+### Keamanan
+- **Widget hanya ada saat pengembangan, tanpa perlu dihapus manual.** Server aplikasi hanya menyisipkannya bila mode debug aktif, aplikasi dijalankan oleh server pengembangan (`ZENTARA_DEV=1`, diisi otomatis oleh `zentara dev`), dan bukan `NODE_ENV=production`. `zentara start` juga menghapus variabel server pengembangan dari env. Di produksi, `/_zentara/dev/*` menjawab 404 dan HTML tidak diubah sama sekali. e2e memastikannya, termasuk saat env devtools sengaja terbawa dan `ZENTARA_DEBUG=1`.
+- Script widget berupa file (`/_zentara/dev/probe.js`, `/_zentara/dev/widget.js`), bukan script inline. Potongan HTML (tanpa `<html>`/`<body>`) dan request htmx (`HX-Request`) tidak disisipi.
+
 ## [0.12.4]
 
 ### Ditambahkan

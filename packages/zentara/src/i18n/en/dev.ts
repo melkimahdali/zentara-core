@@ -38,6 +38,16 @@ export const dev: Messages["dev"] = {
     undone: "↶ Changes undone: ",
     nothingToUndo: "Nothing to undo",
   },
+  widget: {
+    title: "Zentara AI",
+    launcher: "Ask Zentara AI",
+    close: "Close",
+    emptyText: "Ask for a change to this page, e.g. \"add an export button above the table\". Zentara AI sees this page (elements, text, console errors, failed requests) and asks for approval before changing files.",
+    placeholder: "E.g. add a button to this page",
+    suggestions: ["Add a button to this page", "Why is there an error on this page?", "Tidy up the layout of this page"],
+    pageAttached: "📎 this page's view is attached",
+    problems: "{n} console errors or failed requests on this page",
+  },
   copy: "Copy",
   copied: "✓ Copied",
   welcome: {
@@ -118,6 +128,7 @@ export const dev: Messages["dev"] = {
     503: ["Under maintenance", "The service is temporarily unavailable. Please try again later."],
   },
   devtools: {
+    viewing: (path: string) => `  [AI browser] viewing page ${path}`,
     bodyTooLarge: "body too large",
     invalidJson: "invalid JSON",
     waitingBrowser: (summary) => `  [AI browser] waiting for approval in the browser: ${summary}`,

@@ -21,6 +21,7 @@ npm install -g zentara
 | `zentara build` | compile to `dist/` |
 | `zentara start` | run the build (`NODE_ENV=production`) |
 | `zentara routes [--json]` | list routes |
+| `zentara view <path> [--text "a,b"] [--json]` | text version of a page from the running server ([AI in the browser](ai-browser.html)) |
 | `zentara make:route <path> [--methods GET,POST]` | create a route file, e.g. `api/events/[id]` |
 | `zentara make:middleware <name>` | create a middleware file |
 | `zentara make:job <name> [--schedule "0 7 * * *"]` | create a [job](jobs.html) file, optionally with a cron schedule |

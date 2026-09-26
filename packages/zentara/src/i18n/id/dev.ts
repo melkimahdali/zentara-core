@@ -37,6 +37,16 @@ export const dev = {
     undone: "↶ Perubahan dibatalkan: ",
     nothingToUndo: "Tidak ada yang bisa dibatalkan",
   },
+  widget: {
+    title: "Zentara AI",
+    launcher: "Tanya Zentara AI",
+    close: "Tutup",
+    emptyText: "Minta perubahan untuk halaman ini, mis. \"tambah tombol ekspor di atas tabel\". Zentara AI melihat halaman ini (elemen, teks, error console, request gagal) dan meminta persetujuan sebelum mengubah file.",
+    placeholder: "Mis. tambah tombol di halaman ini",
+    suggestions: ["Tambah tombol di halaman ini", "Kenapa ada error di halaman ini?", "Rapikan tampilan halaman ini"],
+    pageAttached: "📎 tampilan halaman ini terlampir",
+    problems: "{n} error console atau request gagal di halaman ini",
+  },
   copy: "Salin",
   copied: "✓ Tersalin",
   welcome: {
@@ -122,6 +132,7 @@ export const dev = {
     503: ["Sedang dalam perbaikan", "Layanan sementara tidak tersedia. Silakan coba lagi nanti."],
   } as Record<number, [string, string]>,
   devtools: {
+    viewing: (path: string) => `  [AI browser] melihat halaman ${path}`,
     bodyTooLarge: "body terlalu besar",
     invalidJson: "JSON tidak valid",
     waitingBrowser: (summary: string) => `  [AI browser] menunggu persetujuan di browser: ${summary}`,

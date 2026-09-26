@@ -12,6 +12,8 @@ import { latestJournal, undoLatest } from "./ai/journal.js";
 import { createTerminalSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
 import { startDevtools, type Devtools } from "./dev/devtools.js";
+import { checkExpect, fetchTextView, formatTextView, resolveViewTarget } from "./dev/view.js";
+import { DEV_ONLY_ENV } from "./core/devpage/info.js";
 import { startRepl } from "./repl/repl.js";
 import type { HostOptions } from "./repl/host.js";
 import { menuPrompts } from "./repl/prompts.js";
@@ -54,7 +56,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     const [key, inline] = arg.slice(2).split("=", 2) as [string, string | undefined];
     const next = argv[i + 1];
     if (inline !== undefined) flags[key] = inline;
-    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule"].includes(key)) {
+    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule", "url", "text"].includes(key)) {
       flags[key] = next;
       i++;
     } else flags[key] = true;
@@ -281,7 +283,7 @@ async function listRoutes(args: ParsedArgs, io: CliIO): Promise<number> {
 }
 
 const KNOWN_COMMANDS = new Set([
-  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "make:job", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang", "jobs", "jobs:run",
+  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "make:job", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang", "jobs", "jobs:run", "view",
 ]);
 
 /** Bahasa CLI: env ZENTARA_LANG, lalu `locale` di zentara.config.mjs, lalu preferensi global, lalu Indonesia. */
@@ -616,9 +618,38 @@ async function start(io: CliIO): Promise<number> {
     return 1;
   }
   process.env.NODE_ENV ??= "production";
+  // Produksi tidak pernah memuat chat Zentara AI: buang variabel server pengembangan yang mungkin terbawa.
+  for (const key of DEV_ONLY_ENV) delete process.env[key];
   const { serve } = (await import(pathToFileURL(serveEntry()).href)) as typeof import("./serve.js");
   await serve({ cwd: io.cwd, appDir });
   return new Promise<number>(() => {}); // server berjalan sampai dihentikan
+}
+
+/**
+ * `zentara view <path>`: versi teks sebuah halaman dari server yang sedang berjalan (sama dengan cadangan
+ * tool `view_page` saat tidak ada browser). `--text "a,b"` memeriksa teks yang harus ada.
+ */
+async function viewCommand(args: ParsedArgs, io: CliIO): Promise<number> {
+  const target = args.positional[1];
+  if (!target) {
+    io.err(t().cli.viewUsage);
+    return 1;
+  }
+  loadDotEnv(io.cwd);
+  let base = typeof args.flags.url === "string" ? args.flags.url : undefined;
+  try {
+    base ??= `http://localhost:${resolveConfig(await loadConfigFile(io.cwd), process.env, io.cwd).port}`;
+    const { url } = resolveViewTarget(target, base);
+    const view = await fetchTextView(url);
+    const texts = typeof args.flags.text === "string" ? args.flags.text.split(",").map((s) => s.trim()).filter(Boolean) : [];
+    const check = checkExpect({ text: texts }, { text: view });
+    if (args.flags.json) io.out(JSON.stringify({ ...view, checks: check.lines }, null, 2));
+    else io.out([formatTextView(view), ...check.lines].join("\n"));
+    return view.status < 400 && check.ok ? 0 : 1;
+  } catch (err) {
+    io.err(t().cli.viewFailed(base ?? "", (err as Error).message));
+    return 1;
+  }
 }
 
 let tsxRegistered = false;
@@ -651,7 +682,7 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
     io.out(version());
     return 0;
   }
-  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "make:job", "db:generate", "lang", undefined].includes(command);
+  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "make:job", "db:generate", "lang", "view", undefined].includes(command);
   if (needsProjectCode || isNaturalLanguage(args.positional)) await ensureTypeScriptLoader(io.cwd);
   if (isNaturalLanguage(args.positional)) return runAi(args.positional.join(" "), args, io);
   switch (command) {
@@ -716,6 +747,8 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return runJob(args, io);
     case "lang":
       return lang(args, io, source);
+    case "view":
+      return viewCommand(args, io);
     default:
       io.err(t().cli.unknownCommand(String(command)));
       io.err(t().cli.help);
