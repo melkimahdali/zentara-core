@@ -37,7 +37,7 @@ npm install -g zentara
 | `zentara` | interactive CLI (Claude Code style) |
 | `zentara --continue` | interactive CLI, continuing the last conversation |
 | `zentara --classic` | classic interactive CLI (without the Ink interface) |
-| `zentara "<sentence>" [--auto] [--dry-run] [--report=<file>]` | a single AI request |
+| `zentara "<sentence>" [--auto] [--dry-run] [--report <file>]` | a single AI request |
 | `zentara ai:setup [provider]` | set up AI access with an arrow-key menu |
 | `zentara ai:status` | check AI providers |
 | `zentara undo [--yes]` | undo the last AI change |
@@ -68,7 +68,7 @@ npm install -g zentara
 |---|---|
 | `--auto` | regular changes are applied right away; critical actions are still asked |
 | `--dry-run` | see the AI's plan without changing files |
-| `--report=<file>` | write the AI task result (status, steps, tokens, tools, rejected actions) as JSON; without a file name to `.zentara/ai-report.json` |
+| `--report <file>` | write the AI task result (status, steps, tokens, tools, rejected actions) as JSON; without a file name to `.zentara/ai-report.json` |
 | `--no-dev` | interactive CLI without offering the dev server |
 | `--continue` | interactive CLI continuing the last conversation |
 | `--no-ai` | `zentara dev` without the browser AI chat |
