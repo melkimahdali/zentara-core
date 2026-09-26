@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { isLogLevel, type LogLevel } from "./logger.js";
 import type { Middleware } from "./middleware.js";
 import type { ZenPlugin } from "./plugin.js";
+import { resolveUiTheme, type UiTheme, type UiThemeConfig } from "../ui/theme.js";
 
 export interface ZenConfig {
   appName: string;
@@ -48,6 +49,8 @@ export interface ZenConfig {
   jobs: JobsConfig;
   /** Pengiriman email lewat sendMail(). Env MAIL_URL dan MAIL_FROM menang. */
   mail: MailSettings;
+  /** Tema kit UI `zentara/ui`: `{ accent, radius, font, mode }`. Atur juga dengan `zentara theme`. */
+  ui: UiTheme;
 }
 
 export interface JobsConfig {
@@ -81,7 +84,7 @@ export interface CliConfig {
   fullscreen?: boolean;
 }
 
-export type UserConfig = Omit<Partial<ZenConfig>, "jobs" | "mail"> & { cli?: CliConfig; jobs?: Partial<JobsConfig>; mail?: MailSettings };
+export type UserConfig = Omit<Partial<ZenConfig>, "jobs" | "mail" | "ui"> & { cli?: CliConfig; jobs?: Partial<JobsConfig>; mail?: MailSettings; ui?: UiThemeConfig };
 
 export function defineConfig(config: UserConfig): UserConfig {
   return config;
@@ -137,6 +140,7 @@ export function resolveConfig(user: UserConfig = {}, env: NodeJS.ProcessEnv = pr
   return {
     locale,
     jobs,
+    ui: resolveUiTheme(user.ui),
     mail: { url: env.MAIL_URL || user.mail?.url, from: env.MAIL_FROM || user.mail?.from },
     appName: user.appName ?? "Zentara App",
     env: envName,

@@ -38,6 +38,9 @@ Manual commands:
   zentara make:job <name> [--schedule "<cron>"]    Create a job file, e.g. send-report
   zentara view <path> [--mobile] [--text "a,b"]   View a page and check its layout (in the browser when a tab is open)
   zentara ai:log [--limit 20] [--json]            Results of recent Zentara AI tasks (local journal)
+  zentara ui [Name] [--group form] [--json]        UI kit component catalog: purpose, props, and examples
+  zentara theme [--accent blue] [--radius lg] [--font system] [--mode dark] [--reset]
+                                                   Show or change the UI kit theme (zentara.config.mjs)
   zentara lang [id|en]                             Show or change Zentara's language (saved globally)
   zentara help                                     Show this help
   zentara --version
@@ -100,6 +103,27 @@ Order: ZENTARA_AI_ORDER=openai,claude,ollama (other providers follow). Check: np
   buildDone: "✓ Build finished. Run it with: zentara start",
   noDist: "dist/app not found. Run this first: zentara build",
   unknownCommand: (cmd) => `Unknown command: ${cmd}\n`,
+  ui: {
+    intro: (n: number) => `zentara/ui UI kit: ${n} components and functions. All render on the server, follow the theme, and work without JavaScript.`,
+    more: "Props and examples: zentara ui <Name> (e.g. zentara ui Select). Live gallery: /_zentara/ui while zentara dev is running.",
+    notFound: (name: string, similar: string[]) => `Component not found: ${name}.${similar.length ? ` Did you mean: ${similar.join(", ")}?` : ""} See them all with: zentara ui`,
+    badGroup: (group: string, groups: string) => `Unknown group: ${group}. Options: ${groups}`,
+  },
+  theme: {
+    title: (file: string) => `UI kit theme (${file})`,
+    isDefault: "default",
+    colors: (list: string) => `Colors: ${list}, or a #rrggbb hex.`,
+    change: "Change: zentara theme --accent blue --radius lg --font system --mode dark",
+    reset: "Back to the default: zentara theme --reset",
+    gallery: "See every component with this theme at /_zentara/ui while zentara dev is running.",
+    needValue: (flag: string) => `--${flag} needs a value, e.g. --${flag} ${flag === "accent" ? "blue" : flag === "radius" ? "lg" : flag === "font" ? "system" : "dark"}`,
+    saved: (file: string, summary: string) => `✓ Theme saved in ${file}: ${summary}`,
+    resetDone: (file: string) => `✓ Theme is back to the default (ui removed from ${file}).`,
+    unchanged: "The theme did not change.",
+    reload: "The dev server reloads the config on its own; reload the page in the browser to see it.",
+    manual: (file: string, ui: string) => `${file} uses a ui shape that cannot be changed automatically. Change it yourself to:\n  ui: ${ui},`,
+    noExport: (file: string, ui: string) => `Could not find \`export default {\` in ${file}. Add it yourself:\n  ui: ${ui},`,
+  },
   lang: {
     current: (name, source) => `Zentara language: ${name} (${source})`,
     sourceEnv: "from the ZENTARA_LANG env",

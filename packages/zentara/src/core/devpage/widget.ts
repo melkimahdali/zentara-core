@@ -199,6 +199,11 @@ export const PROBE_JS = String.raw`
       if (r.width < 1 || r.height < 1) continue;
       var cs = win.getComputedStyle(el);
       if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) < 0.02) continue;
+      // Isi <details> yang tertutup (dan subtree content-visibility:hidden lain) tidak terlihat, walau
+      // getBoundingClientRect masih memberi ukuran.
+      var shut = el.parentElement && el.parentElement.closest ? el.parentElement.closest("details:not([open])") : null;
+      if (shut && !(el.closest("summary") && el.closest("summary").parentElement === shut)) continue;
+      if (el.checkVisibility && !el.checkVisibility()) continue;
       var parent = -1;
       for (var up = el.parentElement; up && up !== body; up = up.parentElement) if (index.has(up)) { parent = index.get(up); break; }
       var f = flags(el);

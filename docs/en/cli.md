@@ -23,6 +23,8 @@ npm install -g zentara
 | `zentara routes [--json]` | list routes |
 | `zentara view <path> [--mobile] [--text "a,b"] [--json]` | view a page and check its layout, in a browser tab when one is open, otherwise the text version ([AI in the browser](ai-browser.html)) |
 | `zentara ai:log [--limit 20] [--json]` | results of recent Zentara AI tasks from the local journal |
+| `zentara ui [Name] [--group form] [--json]` | UI kit component catalog: purpose, props, and examples ([UI kit](ui.html)) |
+| `zentara theme [--accent blue] [--radius lg] [--font system] [--mode dark] [--reset]` | show or change the UI kit theme in `zentara.config.mjs` |
 | `zentara make:route <path> [--methods GET,POST]` | create a route file, e.g. `api/events/[id]` |
 | `zentara make:middleware <name>` | create a middleware file |
 | `zentara make:job <name> [--schedule "0 7 * * *"]` | create a [job](jobs.html) file, optionally with a cron schedule |

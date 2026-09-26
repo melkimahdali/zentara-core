@@ -20,13 +20,15 @@ export async function POST(ctx: ZenContext) {
 }
 ```
 
-The HTML form:
+The form, with the [UI kit](ui.html). Pass the same `types` and `maxBytes` as `saveUpload()`, so the browser only offers matching files, the "Image, max. 5 MB" hint is written for you, and a chosen image is previewed right away:
 
-```html
-<form method="post" action="/profile/photo" enctype="multipart/form-data">
-  <input type="file" name="photo" accept="image/*">
-  <button>Upload</button>
-</form>
+```ts
+import { Button, FileInput, Form, FormActions } from "zentara/ui";
+
+h(Form, { action: "/profile/photo", upload: true },
+  h(FileInput, { name: "photo", label: "Profile photo", types: ["image/*"], maxBytes: "5mb", preview: user.photoUrl }),
+  h(FormActions, null, h(Button, null, "Upload")),
+)
 ```
 
 ## readForm

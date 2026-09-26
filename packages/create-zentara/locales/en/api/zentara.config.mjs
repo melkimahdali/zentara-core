@@ -6,6 +6,7 @@ export default {
   locale: "en",
   // Default sender for sendMail(). Delivery is configured with MAIL_URL in .env.
   mail: { from: "Zentara App <noreply@example.com>" },
+  // UI kit theme: ui: { accent: "blue", radius: "lg", font: "system", mode: "auto" }  (see: zentara theme)
   // Other options: host, logLevel, bodyLimit, publicDir, plugins, middleware
   // Zentara AI: ai: { mode: "ask" | "auto", providers: [...] }  (see: zentara ai:setup)
 };

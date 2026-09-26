@@ -23,6 +23,8 @@ npm install -g zentara
 | `zentara routes [--json]` | daftar route |
 | `zentara view <path> [--mobile] [--text "a,b"] [--json]` | lihat halaman dan periksa tampilannya, di tab browser bila ada, bila tidak versi teks ([AI di browser](ai-browser.html)) |
 | `zentara ai:log [--limit 20] [--json]` | hasil tugas Zentara AI terakhir dari journal lokal |
+| `zentara ui [Nama] [--group form] [--json]` | katalog komponen kit UI: kegunaan, props, dan contoh ([Kit UI](ui.html)) |
+| `zentara theme [--accent biru] [--radius lg] [--font system] [--mode dark] [--reset]` | lihat atau ubah tema kit UI di `zentara.config.mjs` |
 | `zentara make:route <path> [--methods GET,POST]` | buat file route, mis. `api/events/[id]` |
 | `zentara make:middleware <nama>` | buat file middleware |
 | `zentara make:job <nama> [--schedule "0 7 * * *"]` | buat file [job](jobs.html), opsional dengan jadwal cron |

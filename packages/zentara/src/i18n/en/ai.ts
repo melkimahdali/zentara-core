@@ -14,6 +14,7 @@ export const ai: Messages["ai"] = {
     database: "Database",
     zentara: "Zentara",
     install_package: "Install",
+    ui_catalog: "UI catalog",
     view_page: "View",
     dev_server: "Server",
   },
@@ -24,6 +25,7 @@ export const ai: Messages["ai"] = {
     hits: (n) => `${n} ${n === 1 ? "match" : "matches"}`,
     view: (browser: boolean, mobile: boolean, issues: number, failed: number) =>
       `${browser ? "in the browser" : "text version"}${mobile ? " · mobile" : ""} · ${issues ? `${issues} layout ${issues === 1 ? "finding" : "findings"}` : "layout OK"}${failed ? ` · ${failed} failed ${failed === 1 ? "check" : "checks"}` : ""}`,
+    catalog: (n: number) => `${n} components`,
     moreLines: (n) => `… (+${n} ${n === 1 ? "line" : "lines"})`,
   },
   tools: {
@@ -78,6 +80,7 @@ export const ai: Messages["ai"] = {
     packageInvalid: (name) => `invalid package name: ${name}`,
     zentaraSummary: (command) => `Run zentara ${command}`,
     jobRunReason: "running a job can send emails or change data",
+    unknownComponent: (name: string, similar: string) => `No such UI kit component: ${name}.${similar ? ` Maybe: ${similar}.` : ""} Call ui_catalog without arguments to see them all.`,
     zentaraArgInvalid: (arg) => `Invalid argument: ${arg}`,
     packageReason: "downloads and installs third-party code",
     dryRunNotInstalled: (name) => `[dry-run] ${name} not installed`,

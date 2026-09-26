@@ -37,6 +37,9 @@ Perintah manual:
   zentara make:job <nama> [--schedule "<cron>"]    Buat file job baru, mis. kirim-laporan
   zentara view <path> [--mobile] [--text "a,b"]   Lihat halaman dan periksa tampilannya (browser bila ada tab)
   zentara ai:log [--limit 20] [--json]            Hasil tugas Zentara AI terakhir (journal lokal)
+  zentara ui [Nama] [--group form] [--json]        Katalog komponen kit UI: kegunaan, props, dan contoh
+  zentara theme [--accent biru] [--radius lg] [--font system] [--mode dark] [--reset]
+                                                   Lihat atau ubah tema kit UI (zentara.config.mjs)
   zentara lang [id|en]                             Lihat atau ganti bahasa Zentara (disimpan global)
   zentara help                                     Tampilkan bantuan ini
   zentara --version
@@ -99,6 +102,27 @@ Urutan: ZENTARA_AI_ORDER=openai,claude,ollama (provider lain menyusul). Cek: npx
   buildDone: "✓ Build selesai. Jalankan dengan: zentara start",
   noDist: "dist/app tidak ditemukan. Jalankan dulu: zentara build",
   unknownCommand: (cmd: string) => `Perintah tidak dikenal: ${cmd}\n`,
+  ui: {
+    intro: (n: number) => `Kit UI zentara/ui: ${n} komponen dan fungsi. Semuanya dirender di server, mengikuti tema, dan berfungsi tanpa JavaScript.`,
+    more: "Detail props dan contoh: zentara ui <Nama> (mis. zentara ui Select). Galeri hidup: /_zentara/ui saat zentara dev berjalan.",
+    notFound: (name: string, similar: string[]) => `Komponen tidak ditemukan: ${name}.${similar.length ? ` Mungkin maksud Anda: ${similar.join(", ")}.` : ""} Lihat semua dengan: zentara ui`,
+    badGroup: (group: string, groups: string) => `Kelompok tidak dikenal: ${group}. Pilihan: ${groups}`,
+  },
+  theme: {
+    title: (file: string) => `Tema kit UI (${file})`,
+    isDefault: "bawaan",
+    colors: (list: string) => `Warna: ${list}, atau hex #rrggbb. Nama Indonesia juga bisa: biru, merah, hijau, ungu, oranye, kuning, emas, abu, toska.`,
+    change: "Ubah:  zentara theme --accent biru --radius lg --font system --mode dark",
+    reset: "Kembali ke bawaan: zentara theme --reset",
+    gallery: "Lihat semua komponen dengan tema ini di /_zentara/ui saat zentara dev berjalan.",
+    needValue: (flag: string) => `--${flag} butuh nilai, mis. --${flag} ${flag === "accent" ? "blue" : flag === "radius" ? "lg" : flag === "font" ? "system" : "dark"}`,
+    saved: (file: string, summary: string) => `✓ Tema disimpan di ${file}: ${summary}`,
+    resetDone: (file: string) => `✓ Tema kembali ke bawaan (ui dihapus dari ${file}).`,
+    unchanged: "Tema tidak berubah.",
+    reload: "Server dev memuat ulang config sendiri; muat ulang halaman di browser untuk melihatnya.",
+    manual: (file: string, ui: string) => `${file} memakai bentuk ui yang tidak bisa diubah otomatis. Ubah sendiri menjadi:\n  ui: ${ui},`,
+    noExport: (file: string, ui: string) => `Tidak menemukan \`export default {\` di ${file}. Tambahkan sendiri:\n  ui: ${ui},`,
+  },
   lang: {
     current: (name: string, source: string) => `Bahasa Zentara: ${name} (${source})`,
     sourceEnv: "dari env ZENTARA_LANG",
