@@ -37,9 +37,18 @@ Stages 10 and 11 shipped together in 0.12.
 | 12b | 0.12.6 | Layout foundations and complete forms: layout, Select, Checkbox, Radio, Switch, file upload, theme config, and a component catalog |
 | 12c | 0.12.7 | Navigation, dialogs, notifications, and data display: Navbar, Tabs, Pagination, Dialog, Toast, Accordion, Timeline, Calendar, 403/404/500 pages |
 | 12d | 0.12.8 | Public pages and ready-made patterns: Hero, Pricing, Gallery, FAQ, Testimonial, ProductCard, cart, and full example pages |
-| 13 | 0.13 | Data and admin panel: automatic CRUD from the schema, relations, pagination, filters, interactions without full page reloads using [htmx](https://htmx.org), and the `zentara describe --json` app manifest |
-| 14 | 0.14 | Zentara for every AI agent: `zentara mcp`, `AGENTS.md` in the templates, and `llms.txt` for the docs |
-| 15 | 0.15 | Testing and AI evals: test helpers, factories, coverage reports, published AI eval results, and baseline benchmarks |
+| 12e | 0.12.9 | Developer tools: per-request toolbar (queries, N+1), inspect mode, page score, tablet/dark/en variants, screenshots, recorded steps, voice input |
+| 13 | 0.13 | Admin panel foundations with [htmx](https://htmx.org): re-runnable CRUD from the schema, sort/search/filter, permissions, admin dashboard, and `zentara describe --json` |
+| 13b | 0.13.1 | Relations, content, and workflows: many-to-many, CSV/Excel, audit log, revisions, draft and publish, SEO, media, approvals, automations, schema editor |
+| 13c | 0.13.2 | Calendar/kanban/spreadsheet views, saved views, per-column and per-row permissions, user management, multi-tenant, API and webhooks, UU PDP |
+| 13d | 0.13.3 | Content and business templates: business, portfolio, blog, news, government, service provider, static, public |
+| 13e | 0.13.4 | Application and transaction templates: online shop, e-learning, file sharing, search engine, dynamic |
+| 13f | 0.13.5 | Community and access templates: social media, intranet, extranet, PWA, SPA |
+| 14 | 0.14 | Zentara for every AI agent: `zentara mcp`, `search_docs`, runtime tools, MCP client, code index, OpenAPI, AI rules and costs, `AGENTS.md`, `llms.txt` |
+| 14b | 0.14.1 | An AI that plans and sees: plan mode, checkpoints per task, visual editing, image or design to page |
+| 15 | 0.15 | Testing and AI evals: test helpers, factories, fakes, a database per test, `--watch`, bug-to-test workflow, published evals |
+| 15b | 0.15.1 | Browser tests and performance: `--browser`, accessibility, recorded tests, visual regression, `zentara ci github`, benchmarks |
+| 15c | 0.15.2 | Security tests and test quality: schema fuzzing, automatic security tests, mutation testing |
 | 16 | 0.16 | Portable runtime: a standard `app.fetch()` core and a lean production package without the CLI/AI |
 | 17 | 0.17 | One-command deploy: Docker, PM2, Vercel, and Cloudflare (experimental) |
 | 18 | 0.18 | Official plugin catalog, with Midtrans/Xendit payments from the start |
@@ -114,27 +123,144 @@ The `zentara/ui` kit currently has about 25 components, almost all of them for d
 - **Full example pages** in the catalog (landing, business profile, shop, booking schedule, dashboard) that the AI follows, and that also become eval tasks in stage 15.
 - **Done when:** AI smoke runs for "a landing page for a cake shop", "a team profile page with photos", "a booking schedule page", and "change the main color to blue" finish with no AI-written CSS or `style`, and `view_page` passes on desktop and mobile.
 
-**After 12d:** components that need server interaction (tables with filtering, sorting, and inline editing; `Combobox` search; bulk actions) come in stage 13 with htmx. Heavy components that need outside libraries (rich text editor, charts, maps, date range picker) stay plugins in stage 18.
+**After 12d:** components that need server interaction (tables with filtering, sorting, and inline editing; `Combobox` search; bulk actions) come in stages 13 and 13b with htmx. Heavy components that need outside libraries (rich text editor, charts, maps, date range picker) stay plugins in stage 18.
 
-### Stage 13 · 0.13: data and admin panel
+### Stage 12e · 0.12.9: developer tools
 
-- htmx joins the core, with an `hx` prop in the UI kit, new components for tables, filters, and forms, and badged menu items. The admin panel uses the components from stages 12b to 12d, plus components that need the server: a searchable `Combobox`, sortable tables with inline editing, and bulk actions.
-- `zentara make:admin` builds admin pages from the database schema.
-- `zentara describe --json` prints an app manifest (routes, tables and columns, admin pages, jobs, plugins) without secret columns. Zentara AI uses it as starting context, and it becomes the main tool of `zentara mcp`.
+Compared with Django Debug Toolbar, Laravel Telescope, Lighthouse, Sentry, and the Vite/Svelte inspectors. All of these tools exist only during development, and Zentara AI can read all of their data.
 
-### Stage 14 · 0.14: Zentara for every AI agent
+- **Per-request dev toolbar:** processing time, database queries with their timings, N+1 query detection, session contents, and logs.
+- **Inspect mode:** hover over an element on the page to see the file and line of code that renders it.
+- **Page score** in `view_page`: load time, page weight, number of requests, images without `alt`, missing SEO meta tags, and basic accessibility.
+- **Check variants:** `view_page` can check tablet, dark mode, and the `en` language in addition to desktop and mobile.
+- **Pixel screenshots** for AI providers that can read images, in addition to the DOM structure.
+- **Recorded user steps** before an error (clicks, form input, navigation), sent to the AI so the bug can be reproduced.
+- **Automatic reload** of every open tab after a file changes and the dev server is ready.
+- **Voice input** in the widget, in Indonesian and English.
 
-Developers using Claude Code, Cursor, or other agents still get the best experience in a Zentara project, under the same safety rules as Zentara AI. **[pending decision: moving MCP up to this stage]**
+### Admin panel: stages 13, 13b, and 13c
 
-- `zentara mcp`: an MCP server with read tools (`describe`, `list_routes`, `view_page`, reading and searching files, dev server logs) and change tools (`make:*`, `db:generate`, `db:migrate`, writing and editing files). Path limits, the ban on `.env` and database files, and critical actions match Zentara AI, and every change can be reverted with `zentara undo`.
-- `AGENTS.md` (plus a short `CLAUDE.md`) in the `api` and `minimal` templates, in both languages. `zentara agents` adds them to existing projects.
+Compared with Django Admin, Laravel Filament/Nova, Rails Avo, Airtable/NocoDB, Directus/Strapi, Retool/Metabase, Supabase Studio, and Odoo/Salesforce. The admin panel has to fit any kind of website, not only shops.
+
+#### Stage 13 · 0.13: data and admin panel foundations
+
+- htmx joins the core, with an `hx` prop in the UI kit and badged menu items. The admin panel uses the components from stages 12b to 12d, plus components that need the server: a searchable `Combobox` and sortable tables with inline editing.
+- `zentara make:admin` builds admin pages from the database schema, and **can be run again** after the schema changes without overwriting code you edited (only marked blocks are updated).
+- Record lists with column sorting, search across several columns, and filters per data type (date range, enum, boolean).
+- Image and file columns automatically use `FileInput` with a preview.
+- Permissions per table and per action (view, create, update, delete) based on role.
+- An automatic admin dashboard: record counts per table and the latest records.
+- One AI request is carried out end to end, e.g. "add a status column to products": schema, migration, admin, tests, then a check with `view_page`.
+- `zentara describe --json` prints the app manifest (routes, tables and columns, admin pages, jobs, plugins) without secret columns. Zentara AI uses this manifest as its starting context, and it becomes the main tool of `zentara mcp`.
+
+#### Stage 13b · 0.13.1: relations, content, and workflows
+
+- **Relations:** many-to-many (multiple choice) and child records directly on the parent page, e.g. order items on the order page.
+- **Bulk data:** bulk actions, CSV export and import, and Excel import with column mapping.
+- **Data history:** an audit log (who changed what), soft delete with a restore button, and per-record revision history with a diff.
+- **Content:** draft, published, and scheduled states with preview; automatic slugs and SEO fields; a media library; per-record content in two languages; and single settings pages (site name, contact, opening hours).
+- **Workflows:** statuses with transition rules and approvals, internal notes per record, custom actions that run jobs, and per-record printing and PDF export.
+- **Automations** in the style of Airtable/Zapier: "when record X is created or changed, send an email, a webhook, or run a job". Can be created through the AI.
+- **Plain-language filters**, e.g. "orders this month over 1 million", which the AI turns into a regular filter.
+- **Schema editor in the admin panel:** create tables and columns through the UI, and Zentara writes the Drizzle schema and its migration with your approval.
+
+#### Stage 13c · 0.13.2: views, users, and integrations
+
+- **Views beyond tables:** a calendar for dated records, a kanban board for records with a status (change status by dragging), hierarchical data (categories, menus) with adjustable order, and a spreadsheet-style table (keyboard editing, grouping, totals and averages).
+- **Saved views** per user (filters, columns, order) that can be shared, plus simple reports and charts from a table with no outside library.
+- **Advanced permissions:** per column, and per-row rules (e.g. owner only), like RLS in Supabase.
+- **User management:** invite, reset password, deactivate, and sign in as a user (logged).
+- **Multi-tenant:** data separated per organization for SaaS apps.
+- **Integrations:** an automatic JSON API per table with the same permissions, and webhooks when data changes.
+- **Indonesian personal data law (UU PDP) compliance:** export and delete a user's personal data, and a consent log.
+- **Operations:** database backup and restore, an "X is editing" marker with protection against overwriting, and a command palette (Ctrl+K) with keyboard shortcuts.
+
+### Templates per kind of website: stages 13d, 13e, and 13f
+
+Today `npm create zentara` only has the general `api` and `minimal` templates (both stay). These three stages add 18 templates per kind of website, used through `npm create zentara -- --template <name>` or picked from the interactive CLI and Zentara AI.
+
+Every template includes: full example pages built with the UI kit, sample data (seed), the admin panel from stages 13–13c, tests, a scaffold e2e, `AGENTS.md`, and text in Indonesian and English. Its example pages also become eval tasks in stage 15.
+
+#### Stage 13d · 0.13.3: content and business
+
+- `bisnis` (business website): home, services, about, team, testimonials, and contact.
+- `portofolio` (portfolio): projects, gallery, profile, and a contact form.
+- `blog`: articles, categories, tags, comments, and RSS.
+- `berita` (news): sections, headlines, authors, archive, and most-read stories.
+- `pemerintah` (government): agency profile, public services, announcements, public documents, and complaints.
+- `layanan` (service provider): service list, prices, schedule booking, and order status.
+- `statis` (static): a site with no database, exported to HTML files. Adds **`zentara build --static`** to the core.
+- `publik` (public): an organization or community portal with events, announcements, forms, and donations.
+
+#### Stage 13e · 0.13.4: applications and transactions
+
+- `toko` (online shop): catalog, cart, checkout, orders, and stock. Payments come through a stage 18 plugin.
+- `elearning`: courses, lessons, quizzes, learning progress, and certificates.
+- `berbagi-berkas` (file sharing): uploads, folders, share links with an expiry date, and quotas.
+- `mesin-pencari` (search engine): content indexing, results pages, and search suggestions. Adds **full-text search** to the core (SQLite FTS5 and PostgreSQL).
+- `dinamis` (dynamic): a general data-driven app with sign-in, as a starting point for any app.
+
+#### Stage 13f · 0.13.5: community and access
+
+- `sosial` (social media): profiles, follow, feed, likes, comments, and notifications. Adds **realtime notifications** (Server-Sent Events) to the core.
+- `intranet`: sign-in required, staff directory, announcements, documents, and leave requests.
+- `ekstranet` (extranet): a partner or client portal with a partner role, document sharing, and tickets.
+- `pwa`: installable on phones and working offline. Adds **a manifest, a service worker, and offline mode** to the core.
+- `spa`: navigation without full page reloads through htmx, still with no build step. React/Preact islands stay a stage 18 plugin.
+
+### AI agents: stages 14 and 14b
+
+Compared with Laravel Boost, the Next.js devtools MCP, Cursor, Devin, Replit Agent, Lovable, v0, ASP.NET, and Spring.
+
+#### Stage 14 · 0.14: Zentara for every AI agent
+
+Developers who use Claude Code, Cursor, or other agents still get the best experience in a Zentara project, with the same safety rules as Zentara AI. **[pending decision: MCP moved up to this stage]**
+
+- `zentara mcp`: an MCP server with read tools (`describe`, `list_routes`, `view_page`, reading and searching files, dev server logs) and write tools (`make:*`, `db:generate`, `db:migrate`, writing and editing files). Path limits, the ban on `.env` and database files, and the critical actions are the same as in Zentara AI, and every change can be undone with `zentara undo`.
+- `search_docs`: searches the Zentara documentation for the installed version, so agents do not use outdated APIs.
+- Runtime tools: the latest errors with stack traces, the request log, job status, emails sent during development, and read-only database queries with secret columns masked.
+- Running a code snippet in the app's context (like Laravel's `tinker`), always with approval.
+- Zentara AI can use other MCP servers (e.g. GitHub, Figma).
+- A project code index so the AI stays accurate in large projects.
+- OpenAPI and typed clients generated automatically from routes, plus an architecture diagram from `zentara describe`.
+- A per-project AI rules file (what the AI may and may not do), a cost limit per task, an audit log of every agent action, and token cost shown per task.
+- `AGENTS.md` (and a short `CLAUDE.md`) in every template in both languages. `zentara agents` adds them to existing projects.
 - `llms.txt` and `llms-full.txt` generated automatically for the documentation site.
 
-### Stage 15 · 0.15: testing and AI evals
+#### Stage 14b · 0.14.1: an AI that plans and sees
 
-- `zentara/testing`: `testApp()`, `loginAs`, test data factories, and `zentara test --coverage`. Zentara AI and the generators write tests too.
-- AI evals: 20 to 30 standard tasks on the `api` template, graded automatically (typecheck, tests, `view_page`, forbidden actions, steps, tokens). Results are published per version on the documentation site.
-- Baseline requests-per-second and latency benchmarks against Express and Fastify, run in CI so later stages don't make Zentara slower.
+- **Plan mode:** for large tasks, the AI shows a step-by-step plan first and only starts after you approve it.
+- **Checkpoints per task** through git, so a whole large task can be undone at once.
+- **Visual editing:** click an element on the page through the widget and ask "change this", and the AI knows the element and its file.
+- **Image or design to page:** upload a screenshot or sketch, and the AI builds it with the UI kit.
+
+### Testing: stages 15, 15b, and 15c
+
+Compared with Laravel (Pest, Dusk, fakes), Rails (system tests), AdonisJS (Japa), Spring Boot (Testcontainers), ASP.NET, Phoenix (database sandbox), Go (built-in fuzzing), Playwright, and Stryker.
+
+#### Stage 15 · 0.15: testing and AI evals
+
+- `zentara/testing`: `testApp()`, `loginAs`, test data factories, and `zentara test --coverage`. Zentara AI and the generators also write tests.
+- Fakes for email, jobs, uploads, outgoing HTTP requests, and time (jump to a given date).
+- An isolated database per test, parallel tests, PostgreSQL support, and real databases through Docker (like Testcontainers).
+- `zentara test --watch` and running only the tests affected by a change.
+- **"Bug to test" workflow:** every bug report is first written as a failing test, then fixed.
+- AI evals: standard tasks on the `api` template and the per-website templates, graded automatically (typecheck, tests, `view_page`, forbidden actions, number of steps, tokens). Model responses can be recorded so evals run in CI without an API key. Results are published per version on the documentation site.
+
+#### Stage 15b · 0.15.1: browser tests and performance
+
+- `zentara test --browser` (optional Playwright): fill in forms, click, automatic screenshots on failure, and `view_page` layout checks as assertions.
+- Basic accessibility checks as assertions.
+- **Record tests from the browser:** click through a page with the widget, and it becomes a test file.
+- Visual regression: screenshots compared with the previous version.
+- `zentara ci github` writes a GitHub Actions workflow for the user's project.
+- `zentara bench` for the performance of the user's app, and a framework benchmark against Express and Fastify in CI so later stages do not make Zentara slower.
+
+#### Stage 15c · 0.15.2: security tests and test quality
+
+- **Automatic fuzzing** from validation schemas: every route is tested with random and invalid input.
+- **Automatic security tests:** routes without auth, CSRF, security headers, injection, and access to another user's data.
+- **Mutation testing** to measure whether tests (including AI-written ones) actually catch bugs rather than just pass.
 
 ### Stage 16 · 0.16: portable runtime and lean production package
 
