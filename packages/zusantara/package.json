@@ -87,13 +87,13 @@
     }
   },
   "devDependencies": {
-    "@types/node": "^22.20.4",
+    "@types/node": "^26.6.2",
     "@types/react": "^19.2.0",
     "drizzle-kit": "^0.31.11",
     "drizzle-orm": "^0.45.3",
     "ink-testing-library": "^4.0.0",
     "postgres": "^3.4.9",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "zod": "^4.6.5"
   }
 }
