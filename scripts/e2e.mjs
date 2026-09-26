@@ -292,7 +292,7 @@ try {
           else await new Promise((res) => setTimeout(res, 500));
         }
         const requests = shAny(process.execPath, [cli, "requests", n1Id], app);
-        check(requests.code === 0 && /3 query/.test(requests.out) && /3x SELECT/i.test(requests.out) && requests.out.includes("memuat catatan"), `zentara requests <id>: query, N+1, dan log request\n${requests.out}`);
+        check(requests.code === 0 && /3 quer(y|ies)\b/.test(requests.out) && /3x SELECT/i.test(requests.out) && requests.out.includes("memuat catatan"), `zentara requests <id>: query, N+1, dan log request\n${requests.out}`);
         const list = JSON.parse(sh(process.execPath, [cli, "requests", "--json", "--path", "/n1"], app));
         check(list.length > 0 && list[0].repeated[0]?.count === 3 && list[0].route === "src/app/routes/n1.ts", "zentara requests --json: daftar request dengan tanda N+1 dan file route");
         const variant = await (await waitFor(`http://127.0.0.1:${devPort}/login?__zentara_mode=dark&__zentara_lang=en`)).text();
