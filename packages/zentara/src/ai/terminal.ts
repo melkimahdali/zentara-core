@@ -60,6 +60,11 @@ export function toolResultSummary(call: ToolCall, result: ToolResult): string {
       return result.content.startsWith("(") ? result.content : call.name === "list_files" ? t().ai.summary.files(lines) : t().ai.summary.routes(lines);
     case "search":
       return result.content === t().ai.tools.noResults ? result.content : t().ai.summary.hits(lines);
+    case "view_page": {
+      const errors = Number(/^Console errors \((\d+)\)/m.exec(result.content)?.[1] ?? 0);
+      const failed = (result.content.match(/^FAIL /gm) ?? []).length;
+      return t().ai.summary.view(result.content.includes("seen in the developer's browser"), errors, failed);
+    }
     default:
       return first;
   }

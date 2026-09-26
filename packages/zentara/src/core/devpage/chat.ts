@@ -1,5 +1,5 @@
 /**
- * Widget chat Zentara AI untuk browser (halaman sambutan dan halaman error saat pengembangan).
+ * Chat Zentara AI untuk browser (halaman sambutan, halaman error, dan widget mengambang saat pengembangan).
  * Berbicara dengan server devtools milik `zentara dev` di 127.0.0.1 memakai token sesi.
  * Ditulis sebagai JavaScript biasa tanpa dependensi dan tanpa template literal.
  */
@@ -95,6 +95,7 @@ export const CHAT_JS = String.raw`
 
   function mount(root, opts){
     var T = opts.t;
+    var logo = opts.logo != null ? opts.logo : LOGO;
     var base = "http://127.0.0.1:" + opts.port;
     var key = "zentara-chat:" + opts.port + ":" + (opts.storageKey || "main");
     var host = location.hostname;
@@ -152,7 +153,7 @@ export const CHAT_JS = String.raw`
     function handle(ev){
       if (ev.type === "thinking") { live = null; setTyping(true); return; }
       if (ev.type === "delta") {
-        if (!live) { liveText = ""; setTyping(false); live = add(el("div", "zc-msg zc-ai", LOGO + '<div class="zc-body"></div>')); setTyping(true); }
+        if (!live) { liveText = ""; setTyping(false); live = add(el("div", "zc-msg zc-ai", logo + '<div class="zc-body"></div>')); setTyping(true); }
         liveText += ev.text;
         live.querySelector(".zc-body").innerHTML = md(liveText);
         scroll();
@@ -161,7 +162,7 @@ export const CHAT_JS = String.raw`
       setTyping(false);
       if (ev.type === "assistant") {
         if (live) { live.querySelector(".zc-body").innerHTML = md(ev.text); live = null; save(); }
-        else add(el("div", "zc-msg zc-ai", LOGO + '<div class="zc-body">' + md(ev.text) + "</div>"));
+        else add(el("div", "zc-msg zc-ai", logo + '<div class="zc-body">' + md(ev.text) + "</div>"));
       }
       else if (ev.type === "tool" && ev.phase === "start") { live = null; steps[ev.id] = add(el("div", "zc-step run", '<span class="ic">◌</span><span>' + esc(ev.label) + "</span>")); setTyping(true); }
       else if (ev.type === "tool" && ev.phase === "end") {
@@ -199,11 +200,15 @@ export const CHAT_JS = String.raw`
       if (busy || !message.trim()) return;
       var e = log.querySelector(".zc-empty"); if (e) e.remove();
       var bubble = el("div", "zc-msg zc-user"); bubble.textContent = message;
+      // Widget di halaman aplikasi: sertakan tampilan halaman saat ini (elemen, teks, error console).
+      var page = null;
+      if (!context && opts.getPage) { try { page = opts.getPage(); } catch (err) { page = null; } }
       if (context) bubble.appendChild(el("span", "zc-att", esc(T.errorAttached)));
+      else if (page && opts.attachLabel) bubble.appendChild(el("span", "zc-att", esc(opts.attachLabel)));
       add(bubble);
       setBusy(true); setTyping(true);
       controller = new AbortController();
-      fetch(base + "/chat", { method: "POST", headers: { "Content-Type": "application/json", "X-Zentara-Token": opts.token }, body: JSON.stringify({ message: message, context: context || opts.context || "" }), signal: controller.signal })
+      fetch(base + "/chat", { method: "POST", headers: { "Content-Type": "application/json", "X-Zentara-Token": opts.token }, body: JSON.stringify({ message: message, context: context || opts.context || "", page: page || undefined, pageId: opts.pageId ? opts.pageId() : undefined }), signal: controller.signal })
         .then(function(res){
           if (!res.ok) return res.json().then(function(j){ handle({ type: "error", message: j.error || ("HTTP " + res.status) }); });
           var reader = res.body.getReader(), decoder = new TextDecoder(), buf = "";

@@ -10,6 +10,7 @@ import { createAiSession, type AiSession, type SessionUI } from "../ai/session.j
 import { c, summarizeCall } from "../ai/terminal.js";
 import type { ToolCall, ToolResult } from "../ai/types.js";
 import { ZENTARA_VERSION } from "../core/devpage/theme.js";
+import { formatSnapshot, normalizeSnapshot, type BrowserView, type PageViewer } from "./view.js";
 
 /**
  * Server devtools: jembatan antara chat Zentara AI di browser (halaman sambutan & halaman error)
@@ -40,6 +41,8 @@ export interface Devtools {
   token: string;
   /** Variabel lingkungan untuk proses server aplikasi agar halamannya bisa menampilkan chat. */
   env: Record<string, string>;
+  /** Tab browser yang memuat widget chat: dipakai tool `view_page` untuk melihat halaman. */
+  viewer: PageViewer;
   close(): Promise<void>;
 }
 
@@ -48,14 +51,17 @@ type WebEvent = Record<string, unknown> & { type: string };
 const LOCAL_ORIGIN = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?$/;
 const MAX_BODY = 64 * 1024;
 const MAX_CONTEXT = 20_000;
+/** Snapshot halaman (elemen + teks + error) boleh lebih besar dari pesan biasa. */
+const MAX_VIEW_BODY = 512 * 1024;
+const VIEW_TIMEOUT_MS = 15_000;
 
-function readBody(req: IncomingMessage): Promise<Record<string, unknown>> {
+function readBody(req: IncomingMessage, max = MAX_BODY): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => {
       size += chunk.length;
-      if (size > MAX_BODY) {
+      if (size > max) {
         reject(new Error(t().dev.devtools.bodyTooLarge));
         req.destroy();
       } else chunks.push(chunk);
@@ -95,6 +101,85 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
   const pending = new Map<string, (answer: ApprovalAnswer) => void>();
   let approvalSeq = 0;
 
+  // Tab browser yang memuat widget (kanal halaman) dan permintaan "lihat halaman" yang menunggu jawaban.
+  interface PageTab {
+    res: ServerResponse;
+    url: string;
+    seen: number;
+  }
+  const pages = new Map<string, PageTab>();
+  const views = new Map<string, (view: BrowserView) => void>();
+  let pageSeq = 0;
+  let viewSeq = 0;
+  let appUrl: string | undefined;
+  let appStartedAt = 0;
+  const appWaiters = new Set<() => void>();
+
+  function sendToPage(tab: PageTab, event: WebEvent): void {
+    if (!tab.res.writableEnded) tab.res.write(JSON.stringify(event) + "\n");
+  }
+
+  function touch(id: unknown, url?: unknown): void {
+    const tab = typeof id === "string" ? pages.get(id) : undefined;
+    if (!tab) return;
+    tab.seen = Date.now();
+    if (typeof url === "string") tab.url = url.slice(0, 500);
+  }
+
+  const viewer: PageViewer = {
+    appUrl: () => appUrl,
+    waitForApp(after, { timeoutMs = 15_000, signal } = {}) {
+      if (appStartedAt === 0 || appStartedAt > after) return Promise.resolve();
+      return new Promise<void>((resolve) => {
+        const done = () => {
+          clearTimeout(timer);
+          appWaiters.delete(check);
+          signal?.removeEventListener("abort", done);
+          resolve();
+        };
+        const check = () => {
+          if (appStartedAt > after) done();
+        };
+        const timer = setTimeout(done, timeoutMs);
+        signal?.addEventListener("abort", done, { once: true });
+        appWaiters.add(check);
+      });
+    },
+    browser(path, { selectors, signal }) {
+      const tab = [...pages.values()].sort((a, b) => b.seen - a.seen)[0];
+      if (!tab) return Promise.resolve(undefined);
+      const id = `v${++viewSeq}`;
+      log(c.dim(t().dev.devtools.viewing(path)));
+      return new Promise<BrowserView>((resolve) => {
+        const done = (view: BrowserView) => {
+          clearTimeout(timer);
+          views.delete(id);
+          signal?.removeEventListener("abort", onAbort);
+          resolve(view);
+        };
+        const onAbort = () => done({ error: "stopped" });
+        const timer = setTimeout(() => done({ error: "the browser did not answer in time" }), VIEW_TIMEOUT_MS);
+        signal?.addEventListener("abort", onAbort, { once: true });
+        views.set(id, done);
+        sendToPage(tab, { type: "view", id, path, selectors: (selectors ?? []).slice(0, 20) });
+      });
+    },
+  };
+
+  function pageChannel(req: IncomingMessage, res: ServerResponse): void {
+    const id = `p${++pageSeq}`;
+    const url = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("url") ?? "";
+    const tab: PageTab = { res, url: url.slice(0, 500), seen: Date.now() };
+    pages.set(id, tab);
+    res.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+    sendToPage(tab, { type: "hello", id });
+    const ping = setInterval(() => sendToPage(tab, { type: "ping" }), 25_000);
+    res.on("close", () => {
+      clearInterval(ping);
+      pages.delete(id);
+    });
+  }
+
   const ui: SessionUI = {
     thinking: () => emit({ type: "thinking" }),
     assistantDelta: (text) => emit({ type: "delta", text }),
@@ -126,7 +211,7 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
     });
 
   async function getSession(): Promise<AiSession> {
-    session ??= createAiSession({ root: options.root, config: await options.loadConfig(), ui, prompter });
+    session ??= createAiSession({ root: options.root, config: await options.loadConfig(), ui, prompter, viewer });
     return session;
   }
 
@@ -139,7 +224,11 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
   async function chat(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const body = await readBody(req);
     const message = typeof body.message === "string" ? body.message.trim() : "";
-    const context = typeof body.context === "string" ? body.context.slice(0, MAX_CONTEXT) : "";
+    let context = typeof body.context === "string" ? body.context.slice(0, MAX_CONTEXT) : "";
+    // Widget di halaman aplikasi: tampilan halaman saat ini ikut dikirim ke AI.
+    const page = normalizeSnapshot(body.page);
+    if (page) context = [context, formatSnapshot(page)].filter(Boolean).join("\n\n").slice(0, MAX_CONTEXT);
+    touch(body.pageId);
     if (!message) return json(res, 400, { error: t().dev.devtools.emptyMessage });
     if (lock.owner) return json(res, 409, { error: t().dev.devtools.busy(lock.owner === "terminal" ? t().host.terminal : lock.owner) });
 
@@ -221,6 +310,30 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
         }
         case "POST /chat":
           return chat(req, res);
+        case "GET /page-channel":
+          return pageChannel(req, res);
+        case "POST /page-focus": {
+          const body = await readBody(req);
+          touch(body.id, body.url);
+          return json(res, 200, { ok: true });
+        }
+        case "POST /view-result": {
+          const body = await readBody(req, MAX_VIEW_BODY);
+          const resolve = typeof body.id === "string" ? views.get(body.id) : undefined;
+          if (!resolve) return json(res, 404, { error: t().dev.devtools.notFound });
+          const snapshot = normalizeSnapshot(body.snapshot);
+          resolve(snapshot ? { snapshot } : { error: typeof body.error === "string" ? body.error.slice(0, 200) : "no snapshot" });
+          return json(res, 200, { ok: true });
+        }
+        case "POST /app": {
+          const body = await readBody(req);
+          if (typeof body.url === "string" && /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?$/.test(body.url)) {
+            appUrl = body.url;
+            appStartedAt = Date.now();
+            for (const check of [...appWaiters]) check();
+          }
+          return json(res, 200, { ok: true });
+        }
         case "POST /approve": {
           const body = await readBody(req);
           const answer = body.answer;
@@ -262,10 +375,12 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
   return {
     port,
     token,
-    env: { ZENTARA_DEVTOOLS_PORT: String(port), ZENTARA_DEVTOOLS_TOKEN: token },
+    env: { ZENTARA_DEV: "1", ZENTARA_DEVTOOLS_PORT: String(port), ZENTARA_DEVTOOLS_TOKEN: token },
+    viewer,
     close: () =>
       new Promise<void>((resolve) => {
         controller?.abort();
+        for (const done of views.values()) done({ error: "devtools closed" });
         server.close(() => resolve());
         server.closeAllConnections();
       }),

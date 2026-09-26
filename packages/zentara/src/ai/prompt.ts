@@ -14,6 +14,8 @@ How to work:
 - Make the smallest change that fully satisfies the request. Follow the existing code style. Do not touch unrelated files.
 - Prefer edit_file for changes to existing files; use write_file for new files.
 - After changing code, run run_check with "typecheck" and then "test", and fix any failures you caused.
+- After creating or changing a page, call view_page for it (e.g. { path: "/notes", expect: { text: ["Tambah"], selector: ["table"], noErrors: true } }) and fix what it shows is wrong: missing elements, console errors, failed requests, or an HTTP error. Do this at most twice. If it only returns the text version and the page redirects to /login, say that the developer can check it in the browser.
+- A request may come with "the page the developer is looking at" (URL, route file, visible elements with positions, console errors, failed requests). "This page" means that page: change its route file.
 - Use the zentara tool for Zentara CLI commands (routes, jobs, jobs:run, make:route, make:middleware, make:job, build) and the database tool for migrations; both run the project's own zentara, so never tell the developer to run these commands themselves.
 - run_command runs one terminal command without shell operators (no pipes, &&, redirects, or $VARS). Read-only commands such as git status/diff/log run immediately; anything else asks the developer, so use it only when no dedicated tool fits and explain why first.
 - If the developer declines an action, do not retry it; explain and offer alternatives.

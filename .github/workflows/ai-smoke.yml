@@ -29,6 +29,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Chromium untuk uji widget chat
+        run: npm install --no-save playwright && npx playwright install --with-deps chromium
       - name: Model pilihan
         if: inputs.model != ''
         run: |

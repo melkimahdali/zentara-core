@@ -92,6 +92,7 @@ describe("renderErrorPage", () => {
   it("menyertakan chat hanya bila devtools tersedia", () => {
     process.env.ZENTARA_DEVTOOLS_PORT = "4567";
     process.env.ZENTARA_DEVTOOLS_TOKEN = "tok";
+    process.env.ZENTARA_DEV = "1";
     try {
       const body = renderErrorPage(new Error("x"), req);
       assert.match(body, /Tanya Zentara AI/);
@@ -99,6 +100,7 @@ describe("renderErrorPage", () => {
     } finally {
       delete process.env.ZENTARA_DEVTOOLS_PORT;
       delete process.env.ZENTARA_DEVTOOLS_TOKEN;
+      delete process.env.ZENTARA_DEV;
     }
   });
 });
@@ -144,6 +146,7 @@ describe("welcomePage", () => {
     setAppInfo({ appName: "Zentara App", env: "development", debug: true, root: process.cwd(), routes: [{ pattern: "/api/produk", methods: ["GET", "POST"], file: "x.ts" }] });
     process.env.ZENTARA_DEVTOOLS_PORT = "4567";
     process.env.ZENTARA_DEVTOOLS_TOKEN = "tok";
+    process.env.ZENTARA_DEV = "1";
     try {
       const body = welcomePage();
       assert.match(body, /\/api\/produk/);
@@ -152,6 +155,7 @@ describe("welcomePage", () => {
     } finally {
       delete process.env.ZENTARA_DEVTOOLS_PORT;
       delete process.env.ZENTARA_DEVTOOLS_TOKEN;
+      delete process.env.ZENTARA_DEV;
     }
   });
 });

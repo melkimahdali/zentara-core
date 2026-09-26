@@ -13,6 +13,7 @@ export const ai = {
     database: "Database",
     zentara: "Zentara",
     install_package: "Pasang",
+    view_page: "Lihat",
     dev_server: "Server",
   } as Record<string, string>,
   summary: {
@@ -20,6 +21,8 @@ export const ai = {
     files: (n: number) => `${n} file`,
     routes: (n: number) => `${n} route`,
     hits: (n: number) => `${n} hasil`,
+    view: (browser: boolean, errors: number, failed: number) =>
+      `${browser ? "di browser" : "versi teks"}${errors ? ` · ${errors} error console` : ""}${failed ? ` · ${failed} pemeriksaan gagal` : ""}`,
     moreLines: (n: number) => `… (+${n} baris)`,
   },
   tools: {

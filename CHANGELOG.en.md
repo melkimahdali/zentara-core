@@ -2,6 +2,21 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.5]
+
+### Added
+- **Zentara AI chat on every page of your app** while running `zentara dev` or the interactive CLI. An **Ask Zentara AI** button floats in the bottom-right corner and works like the chat on the error page: request changes, see a diff with Approve/Reject, Undo changes, Stop, and New conversation. The conversation and panel state survive a page reload. The widget lives in a Shadow DOM, so the app's styles and the widget's styles never affect each other.
+- **The AI can see the page.** Every message from the widget carries the current page: URL, the route file that serves it, the visible elements with their position and size, the text, console errors, and failed requests. Values of password fields, hidden fields, and fields marked `data-private` are never sent. The widget button shows how many console errors and failed requests the page has.
+- **`view_page` tool for Zentara AI.** After changing a page, the AI opens it in your browser tab (in a hidden iframe, so the chat keeps running and your login cookie applies) and checks that it looks right, e.g. `{ path: "/notes", expect: { text: ["Add"], selector: ["table"], noErrors: true } }`. When no tab is open, the AI uses a text version from the server (no JavaScript) and says when the page needs a login.
+- **`zentara view <path>`**: the text version of a page from the running server, with `--text "a,b"` to check for text and `--json`.
+
+### Fixed
+- **Zentara AI verification no longer fails while the dev server runs.** The CLI process loads `.env` (e.g. `PORT=3000`), and `PORT` beats `port: 0` in tests, so the AI's `npm test` clashed with the dev server (`EADDRINUSE`) and verification always failed in the interactive CLI and the browser chat. The AI's typecheck and test scripts now run without `PORT` and the development server variables. The AI smoke test checks this flow from the widget.
+
+### Security
+- **The widget only exists during development, with nothing to remove by hand.** The app server injects it only when debug mode is on, the app was started by the development server (`ZENTARA_DEV=1`, set automatically by `zentara dev`), and `NODE_ENV` is not `production`. `zentara start` also removes the development server variables from the environment. In production, `/_zentara/dev/*` answers 404 and HTML is left untouched. The e2e tests check this, including when the devtools variables leak into the environment and `ZENTARA_DEBUG=1` is set.
+- The widget scripts are files (`/_zentara/dev/probe.js`, `/_zentara/dev/widget.js`), not inline scripts. HTML fragments (without `<html>`/`<body>`) and htmx requests (`HX-Request`) are left alone.
+
 ## [0.12.4]
 
 ### Added

@@ -36,6 +36,7 @@ Manual commands:
   zentara make:route <path> [--methods GET,POST]   Create a route file, e.g. api/events/[id]
   zentara make:middleware <name>                   Create a middleware file
   zentara make:job <name> [--schedule "<cron>"]    Create a job file, e.g. send-report
+  zentara view <path> [--text "a,b"] [--json]     Show the text version of a page from the running server
   zentara lang [id|en]                             Show or change Zentara's language (saved globally)
   zentara help                                     Show this help
   zentara --version
@@ -44,6 +45,8 @@ Options:
   --force        Overwrite existing files
   --dir <path>   App folder (default: src/app)
 `,
+  viewUsage: "Usage: zentara view <path> [--url http://localhost:3000] [--text \"text1,text2\"] [--json]",
+  viewFailed: (base: string, reason: string) => `Could not open the page from ${base || "the server"}: ${reason}. Make sure the server is running (npx zentara dev).`,
   fileExists: (file) => `File already exists: ${file} (use --force to overwrite)`,
   created: (file) => `Created: ${file}`,
   makeRouteUsage: "Usage: zentara make:route <path> [--methods GET,POST]",
