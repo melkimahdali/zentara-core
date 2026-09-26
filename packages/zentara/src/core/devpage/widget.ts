@@ -124,13 +124,120 @@ export const PROBE_JS = String.raw`
       opts.selectors.forEach(function(s){ try { matches[s] = doc.querySelectorAll(s).length; } catch (e) { matches[s] = -1; } });
     }
     var nav = win.performance && performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
+    var layout; try { layout = measure(); } catch (e) { layout = undefined; }
     return {
       url: location.href, title: doc.title, status: nav && nav.responseStatus ? nav.responseStatus : undefined, route: dev.route,
       viewport: { w: vw, h: vh }, docHeight: doc.documentElement.scrollHeight,
       elements: out, truncated: i < all.length, text: clip(doc.body ? doc.body.innerText : "", 4000),
-      errors: dev.errors.slice(), failed: dev.failed.slice(), matches: matches
+      errors: dev.errors.slice(), failed: dev.failed.slice(), matches: matches, layout: layout
     };
   };
+
+  // Data mentah untuk pemeriksaan tampilan (dianalisis di server, lihat layoutIssues di dev/view.ts).
+  var BOX = /^(IMG|INPUT|SELECT|TEXTAREA|BUTTON|A|VIDEO|CANVAS|SVG|IFRAME)$/;
+  var canvas, ctx2d, colors = {};
+  function rgba(css){
+    if (css in colors) return colors[css];
+    var v = null, m = /^rgba?\(([^)]*)\)$/.exec(css);
+    if (m) {
+      var p = m[1].split(/[\s,\/]+/).filter(Boolean);
+      v = [parseFloat(p[0]), parseFloat(p[1]), parseFloat(p[2]), p.length > 3 ? (p[3].slice(-1) === "%" ? parseFloat(p[3]) / 100 : parseFloat(p[3])) : 1];
+    } else {
+      try {
+        canvas = canvas || document.createElement("canvas"); canvas.width = canvas.height = 1;
+        ctx2d = ctx2d || canvas.getContext("2d", { willReadFrequently: true });
+        ctx2d.clearRect(0, 0, 1, 1); ctx2d.fillStyle = "#000"; ctx2d.fillStyle = css; ctx2d.fillRect(0, 0, 1, 1);
+        var d = ctx2d.getImageData(0, 0, 1, 1).data; v = [d[0], d[1], d[2], d[3] / 255];
+      } catch (e) { v = null; }
+    }
+    return (colors[css] = v);
+  }
+  function describe(el){
+    var s = el.tagName.toLowerCase();
+    if (el.id) s += "#" + el.id;
+    var cls = typeof el.className === "string" ? el.className.trim().split(/\s+/).filter(Boolean).slice(0, 2) : [];
+    if (cls.length) s += "." + cls.join(".");
+    var tx = clip(el.getAttribute("aria-label") || el.getAttribute("alt") || el.textContent || el.getAttribute("placeholder") || "", 40);
+    return tx ? s + " " + JSON.stringify(tx) : s;
+  }
+  function measure(){
+    var doc = document, win = window, root = doc.documentElement, body = doc.body;
+    if (!body) return undefined;
+    var width = root.clientWidth, sx = win.scrollX || 0, sy = win.scrollY || 0;
+    var index = new Map(), memo = new Map(), bgMemo = new Map(), boxes = [], LIMIT = 600;
+    function flags(el){
+      // Warisan dari leluhur: di dalam elemen fixed/sticky, atau di dalam area gulir mendatar.
+      if (!el || el === body || el === root) return { fx: false, sc: false };
+      if (memo.has(el)) return memo.get(el);
+      var up = flags(el.parentElement), cs = win.getComputedStyle(el);
+      var f = { fx: up.fx || cs.position === "fixed" || cs.position === "sticky", sc: up.sc || cs.overflowX === "auto" || cs.overflowX === "scroll" };
+      memo.set(el, f);
+      return f;
+    }
+    function background(el){
+      if (!el || el.nodeType !== 1) return [255, 255, 255, 1];
+      if (bgMemo.has(el)) return bgMemo.get(el);
+      var cs = win.getComputedStyle(el), v;
+      if (cs.backgroundImage && cs.backgroundImage !== "none") v = null;
+      else {
+        var own = rgba(cs.backgroundColor), under = background(el.parentElement);
+        if (!own || own[3] >= 1 || under === null) v = own && own[3] >= 1 ? own : under;
+        else v = [0, 1, 2].map(function(k){ return own[k] * own[3] + under[k] * (1 - own[3]); }).concat([1]);
+      }
+      bgMemo.set(el, v);
+      return v;
+    }
+    var all = body.getElementsByTagName("*");
+    for (var i = 0; i < all.length && boxes.length < LIMIT; i++) {
+      var el = all[i], tag = String(el.tagName).toUpperCase();
+      if (SKIP.test(tag) || el.id === "zentara-dev-widget" || el.name === "zentara-view" || (el.closest && el.closest("svg") && tag !== "SVG")) continue;
+      var own = "";
+      for (var n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 3) own += n.nodeValue;
+      own = own.replace(/\s+/g, " ").trim();
+      if (!own && !BOX.test(tag)) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width < 1 || r.height < 1) continue;
+      var cs = win.getComputedStyle(el);
+      if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) < 0.02) continue;
+      var parent = -1;
+      for (var up = el.parentElement; up && up !== body; up = up.parentElement) if (index.has(up)) { parent = index.get(up); break; }
+      var f = flags(el);
+      var b = { p: parent, tag: tag.toLowerCase(), d: describe(el), x: Math.round(r.left + sx), y: Math.round(r.top + sy), w: Math.round(r.width), h: Math.round(r.height) };
+      if (f.fx) b.fx = 1;
+      if (f.sc) b.sc = 1;
+      if (cs.display === "inline" && el.getClientRects().length > 1) b.ml = 1;
+      if (own) {
+        b.txt = 1;
+        b.fg = rgba(cs.color); b.bg = background(el);
+        b.fs = parseFloat(cs.fontSize) || 16; b.fw = parseInt(cs.fontWeight, 10) || 400;
+        var hiddenX = /hidden|clip/.test(cs.overflowX), hiddenY = /hidden|clip/.test(cs.overflowY);
+        if (el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0) {
+          if (cs.textOverflow === "ellipsis") { if (!el.getAttribute("title")) b.clip = "ellipsis"; }
+          else if (hiddenX) b.clip = "x";
+        }
+        if (!b.clip && hiddenY && el.clientHeight > 0 && el.scrollHeight > el.clientHeight + 2) b.clip = "y";
+      }
+      if (el.disabled || el.getAttribute("aria-disabled") === "true" || (el.closest && el.closest("fieldset:disabled"))) b.dis = 1;
+      if (tag === "IMG" && el.complete && el.naturalWidth === 0 && el.getAttribute("src")) b.br = 1;
+      index.set(el, boxes.length);
+      boxes.push(b);
+    }
+    var styled = [];
+    body.querySelectorAll("[style]").forEach(function(el){
+      if (el.id === "zentara-dev-widget" || el.name === "zentara-view" || !String(el.getAttribute("style")).trim()) return;
+      styled.push(describe(el));
+    });
+    var sheets = [];
+    doc.querySelectorAll("link[rel~=stylesheet]").forEach(function(l){ var href = l.getAttribute("href") || ""; if (!/^\/_zentara\//.test(href)) sheets.push(href); });
+    var widget = doc.querySelector('script[src^="/_zentara/dev/widget.js"]');
+    return {
+      docWidth: root.scrollWidth, width: width, boxes: boxes, styled: styled,
+      styleTags: doc.querySelectorAll("style").length, sheets: sheets,
+      kit: body.classList.contains("zu") && !!doc.querySelector('link[href^="/_zentara/ui.css"]'),
+      viewportMeta: !!doc.querySelector("meta[name=viewport]"),
+      framework: !!(widget && widget.getAttribute("data-ui") === "off")
+    };
+  }
 })();
 `;
 
@@ -178,7 +285,8 @@ const WIDGET_JS = String.raw`
     frame.name = "zentara-view";
     frame.setAttribute("aria-hidden", "true");
     frame.tabIndex = -1;
-    frame.style.cssText = "position:fixed;left:-30000px;top:0;width:" + innerWidth + "px;height:" + innerHeight + "px;border:0;opacity:0;pointer-events:none";
+    var size = ev.size || { w: innerWidth, h: innerHeight };
+    frame.style.cssText = "position:fixed;left:-30000px;top:0;width:" + size.w + "px;height:" + size.h + "px;border:0;opacity:0;pointer-events:none";
     var done = false;
     function finish(body){
       if (done) return;
@@ -193,7 +301,7 @@ const WIDGET_JS = String.raw`
         try {
           var w = frame.contentWindow, d = frame.contentDocument;
           if (w.__zentaraDev && w.__zentaraDev.snapshot) finish({ snapshot: w.__zentaraDev.snapshot({ selectors: ev.selectors }) });
-          else finish({ snapshot: { url: w.location.href, title: d.title, viewport: { w: innerWidth, h: innerHeight }, elements: [], text: d.body ? d.body.innerText.slice(0, 4000) : "", errors: [], failed: [], note: "no-probe" } });
+          else finish({ snapshot: { url: w.location.href, title: d.title, viewport: { w: size.w, h: size.h }, elements: [], text: d.body ? d.body.innerText.slice(0, 4000) : "", errors: [], failed: [], note: "no-probe" } });
         } catch (e) { finish({ error: String((e && e.message) || e) }); }
       }, ev.settle || 800);
     };

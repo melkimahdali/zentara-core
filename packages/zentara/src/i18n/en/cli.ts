@@ -36,7 +36,8 @@ Manual commands:
   zentara make:route <path> [--methods GET,POST]   Create a route file, e.g. api/events/[id]
   zentara make:middleware <name>                   Create a middleware file
   zentara make:job <name> [--schedule "<cron>"]    Create a job file, e.g. send-report
-  zentara view <path> [--text "a,b"] [--json]     Show the text version of a page from the running server
+  zentara view <path> [--mobile] [--text "a,b"]   View a page and check its layout (in the browser when a tab is open)
+  zentara ai:log [--limit 20] [--json]            Results of recent Zentara AI tasks (local journal)
   zentara lang [id|en]                             Show or change Zentara's language (saved globally)
   zentara help                                     Show this help
   zentara --version
@@ -45,7 +46,13 @@ Options:
   --force        Overwrite existing files
   --dir <path>   App folder (default: src/app)
 `,
-  viewUsage: "Usage: zentara view <path> [--url http://localhost:3000] [--text \"text1,text2\"] [--json]",
+  viewUsage: "Usage: zentara view <path> [--mobile] [--url http://localhost:3000] [--text \"text1,text2\"] [--json]",
+  aiLogEmpty: "No Zentara AI tasks recorded in this project yet (.zentara/ai-tasks.jsonl).",
+  aiLogLine: (e) =>
+    `${e.at.slice(0, 16).replace("T", " ")}  ${e.ok ? "✓" : "✗"} ${e.status.padEnd(19)} ${String(e.steps).padStart(2)} ${e.steps === 1 ? "step " : "steps"}` +
+    `${e.checks.typecheck === undefined ? "" : ` · typecheck ${e.checks.typecheck ? "✓" : "✗"}`}${e.checks.test === undefined ? "" : ` · test ${e.checks.test ? "✓" : "✗"}`}` +
+    `${e.checks.views.length ? ` · view_page ${e.checks.views.filter((v) => v.ok).length}/${e.checks.views.length}` : ""}${e.dryRun ? " · dry-run" : ""}  ${e.task}`,
+  aiLogSummary: (n, ok) => `${n} ${n === 1 ? "task" : "tasks"}, ${ok} done (${Math.round((ok / n) * 100)}%). This data stays on your computer.`,
   viewFailed: (base: string, reason: string) => `Could not open the page from ${base || "the server"}: ${reason}. Make sure the server is running (npx zentara dev).`,
   fileExists: (file) => `File already exists: ${file} (use --force to overwrite)`,
   created: (file) => `Created: ${file}`,

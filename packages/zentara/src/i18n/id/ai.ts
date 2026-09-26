@@ -21,11 +21,12 @@ export const ai = {
     files: (n: number) => `${n} file`,
     routes: (n: number) => `${n} route`,
     hits: (n: number) => `${n} hasil`,
-    view: (browser: boolean, errors: number, failed: number) =>
-      `${browser ? "di browser" : "versi teks"}${errors ? ` · ${errors} error console` : ""}${failed ? ` · ${failed} pemeriksaan gagal` : ""}`,
+    view: (browser: boolean, mobile: boolean, issues: number, failed: number) =>
+      `${browser ? "di browser" : "versi teks"}${mobile ? " · ponsel" : ""} · ${issues ? `${issues} temuan tampilan` : "tampilan rapi"}${failed ? ` · ${failed} pemeriksaan gagal` : ""}`,
     moreLines: (n: number) => `… (+${n} baris)`,
   },
   tools: {
+    urlRequired: "url wajib diisi, mis. \"/notes\"",
     pathRequired: "path wajib berupa string",
     pathInvalid: "path tidak valid",
     pathOutside: (input: string) => `path di luar folder proyek ditolak: ${input}`,
@@ -138,6 +139,12 @@ export const ai = {
     verified: "Verifikasi berhasil.",
     stillFailing: "Verifikasi masih gagal setelah beberapa percobaan perbaikan.",
     fixing: (attempt: number, max: number) => `Verifikasi gagal, meminta AI memperbaiki (percobaan ${attempt}/${max})...`,
+    viewChecking: (attempt: number, max: number) => `Memeriksa tampilan halaman yang berubah (view_page desktop dan ponsel, percobaan ${attempt}/${max})...`,
+    viewRequest:
+      'Halaman aplikasi berubah. Sebelum selesai, panggil view_page untuk setiap halaman yang diubah dengan viewport "desktop" dan "mobile" (expect: { noConsoleErrors: true, noLayoutIssues: true }), lalu perbaiki temuannya.',
+    viewFixRequest: (problems: string) =>
+      `view_page masih menemukan masalah:\n${problems}\n\nPerbaiki penyebabnya dengan kit UI (tanpa CSS sendiri), lalu periksa lagi dengan view_page desktop dan mobile. Bila tidak bisa diperbaiki, jelaskan temuannya apa adanya.`,
+    viewStillFailing: (problems: string) => `Pemeriksaan tampilan (view_page) masih menemukan masalah setelah dua percobaan: ${problems}`,
     fixRequest: (output: string) => `Verifikasi otomatis gagal. Perbaiki penyebabnya:\n\n${output}`,
     inputTruncated: "Input tool terpotong (max_tokens). Pecah menjadi langkah/file yang lebih kecil.",
     stepLimit: (n: number) => `Batas ${n} langkah tercapai.`,

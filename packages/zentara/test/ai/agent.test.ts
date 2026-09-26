@@ -9,6 +9,7 @@ import { ProviderChain } from "../../src/ai/chain.js";
 import { resolveAiConfig } from "../../src/ai/config.js";
 import { Journal, latestJournal, undoLatest } from "../../src/ai/journal.js";
 import { agentTools, resolveProjectPath, type ToolContext } from "../../src/ai/tools.js";
+import { normalizeSnapshot } from "../../src/dev/view.js";
 import { AbortedError, ProviderUnavailableError, type CompletionRequest, type ModelProvider, type ModelTurn } from "../../src/ai/types.js";
 
 const quietUI: AgentUI = { thinking() {}, assistant() {}, toolStart() {}, toolEnd() {}, info() {} };
@@ -407,5 +408,93 @@ describe("resolveAiConfig", () => {
       () => resolveAiConfig({ providers: [{ type: "anthropic" }, { type: "anthropic", name: "claude" }] }, {}),
       /duplikat/,
     );
+  });
+});
+
+describe("Agent: pemeriksaan tampilan wajib setelah halaman berubah", () => {
+  /** Tab browser palsu: halaman lulus kecuali `bad` berisi viewport yang masih bermasalah. */
+  function fakeViewer(bad: Set<string>) {
+    return {
+      appUrl: () => "http://localhost:3999",
+      waitForApp: async () => {},
+      browser: async (p: string, o: { viewport?: string }) => ({
+        snapshot: normalizeSnapshot({
+          url: `http://localhost:3999${p}`,
+          title: "Produk",
+          viewport: { w: 390, h: 844 },
+          elements: [],
+          text: "",
+          errors: [],
+          failed: [],
+          layout: { docWidth: 390, width: 390, kit: true, viewportMeta: true, styled: [], styleTags: 0, sheets: [], boxes: bad.has(o.viewport ?? "desktop") ? [{ p: -1, tag: "img", d: "img", x: 0, y: 0, w: 10, h: 10, br: true }] : [] },
+        })!,
+      }),
+    };
+  }
+  const page = tool("1", "write_file", { path: "src/app/routes/produk.ts", content: "export const GET = () => 'x';" });
+  const view = (id: string, viewport: string) => tool(id, "view_page", { url: "/produk", viewport });
+
+  it("meminta view_page desktop dan ponsel sebelum selesai", async () => {
+    const provider = new ScriptedProvider("claude", [
+      page,
+      { text: "Selesai.", toolCalls: [], stop: "end" },
+      view("2", "desktop"),
+      view("3", "mobile"),
+      { text: "Halaman rapi di desktop dan ponsel.", toolCalls: [], stop: "end" },
+    ]);
+    const context = makeContext("auto");
+    context.viewer = fakeViewer(new Set());
+    let verifications = 0;
+    const agent = new Agent({ chain: new ProviderChain([provider]), tools: agentTools, context, system: "sys", ui: quietUI, verify: async () => (verifications++, { ok: true, output: "ok", steps: [{ name: "typecheck", ok: true }, { name: "test", ok: true }] }) });
+    const result = await agent.run("buat halaman produk");
+    assert.equal(result.status, "done");
+    // Typecheck/test tidak diulang bila tidak ada perubahan baru.
+    assert.equal(verifications, 1);
+    assert.equal(result.checks.viewAttempts, 1);
+    assert.deepEqual(result.checks.verify, [{ name: "typecheck", ok: true }, { name: "test", ok: true }]);
+    assert.deepEqual(result.checks.views.map((v) => v.viewport), ["desktop", "mobile"]);
+    const request = provider.calls[2]!.messages.at(-1)!;
+    assert.ok(request.role === "user" && request.text.includes('"mobile"'));
+  });
+
+  it("masih bermasalah setelah dua percobaan: tidak dilaporkan selesai", async () => {
+    const provider = new ScriptedProvider("claude", [
+      page,
+      { text: "Selesai.", toolCalls: [], stop: "end" },
+      view("2", "desktop"),
+      view("3", "mobile"),
+      { text: "Sudah dicek.", toolCalls: [], stop: "end" },
+      view("4", "mobile"),
+      { text: "Sudah dicek lagi.", toolCalls: [], stop: "end" },
+    ]);
+    const context = makeContext("auto");
+    context.viewer = fakeViewer(new Set(["mobile"]));
+    const info: string[] = [];
+    const agent = new Agent({ chain: new ProviderChain([provider]), tools: agentTools, context, system: "sys", ui: { ...quietUI, info: (m) => info.push(m) }, verify: async () => ({ ok: true, output: "ok" }) });
+    const result = await agent.run("buat halaman produk");
+    assert.equal(result.status, "verification_failed");
+    assert.equal(result.checks.viewAttempts, 2);
+    const fix = provider.calls[5]!.messages.at(-1)!;
+    assert.ok(fix.role === "user" && fix.text.includes("/produk (mobile): 1 layout"));
+    assert.match(info.at(-1)!, /view_page.*\/produk \(mobile\)/);
+  });
+
+  it("route API atau server aplikasi mati: tidak ada pemeriksaan tampilan", async () => {
+    const api = new ScriptedProvider("claude", [tool("1", "write_file", { path: "src/app/routes/api/produk.ts", content: "export const GET = () => [];" }), { text: "Selesai.", toolCalls: [], stop: "end" }]);
+    const apiResult = await new Agent({ chain: new ProviderChain([api]), tools: agentTools, context: makeContext("auto"), system: "sys", ui: quietUI, verify: async () => ({ ok: true, output: "ok" }) }).run("buat API");
+    assert.equal(apiResult.status, "done");
+    assert.equal(apiResult.checks.viewAttempts, 0);
+
+    const saved = process.env.PORT;
+    process.env.PORT = "1";
+    try {
+      const offline = new ScriptedProvider("claude", [page, { text: "Selesai.", toolCalls: [], stop: "end" }, view("2", "desktop"), { text: "Server tidak berjalan.", toolCalls: [], stop: "end" }]);
+      const result = await new Agent({ chain: new ProviderChain([offline]), tools: agentTools, context: makeContext("auto"), system: "sys", ui: quietUI, verify: async () => ({ ok: true, output: "ok" }) }).run("buat halaman");
+      assert.equal(result.status, "done");
+      assert.deepEqual(result.checks.views, [{ path: "/produk", viewport: "desktop", unreachable: true }]);
+    } finally {
+      if (saved === undefined) delete process.env.PORT;
+      else process.env.PORT = saved;
+    }
   });
 });

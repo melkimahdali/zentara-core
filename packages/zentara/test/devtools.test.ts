@@ -8,19 +8,25 @@ import { after, before, describe, it } from "node:test";
 import { resolveAiConfig } from "../src/ai/config.js";
 import { startDevtools, type Devtools } from "../src/dev/devtools.js";
 
-/** Server palsu berformat OpenAI: langkah 1 menulis file, langkah 2 menjawab selesai. */
+/**
+ * Server palsu berformat OpenAI: langkah 1 menulis file, langkah 2 menjawab selesai, lalu (diminta memeriksa
+ * halaman yang berubah) memanggil view_page dan menjawab selesai.
+ */
 async function fakeModel() {
   let calls = 0;
+  const call = (id: string, name: string, args: unknown) => ({ id, type: "function", function: { name, arguments: JSON.stringify(args) } });
   const server = http.createServer((req, res) => {
     req.resume();
     req.on("end", () => {
       calls++;
       const message =
         calls === 1
-          ? { content: "Saya buat halamannya.", tool_calls: [{ id: "c1", type: "function", function: { name: "write_file", arguments: JSON.stringify({ path: "src/app/routes/tentang.ts", content: "export const GET = () => 'hai';\n" }) } }] }
-          : { content: "Selesai, buka /tentang." };
+          ? { content: "Saya buat halamannya.", tool_calls: [call("c1", "write_file", { path: "src/app/routes/tentang.ts", content: "export const GET = () => 'hai';\n" })] }
+          : calls === 3
+            ? { content: "", tool_calls: [call("c2", "view_page", { url: "/tentang" })] }
+            : { content: "Selesai, buka /tentang." };
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ choices: [{ message, finish_reason: calls === 1 ? "tool_calls" : "stop" }] }));
+      res.end(JSON.stringify({ choices: [{ message, finish_reason: message.tool_calls ? "tool_calls" : "stop" }] }));
     });
   });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
@@ -81,7 +87,14 @@ describe("devtools (chat AI dari browser)", () => {
     assert.deepEqual({ providers: status.providers, mode: status.mode, busy: status.busy }, { providers: ["palsu"], mode: "ask", busy: false });
   });
 
-  it("chat: rencana, persetujuan dari browser, file ditulis, lalu bisa di-undo", async () => {
+  it("chat: rencana, persetujuan dari browser, file ditulis, lalu bisa di-undo", async (t) => {
+    // Server aplikasi tidak berjalan (port 1): view_page tidak bisa melihat apa pun, jadi tugas tetap selesai.
+    const savedPort = process.env.PORT;
+    process.env.PORT = "1";
+    t.after(() => {
+      if (savedPort === undefined) delete process.env.PORT;
+      else process.env.PORT = savedPort;
+    });
     const res = await fetch(`${base}/chat`, { method: "POST", headers: auth(), body: JSON.stringify({ message: "buatkan halaman tentang" }) });
     assert.equal(res.status, 200);
     const reader = res.body!.getReader();

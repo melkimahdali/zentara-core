@@ -22,11 +22,12 @@ export const ai: Messages["ai"] = {
     files: (n) => `${n} ${n === 1 ? "file" : "files"}`,
     routes: (n) => `${n} ${n === 1 ? "route" : "routes"}`,
     hits: (n) => `${n} ${n === 1 ? "match" : "matches"}`,
-    view: (browser: boolean, errors: number, failed: number) =>
-      `${browser ? "in the browser" : "text version"}${errors ? ` · ${errors} console errors` : ""}${failed ? ` · ${failed} checks failed` : ""}`,
+    view: (browser: boolean, mobile: boolean, issues: number, failed: number) =>
+      `${browser ? "in the browser" : "text version"}${mobile ? " · mobile" : ""} · ${issues ? `${issues} layout ${issues === 1 ? "finding" : "findings"}` : "layout OK"}${failed ? ` · ${failed} failed ${failed === 1 ? "check" : "checks"}` : ""}`,
     moreLines: (n) => `… (+${n} ${n === 1 ? "line" : "lines"})`,
   },
   tools: {
+    urlRequired: "url is required, e.g. \"/notes\"",
     pathRequired: "path must be a string",
     pathInvalid: "invalid path",
     pathOutside: (input) => `paths outside the project folder are not allowed: ${input}`,
@@ -139,6 +140,12 @@ export const ai: Messages["ai"] = {
     verified: "Verification passed.",
     stillFailing: "Verification still fails after several fix attempts.",
     fixing: (attempt, max) => `Verification failed, asking the AI to fix it (attempt ${attempt}/${max})...`,
+    viewChecking: (attempt, max) => `Checking the changed pages (view_page desktop and mobile, attempt ${attempt}/${max})...`,
+    viewRequest:
+      'A page of the app changed. Before finishing, call view_page for every changed page with viewport "desktop" and "mobile" (expect: { noConsoleErrors: true, noLayoutIssues: true }), then fix what it finds.',
+    viewFixRequest: (problems) =>
+      `view_page still finds problems:\n${problems}\n\nFix the cause with the UI kit (no custom CSS), then check again with view_page desktop and mobile. If it cannot be fixed, report the findings as they are.`,
+    viewStillFailing: (problems) => `The page checks (view_page) still find problems after two attempts: ${problems}`,
     fixRequest: (output) => `Automatic verification failed. Fix the cause:\n\n${output}`,
     inputTruncated: "The tool input was cut off (max_tokens). Split it into smaller steps/files.",
     stepLimit: (n) => `Reached the limit of ${n} steps.`,

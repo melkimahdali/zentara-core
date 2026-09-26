@@ -29,17 +29,50 @@ Isi field password, field tersembunyi, field dengan nama seperti `token`/`secret
 
 ## AI memeriksa hasilnya: `view_page`
 
-Setelah mengubah halaman, Zentara AI memanggil tool `view_page` untuk melihat hasilnya dan memperbaikinya bila ada yang salah, mis. tombol yang diminta tidak muncul atau ada error console.
+Setelah mengubah halaman, Zentara AI **wajib** memanggil tool `view_page` untuk halaman itu di layar desktop dan ponsel, lalu memperbaiki temuannya, sama seperti typecheck dan test. Bila setelah dua percobaan masih ada masalah, AI melaporkan temuannya apa adanya dan tugas tidak ditandai selesai.
 
-- **Ada tab browser yang terbuka** (halaman apa pun dengan widget): halaman dimuat di iframe tersembunyi di tab itu, dengan ukuran layar yang sama dan cookie login Anda. Chat tidak terputus.
+- **Ada tab browser yang terbuka** (halaman apa pun dengan widget): halaman dimuat di iframe tersembunyi di tab itu, dengan cookie login Anda, berukuran 1280×800 (`desktop`) atau 390×844 (`mobile`). Chat tidak terputus.
 - **Tidak ada tab yang terbuka:** AI memakai versi teks dari server (tanpa JavaScript, tanpa login). Bila halaman mengarah ke `/login`, AI menyampaikannya.
 
-Versi teks yang sama bisa Anda lihat sendiri:
+Contoh pemanggilan oleh AI:
+
+```json
+{ "url": "/notes", "viewport": "mobile", "expect": { "text": ["Tambah"], "selector": ["table"], "noConsoleErrors": true, "noLayoutIssues": true } }
+```
+
+### Pemeriksaan tampilan
+
+Setiap hasil `view_page` memuat pemeriksaan tampilan. Setiap temuan menyebut elemennya, dan hasilnya menyebut file route halaman itu.
+
+| Temuan | Artinya | Di browser | Versi teks |
+| --- | --- | --- | --- |
+| `overflow` | elemen keluar dari sisi layar atau membuat halaman bisa digeser ke samping (tabel di dalam area gulir tidak dihitung) | ✓ | |
+| `overlap` | dua elemen (teks, tombol, input, gambar) saling menimpa | ✓ | |
+| `truncated` | teks terpotong oleh `overflow: hidden`, atau diberi "…" tanpa atribut `title` | ✓ | |
+| `image` | gambar gagal dimuat | ✓ | ✓ (gambar lokal) |
+| `contrast` | kontras teks di bawah WCAG AA: 4,5:1, atau 3:1 untuk teks besar | ✓ | |
+| `style` | atribut `style`, elemen `<style>`, atau stylesheet di luar kit UI | ✓ | ✓ |
+| `kit` | halaman tidak dibuat dengan `page()` dari `zentara/ui` | ✓ | ✓ |
+| `meta` | tidak ada `<meta name="viewport">`, jadi di ponsel halaman tampil diperkecil | ✓ | ✓ |
+
+Halaman sambutan dan error bawaan framework tidak diperiksa untuk `style`, `kit`, dan `meta`.
+
+Hasil yang sama bisa Anda lihat sendiri. Bila `zentara dev` atau CLI interaktif berjalan dan ada tab browser yang terbuka, `zentara view` memakai tab itu; bila tidak, versi teks. Kode keluarnya 1 bila ada temuan, error, atau teks `--text` yang tidak ada.
 
 ```bash
-npx zentara view /notes                    # judul, heading, tabel, form, tombol, link, teks
-npx zentara view /login --text "Masuk"     # gagal (exit 1) bila teks tidak ada
+npx zentara view /notes                    # elemen, error console, dan pemeriksaan tampilan
+npx zentara view /notes --mobile           # layar ponsel (390 px)
+npx zentara view /login --text "Masuk"     # gagal bila teks tidak ada
 npx zentara view /api/hello --json
+```
+
+## Journal hasil tugas AI
+
+Setiap tugas Zentara AI (terminal, CLI interaktif, dan chat di browser) mencatat ringkasannya ke `.zentara/ai-tasks.jsonl`: status, jumlah langkah, durasi, token, hasil typecheck dan test, serta setiap `view_page`. Isi file dan percakapan tidak dicatat. Hanya baris pertama permintaan yang disimpan, dan journal tidak pernah dikirim keluar dari komputer Anda. Eval AI di Tahap 15 memakai data ini.
+
+```bash
+npx zentara ai:log               # 20 tugas terakhir dan persentase yang selesai
+npx zentara ai:log --limit 100 --json
 ```
 
 ## Tidak ada di produksi
@@ -58,6 +91,7 @@ Uji e2e memastikan halaman produksi tidak memuat widget, termasuk saat env devto
 - hanya aktif saat pengembangan, lewat server kecil yang hanya mendengar di `127.0.0.1`;
 - setiap request butuh token acak per sesi, dan hanya diterima dari halaman `localhost` (situs lain dan DNS rebinding ditolak);
 - aturannya sama dengan di terminal: `.env` dan file database tidak bisa diakses, aksi krusial selalu ditanyakan, dan semua perubahan bisa di-undo;
+- `zentara dev` menulis port dan token devtools ke `.zentara/devtools.json` (hanya bisa dibaca pemilik file, dihapus saat server berhenti) supaya `zentara view` dari terminal lain bisa memakai tab browser;
 - token devtools ada di halaman selama pengembangan, jadi script pihak ketiga yang Anda muat di halaman (mis. dari CDN) secara teknis juga bisa memakai chat. Mode `ask` (default) tetap meminta persetujuan Anda untuk setiap perubahan, jadi pakai mode itu bila halaman memuat script dari luar.
 
 Di produksi (`zentara start`), pengunjung hanya melihat halaman error sederhana tanpa detail, dan halaman sambutan tanpa chat maupun daftar route. Klien API (`Accept: application/json`) tetap mendapat JSON.
@@ -68,4 +102,5 @@ Di produksi (`zentara start`), pengunjung hanya melihat halaman error sederhana 
 2. Menyampaikan rencana singkat.
 3. Membuat atau mengubah file, dengan persetujuan Anda.
 4. **Selalu menjalankan typecheck dan test.** Bila gagal, AI memperbaikinya sendiri (maksimal 2 kali).
-5. Melaporkan hasilnya: file yang berubah dan cara mencobanya.
+5. **Bila halaman berubah, memeriksanya dengan `view_page`** di desktop dan ponsel, lalu memperbaiki temuannya (maksimal 2 kali).
+6. Melaporkan hasilnya: file yang berubah dan cara mencobanya.

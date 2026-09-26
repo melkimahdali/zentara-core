@@ -11,7 +11,7 @@ import { layoutWarning } from "./layout.js";
 import type { ToolSpec } from "./types.js";
 import { unifiedDiff } from "./diff.js";
 import { classifyCommand, CommandRejected, parseCommand, redactSecrets, secretValues } from "./command.js";
-import { viewPage, type PageViewer, type ViewExpect } from "../dev/view.js";
+import { parseViewport, viewPage, ViewUnreachableError, type PageViewer, type ViewExpect, type ViewSummary } from "../dev/view.js";
 import { DEV_ONLY_ENV } from "../core/devpage/info.js";
 
 /** Hasil tool ditambah catatan bila route yang ditulis membuat layout HTML/CSS sendiri. */
@@ -37,13 +37,20 @@ export interface ToolContext {
   allowedCommands?: string[];
   /** Tab browser yang memuat widget chat (lewat devtools). Tanpa ini `view_page` memakai versi teks. */
   viewer?: PageViewer;
+  /** Hasil setiap `view_page` (diisi tool, dibaca agen untuk pemeriksaan wajib dan journal tugas). */
+  views?: ViewRecord[];
 }
+
+/** Satu kali `view_page`. `unreachable` = server aplikasi tidak bisa dihubungi (tidak ada yang dilihat). */
+export type ViewRecord = (ViewSummary & { unreachable?: false }) | { path: string; viewport: "desktop" | "mobile"; unreachable: true };
 
 export type DbAction = "generate" | "migrate" | "seed";
 
 export interface CommandResult {
   ok: boolean;
   output: string;
+  /** Hasil per langkah (mis. typecheck, test), bila ada. */
+  steps?: { name: string; ok: boolean }[];
 }
 
 export interface AgentTool {
@@ -470,40 +477,53 @@ export const agentTools: AgentTool[] = [
     spec: {
       name: "view_page",
       description:
-        "Look at a page of the running app the way the developer sees it. When a browser tab with the Zentara chat widget is open, the page is loaded there and you get the visible elements with their position and size, the page text, console errors, and failed requests. Otherwise you get a text version fetched from the dev server (no JavaScript, not logged in). Use it after changing a page to confirm it looks right, e.g. the table is shown and there are no console errors. Read-only.",
+        "Look at a page of the running app the way the developer sees it, and run layout checks. When a browser tab with the Zentara AI chat widget is open, the page is loaded there (logged in) and you get the visible elements with their position and size, console errors, failed requests, and layout findings: elements past the screen edge or causing sideways scrolling, overlapping elements, cut-off text, broken images, low text contrast, and custom CSS or HTML outside the UI kit. Otherwise you get a text version from the dev server (no JavaScript, not logged in) with the checks that can be read from HTML. Use viewport \"mobile\" (390px) to check the phone layout. Read-only, local app only.",
       inputSchema: {
         type: "object",
         properties: {
-          path: { type: "string", description: 'Page path, e.g. "/notes" or "/notes/3?tab=edit" (a full http://localhost URL is also accepted)' },
+          url: { type: "string", description: 'Page path, e.g. "/notes" or "/notes/3?tab=edit" (a full http://localhost URL is also accepted)' },
+          viewport: { type: "string", enum: ["desktop", "mobile"], description: 'Screen size: "desktop" (default, 1280px) or "mobile" (390px)' },
           expect: {
             type: "object",
             description: "Optional checks, reported as PASS/FAIL",
             properties: {
               text: { type: "array", items: { type: "string" }, description: "Texts that must appear on the page" },
-              selector: { type: "array", items: { type: "string" }, description: 'CSS selectors that must match at least one element, e.g. "table", "button.export" (browser view only)' },
-              noErrors: { type: "boolean", description: "true = no console errors, failed requests, or HTTP error status" },
+              selector: { type: "array", items: { type: "string" }, description: 'CSS selectors that must match at least one element, e.g. "table" (browser view only)' },
+              noConsoleErrors: { type: "boolean", description: "true = no console errors, failed requests, or HTTP error status" },
+              noLayoutIssues: { type: "boolean", description: "true = no layout check findings" },
             },
             additionalProperties: false,
           },
         },
-        required: ["path"],
+        required: ["url"],
         additionalProperties: false,
       },
     },
     async run(input, ctx) {
-      const path = str(input, "path")!;
+      // `path` dan `noErrors` adalah nama lama (0.12.5 awal); tetap diterima.
+      const target = str(input, "url", true) ?? str(input, "path", true);
+      if (!target) throw new ToolError(t().ai.tools.urlRequired);
+      const viewport = parseViewport(input.viewport);
       const raw = (input.expect && typeof input.expect === "object" ? input.expect : {}) as Record<string, unknown>;
-      const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 20) : undefined);
-      const expect: ViewExpect = { text: strings(raw.text), selector: strings(raw.selector), noErrors: raw.noErrors === true };
+      const strings = (v: unknown) =>
+        typeof v === "string" ? [v] : Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 20) : undefined;
+      const expect: ViewExpect = {
+        text: strings(raw.text),
+        selector: strings(raw.selector),
+        noConsoleErrors: raw.noConsoleErrors === true || raw.noErrors === true,
+        noLayoutIssues: raw.noLayoutIssues === true,
+      };
       try {
-        const result = await viewPage({ path, expect }, ctx.viewer, {
+        const result = await viewPage({ path: target, viewport, expect }, ctx.viewer, {
           fallbackBase: `http://localhost:${process.env.PORT ?? 3000}`,
           signal: ctx.signal,
           changedAt: latestChange(ctx.root),
         });
-        // Awal hasil (status, error, elemen teratas) paling penting: potong bagian akhirnya.
+        ctx.views?.push(result.summary);
+        // Awal hasil (status, error, temuan tampilan) paling penting: potong bagian akhirnya.
         return result.text.length > 12_000 ? `${result.text.slice(0, 12_000)}\n...(truncated)` : result.text;
       } catch (err) {
+        if (err instanceof ViewUnreachableError) ctx.views?.push({ path: target, viewport, unreachable: true });
         throw new ToolError((err as Error).message);
       }
     },
