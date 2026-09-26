@@ -9,6 +9,7 @@ import { resolveAiConfig, createProviders, type AiUserConfig } from "./ai/config
 import { presetLabel, PRESETS } from "./ai/presets.js";
 import { interactiveSetup } from "./ai/setup.js";
 import { latestJournal, undoLatest } from "./ai/journal.js";
+import type { AgentResult } from "./ai/agent.js";
 import { createTerminalSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
 import { startDevtools, type Devtools } from "./dev/devtools.js";
@@ -381,6 +382,7 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
   try {
     if (task) {
       const result = await session.run(task);
+      if (args.flags.report) writeAiReport(args.flags.report, task, config.mode, args.flags["dry-run"] === true, result, io);
       return result.status === "done" ? 0 : 1;
     }
     if (!rl) {
@@ -410,6 +412,18 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
   } finally {
     rl?.close();
   }
+}
+
+/**
+ * `--report=<file>`: hasil tugas AI dalam JSON (status, langkah, token, tool, aksi yang ditolak),
+ * untuk eval dan CI. Tanpa nama file ditulis ke .zentara/ai-report.json.
+ */
+function writeAiReport(target: string | true, task: string, mode: string, dryRun: boolean, result: AgentResult, io: CliIO): void {
+  const file = path.resolve(io.cwd, target === true ? path.join(".zentara", "ai-report.json") : target);
+  const report = { zentara: version(), task, mode, dryRun, finishedAt: new Date().toISOString(), ...result };
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify(report, null, 2) + "\n");
+  io.out(c.dim(t().cli.aiReport(path.relative(io.cwd, file) || file)));
 }
 
 /** Mode obrolan interaktif (gaya Claude Code). */

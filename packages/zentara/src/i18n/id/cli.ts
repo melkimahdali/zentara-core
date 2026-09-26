@@ -14,7 +14,7 @@ Bicara dengan AI (bahasa sehari-hari):
   zentara --continue                               Lanjutkan percakapan terakhir (atau /resume di dalam CLI)
   zentara --classic                                CLI interaktif klasik (tanpa tampilan Ink)
   zentara "buatkan halaman portofolio dengan daftar proyek"
-  zentara ai "<perintah>" [--auto] [--dry-run]
+  zentara ai "<perintah>" [--auto] [--dry-run] [--report=<file>]
   zentara ai:status                                Cek provider AI yang tersedia
   zentara ai:setup [provider]                      Atur provider AI (Claude, OpenAI, Gemini, Groq, DeepSeek,
                                                    OpenRouter, OmniRoute, Ollama): API key, model, tes koneksi
@@ -22,6 +22,7 @@ Bicara dengan AI (bahasa sehari-hari):
 
   --auto      Perubahan biasa langsung dikerjakan; hanya aksi krusial yang ditanyakan
   --dry-run   Tampilkan apa yang akan dilakukan tanpa mengubah file
+  --report=<file>  Tulis hasil tugas AI (status, langkah, token, tool) sebagai JSON; default .zentara/ai-report.json
 
 Perintah manual:
   zentara routes [--json]                          Tampilkan semua route
@@ -56,6 +57,7 @@ Opsi:
   },
   registerMiddleware: (fn: string) => `Daftarkan di src/app/middleware.ts atau di \`export const middleware = [${fn}]\` pada file route.`,
   noRoutes: (dir: string) => `Belum ada route di ${dir}`,
+  aiReport: (file: string) => `Laporan AI ditulis ke ${file}`,
   aiMode: (auto: boolean, dryRun: boolean) => `Zentara AI · mode: ${auto ? "otomatis (hanya aksi krusial ditanyakan)" : "minta persetujuan"}${dryRun ? " · dry-run" : ""}`,
   nonInteractive: "Terminal non-interaktif: aksi yang butuh persetujuan akan ditolak (pakai --auto untuk perubahan biasa).",
   aiNeedsTask: 'Tulis perintahnya, mis. zentara ai "buat endpoint /api/events"',

@@ -302,7 +302,54 @@ describe("Agent", () => {
   it("berhenti di batas langkah", async () => {
     const loop = Array.from({ length: 10 }, (_, i) => tool(String(i), "list_files", {}));
     const agent = new Agent({ chain: new ProviderChain([new ScriptedProvider("p", loop)]), tools: agentTools, context: makeContext(), system: "s", ui: quietUI, maxSteps: 3 });
-    assert.equal((await agent.run("x")).status, "incomplete");
+    const result = await agent.run("x");
+    assert.equal(result.status, "incomplete");
+    assert.equal(result.steps, 3);
+    assert.deepEqual(result.toolCalls, [
+      { name: "list_files", ok: true },
+      { name: "list_files", ok: true },
+      { name: "list_files", ok: true },
+    ]);
+  });
+
+  it("hasil memuat token, model, tool, percobaan perbaikan, dan aksi yang ditolak (untuk eval dan --report)", async () => {
+    const withUsage = (turn: ModelTurn, inputTokens: number, outputTokens: number): ModelTurn => ({ ...turn, model: "model-uji", usage: { inputTokens, outputTokens } });
+    const provider = new ScriptedProvider("claude", [
+      withUsage(tool("1", "write_file", { path: "src/b.ts", content: "export const b = 2;" }), 100, 10),
+      withUsage(tool("2", "delete_file", { path: "src/a.ts" }), 200, 20),
+      { text: "Selesai.", toolCalls: [], stop: "end" }, // provider tanpa usage
+      withUsage({ text: "Sudah diperbaiki.", toolCalls: [], stop: "end" }, 300, 30),
+    ]);
+    answer = "no"; // mode auto: tulis biasa jalan, hapus file (krusial) ditanyakan lalu ditolak
+    let verifications = 0;
+    const agent = new Agent({
+      chain: new ProviderChain([provider]),
+      tools: agentTools,
+      context: makeContext("auto"),
+      system: "s",
+      ui: quietUI,
+      verify: async () => (++verifications === 1 ? { ok: false, output: "test gagal" } : { ok: true, output: "ok" }),
+    });
+    const result = await agent.run("buat b.ts dan hapus a.ts");
+    assert.equal(result.status, "done");
+    assert.deepEqual(result.usage, { inputTokens: 600, outputTokens: 60, unreported: 1 });
+    assert.deepEqual(result.models, ["model-uji"]);
+    assert.equal(result.fixAttempts, 1);
+    assert.deepEqual(result.toolCalls, [
+      { name: "write_file", ok: true },
+      { name: "delete_file", ok: false },
+    ]);
+    assert.equal(result.denied.length, 1);
+    assert.equal(result.denied[0]!.tool, "delete_file");
+    assert.equal(result.denied[0]!.risk, "critical");
+    assert.ok(fs.existsSync(path.join(root, "src", "a.ts")), "file yang penghapusannya ditolak tetap ada");
+    assert.ok(result.durationMs >= 0);
+
+    // Tugas berikutnya di sesi yang sama hanya menghitung miliknya sendiri.
+    const next = await agent.run("lanjut");
+    assert.deepEqual(next.denied, []);
+    assert.deepEqual(next.toolCalls, []);
+    assert.equal(next.fixAttempts, 0);
   });
 });
 

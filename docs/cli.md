@@ -37,7 +37,7 @@ npm install -g zentara
 | `zentara` | CLI interaktif (gaya Claude Code) |
 | `zentara --continue` | CLI interaktif, langsung melanjutkan percakapan terakhir |
 | `zentara --classic` | CLI interaktif klasik (tanpa tampilan Ink) |
-| `zentara "<kalimat>" [--auto] [--dry-run]` | satu perintah AI |
+| `zentara "<kalimat>" [--auto] [--dry-run] [--report=<file>]` | satu perintah AI |
 | `zentara ai:setup [provider]` | atur akses AI dengan menu panah |
 | `zentara ai:status` | cek provider AI |
 | `zentara undo [--yes]` | batalkan perubahan AI terakhir |
@@ -68,6 +68,7 @@ npm install -g zentara
 |---|---|
 | `--auto` | perubahan biasa langsung dikerjakan; aksi krusial tetap ditanyakan |
 | `--dry-run` | lihat rencana AI tanpa mengubah file |
+| `--report=<file>` | tulis hasil tugas AI (status, langkah, token, tool, aksi yang ditolak) sebagai JSON; tanpa nama file ke `.zentara/ai-report.json` |
 | `--no-dev` | CLI interaktif tanpa menawarkan server dev |
 | `--continue` | CLI interaktif melanjutkan percakapan terakhir |
 | `--no-ai` | `zentara dev` tanpa chat AI di browser |

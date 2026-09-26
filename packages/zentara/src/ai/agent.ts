@@ -1,3 +1,4 @@
+import type { Risk } from "./approval.js";
 import type { ProviderChain } from "./chain.js";
 import { t } from "../i18n/index.js";
 import type { AgentTool, CommandResult, ToolContext } from "./tools.js";
@@ -35,6 +36,17 @@ export interface AgentResult {
   changedFiles: string[];
   steps: number;
   providersUsed: string[];
+  /** Model yang benar-benar menjawab (bisa berbeda karena fallback), bila provider melaporkannya. */
+  models: string[];
+  /** Jumlah token dari semua langkah; `unreported` = langkah yang providernya tidak melaporkan usage. */
+  usage: { inputTokens: number; outputTokens: number; unreported: number };
+  /** Berapa kali agen mencoba memperbaiki kegagalan verifikasi otomatis (typecheck/test). */
+  fixAttempts: number;
+  /** Urutan tool yang dipanggil dan apakah berhasil. */
+  toolCalls: { name: string; ok: boolean }[];
+  /** Aksi yang tidak disetujui (ditolak pengguna, atau otomatis ditolak di mode --auto/non-interaktif). */
+  denied: { tool: string; risk: Risk; summary: string }[];
+  durationMs: number;
 }
 
 const COMPACT_PROMPT =
@@ -104,19 +116,31 @@ export class Agent {
     const maxFix = this.options.maxFixAttempts ?? 2;
     const verify = this.options.verify ?? (() => defaultVerify(context));
     const providersUsed = new Set<string>();
+    const models = new Set<string>();
+    const usage = { inputTokens: 0, outputTokens: 0, unreported: 0 };
+    const toolCalls: AgentResult["toolCalls"] = [];
     const changedBefore = new Set(context.journal.changedFiles);
+    const deniedBefore = context.approval.denied.length;
+    const startedAt = Date.now();
     let dirty = false;
     let fixAttempts = 0;
+    const finish = (status: AgentResult["status"], steps: number): AgentResult => ({
+      status,
+      steps,
+      providersUsed: [...providersUsed],
+      changedFiles: context.journal.changedFiles.filter((f) => !changedBefore.has(f)),
+      models: [...models],
+      usage: { ...usage },
+      fixAttempts,
+      toolCalls: [...toolCalls],
+      denied: context.approval.denied.slice(deniedBefore),
+      durationMs: Date.now() - startedAt,
+    });
 
     this.messages.push({ role: "user", text: task });
 
     for (let step = 1; step <= maxSteps; step++) {
-      const result = (status: AgentResult["status"]): AgentResult => ({
-        status,
-        steps: step,
-        providersUsed: [...providersUsed],
-        changedFiles: context.journal.changedFiles.filter((f) => !changedBefore.has(f)),
-      });
+      const result = (status: AgentResult["status"]): AgentResult => finish(status, step);
       const interrupted = () => {
         // Model harus tahu tugas sebelumnya berhenti di tengah jalan saat pengguna menulis lagi.
         this.messages.push({ role: "user", text: t().ai.agent.userStopped });
@@ -140,6 +164,11 @@ export class Agent {
         throw err;
       }
       providersUsed.add(turn.provider);
+      if (turn.model) models.add(turn.model);
+      if (turn.usage) {
+        usage.inputTokens += turn.usage.inputTokens;
+        usage.outputTokens += turn.usage.outputTokens;
+      } else usage.unreported++;
       this.messages.push({ role: "assistant", text: turn.text, toolCalls: turn.toolCalls, native: turn.native });
       if (turn.text.trim()) ui.assistant(turn.text.trim(), turn.provider);
 
@@ -188,6 +217,7 @@ export class Agent {
           if (!res.isError && !context.dryRun && this.mutates(call)) dirty = true;
         }
         ui.toolEnd(call, res);
+        toolCalls.push({ name: call.name, ok: !res.isError });
         results.push(res);
       }
       this.messages.push({ role: "tool_results", results });
@@ -195,12 +225,7 @@ export class Agent {
     }
 
     ui.info(t().ai.agent.stepLimit(maxSteps));
-    return {
-      status: "incomplete",
-      steps: maxSteps,
-      providersUsed: [...providersUsed],
-      changedFiles: context.journal.changedFiles.filter((f) => !changedBefore.has(f)),
-    };
+    return finish("incomplete", maxSteps);
   }
 
   private mutates(call: ToolCall): boolean {
