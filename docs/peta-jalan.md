@@ -37,9 +37,18 @@ Tahap 10 dan 11 dirilis bersama di 0.12.
 | 12b | 0.12.6 | Fondasi tampilan dan formulir lengkap: tata letak, Select, Checkbox, Radio, Switch, unggah file, tema di config, dan katalog komponen |
 | 12c | 0.12.7 | Navigasi, dialog, notifikasi, dan tampilan data: Navbar, Tabs, Pagination, Dialog, Toast, Accordion, Timeline, Calendar, halaman 403/404/500 |
 | 12d | 0.12.8 | Halaman publik dan pola siap pakai: Hero, Pricing, Gallery, FAQ, Testimonial, ProductCard, keranjang, dan contoh halaman utuh |
-| 13 | 0.13 | Data dan panel admin: CRUD otomatis dari schema, relasi, paginasi, filter, interaksi tanpa muat ulang dengan [htmx](https://htmx.org), dan manifest aplikasi `zentara describe --json` |
-| 14 | 0.14 | Zentara untuk semua agen AI: `zentara mcp`, `AGENTS.md` di template, dan `llms.txt` untuk dokumentasi |
-| 15 | 0.15 | Testing dan eval AI: helper uji, factory, laporan cakupan, eval AI yang hasilnya diterbitkan, dan benchmark dasar |
+| 12e | 0.12.9 | Alat pengembang: toolbar per request (query, N+1), mode inspeksi, skor halaman, varian tablet/gelap/en, tangkapan layar, rekaman langkah, input suara |
+| 13 | 0.13 | Fondasi panel admin dengan [htmx](https://htmx.org): CRUD dari schema yang bisa dibuat ulang, urutkan/cari/filter, hak akses, dasbor admin, dan `zentara describe --json` |
+| 13b | 0.13.1 | Relasi, konten, dan alur kerja: many-to-many, CSV/Excel, log audit, revisi, draf dan terbit, SEO, media, persetujuan, otomasi, pengubah schema |
+| 13c | 0.13.2 | Tampilan kalender/kanban/spreadsheet, tampilan tersimpan, hak akses per kolom dan baris, kelola pengguna, multi-tenant, API dan webhook, UU PDP |
+| 13d | 0.13.3 | Template konten dan bisnis: Website Bisnis, Portofolio, Blog, Berita, Pemerintah, Penyedia Layanan, Statis, Publik |
+| 13e | 0.13.4 | Template aplikasi dan transaksi: Toko Online, E-Learning, Berbagi Berkas, Mesin Pencari, Dinamis |
+| 13f | 0.13.5 | Template komunitas dan akses: Media Sosial, Intranet, Ekstranet, PWA, SPA |
+| 14 | 0.14 | Zentara untuk semua agen AI: `zentara mcp`, `search_docs`, tool runtime, klien MCP, indeks kode, OpenAPI, aturan dan biaya AI, `AGENTS.md`, `llms.txt` |
+| 14b | 0.14.1 | AI yang merencanakan dan melihat: mode rencana, titik simpan per tugas, edit visual, gambar atau desain jadi halaman |
+| 15 | 0.15 | Testing dan eval AI: helper uji, factory, fake, database per tes, `--watch`, alur bug jadi tes, eval yang diterbitkan |
+| 15b | 0.15.1 | Tes browser dan performa: `--browser`, aksesibilitas, rekam tes, regresi visual, `zentara ci github`, benchmark |
+| 15c | 0.15.2 | Tes keamanan dan kualitas tes: fuzz dari schema, uji keamanan otomatis, mutation testing |
 | 16 | 0.16 | Runtime portabel: inti `app.fetch()` standar dan paket produksi ringan tanpa CLI/AI |
 | 17 | 0.17 | Deploy satu perintah: Docker, PM2, Vercel, dan Cloudflare (eksperimental) |
 | 18 | 0.18 | Katalog plugin resmi, termasuk pembayaran Midtrans/Xendit sejak awal |
@@ -114,27 +123,144 @@ Kit UI `zentara/ui` saat ini punya sekitar 25 komponen, hampir semuanya untuk da
 - **Contoh halaman utuh** di katalog (landing, profil usaha, toko, jadwal booking, dasbor) yang dijadikan acuan AI dan juga tugas eval di Tahap 15.
 - **Selesai bila:** AI smoke untuk "landing page toko kue", "halaman profil tim dengan foto", "halaman jadwal booking", dan "ubah warna utama jadi biru" selesai tanpa CSS atau `style` buatan AI, dan `view_page` lulus di desktop dan ponsel.
 
-**Setelah 12d:** komponen yang butuh interaksi server (tabel dengan filter, urutkan, dan ubah langsung; pencarian `Combobox`; aksi massal) dikerjakan di Tahap 13 bersama htmx. Komponen berat yang butuh pustaka luar (editor teks, grafik, peta, pemilih rentang tanggal) tetap plugin di Tahap 18.
+**Setelah 12d:** komponen yang butuh interaksi server (tabel dengan filter, urutkan, dan ubah langsung; pencarian `Combobox`; aksi massal) dikerjakan di Tahap 13 dan 13b bersama htmx. Komponen berat yang butuh pustaka luar (editor teks, grafik, peta, pemilih rentang tanggal) tetap plugin di Tahap 18.
 
-### Tahap 13 · 0.13: data dan panel admin
+### Tahap 12e · 0.12.9: alat pengembang
 
-- htmx masuk inti, prop `hx` di kit UI, komponen baru untuk tabel, filter, dan formulir, serta menu bertanda. Panel admin memakai komponen dari Tahap 12b sampai 12d, ditambah komponen yang butuh server: `Combobox` dengan pencarian, tabel yang bisa diurutkan dan diubah langsung, serta aksi massal.
-- `zentara make:admin` membuat halaman admin dari schema database.
+Dibandingkan dengan Django Debug Toolbar, Laravel Telescope, Lighthouse, Sentry, dan inspector Vite/Svelte. Semua alat ini hanya ada saat pengembangan, dan semua datanya bisa dibaca Zentara AI.
+
+- **Toolbar dev per request:** waktu proses, daftar query database beserta waktunya, deteksi query N+1, isi session, dan log.
+- **Mode inspeksi:** arahkan kursor ke elemen di halaman, lalu muncul file dan baris kode yang membuatnya.
+- **Skor halaman** di `view_page`: waktu muat, ukuran halaman, jumlah request, gambar tanpa `alt`, meta SEO yang hilang, dan aksesibilitas dasar.
+- **Varian pemeriksaan:** `view_page` bisa memeriksa tablet, mode gelap, dan bahasa `en` selain desktop dan ponsel.
+- **Tangkapan layar piksel** untuk provider AI yang bisa membaca gambar, selain struktur DOM.
+- **Rekaman langkah pengguna** sebelum error (klik, isi form, navigasi) yang ikut dikirim ke AI supaya bug bisa diulang.
+- **Muat ulang otomatis** semua tab yang terbuka setelah file berubah dan server dev siap.
+- **Input suara** di widget, dengan Bahasa Indonesia dan Bahasa Inggris.
+
+### Panel admin: Tahap 13, 13b, dan 13c
+
+Dibandingkan dengan Django Admin, Laravel Filament/Nova, Rails Avo, Airtable/NocoDB, Directus/Strapi, Retool/Metabase, Supabase Studio, dan Odoo/Salesforce. Panel admin harus cocok untuk jenis website apa pun, bukan hanya toko.
+
+#### Tahap 13 · 0.13: fondasi data dan panel admin
+
+- htmx masuk inti, prop `hx` di kit UI, dan menu bertanda. Panel admin memakai komponen dari Tahap 12b sampai 12d, ditambah komponen yang butuh server: `Combobox` dengan pencarian dan tabel yang bisa diurutkan dan diubah langsung.
+- `zentara make:admin` membuat halaman admin dari schema database, dan **bisa dijalankan ulang** setelah schema berubah tanpa menimpa kode yang sudah Anda ubah (hanya blok bertanda yang diperbarui).
+- Daftar data dengan urutkan kolom, pencarian di beberapa kolom, dan filter per tipe data (rentang tanggal, enum, boolean).
+- Kolom gambar dan file otomatis memakai `FileInput` dengan pratinjau.
+- Hak akses per tabel dan per aksi (lihat, tambah, ubah, hapus) berdasarkan role.
+- Dasbor admin otomatis: jumlah data per tabel dan data terbaru.
+- Satu permintaan AI dikerjakan utuh, mis. "tambah kolom status ke produk": schema, migrasi, admin, tes, lalu dicek dengan `view_page`.
 - `zentara describe --json` mencetak manifest aplikasi (route, tabel dan kolom, halaman admin, job, plugin) tanpa kolom rahasia. Manifest ini dipakai Zentara AI sebagai konteks awal dan menjadi tool utama `zentara mcp`.
 
-### Tahap 14 · 0.14: Zentara untuk semua agen AI
+#### Tahap 13b · 0.13.1: relasi, konten, dan alur kerja
+
+- **Relasi:** many-to-many (pilihan ganda) dan data anak langsung di halaman induk, mis. item pesanan di halaman pesanan.
+- **Data massal:** aksi massal, ekspor dan impor CSV, dan impor Excel dengan pencocokan kolom.
+- **Jejak data:** log audit (siapa mengubah apa), hapus lunak dengan tombol pulihkan, dan riwayat revisi per data dengan diff.
+- **Konten:** status draf, terbit, dan terjadwal dengan pratinjau; slug otomatis dan kolom SEO; pustaka media; konten dua bahasa per data; dan halaman pengaturan tunggal (nama situs, kontak, jam buka).
+- **Alur kerja:** status dengan aturan transisi dan persetujuan, catatan internal per data, aksi khusus yang menjalankan job, serta cetak dan ekspor PDF per data.
+- **Otomasi** ala Airtable/Zapier: "bila data X dibuat atau berubah, kirim email, webhook, atau jalankan job". Bisa dibuat lewat AI.
+- **Filter dengan bahasa sehari-hari**, mis. "pesanan bulan ini di atas 1 juta", yang diubah AI menjadi filter biasa.
+- **Pengubah schema dari panel admin:** buat tabel dan kolom lewat UI, lalu Zentara membuat schema Drizzle dan migrasinya dengan persetujuan.
+
+#### Tahap 13c · 0.13.2: tampilan, pengguna, dan integrasi
+
+- **Tampilan selain tabel:** kalender untuk data bertanggal, papan kanban untuk data berstatus (pindah status lewat seret), data bertingkat (kategori, menu) dengan urutan yang bisa diatur, dan tabel ala spreadsheet (edit dengan keyboard, kelompokkan, total dan rata-rata).
+- **Tampilan tersimpan** per pengguna (filter, kolom, urutan) yang bisa dibagikan, serta laporan dan grafik sederhana dari tabel tanpa pustaka luar.
+- **Hak akses lanjutan:** per kolom dan aturan per baris (mis. hanya pemilik data), seperti RLS di Supabase.
+- **Kelola pengguna:** undang, reset kata sandi, nonaktifkan, dan masuk sebagai pengguna (dengan log).
+- **Multi-tenant:** data terpisah per organisasi untuk aplikasi SaaS.
+- **Integrasi:** API JSON otomatis per tabel dengan hak akses yang sama, dan webhook saat data berubah.
+- **Kepatuhan UU PDP:** ekspor dan hapus data pribadi per pengguna, serta log persetujuan.
+- **Operasional:** cadangan dan pemulihan database, penanda "sedang diedit oleh X" dan pencegahan saling timpa, serta palet perintah (Ctrl+K) dan pintasan keyboard.
+
+### Template per jenis website: Tahap 13d, 13e, dan 13f
+
+Saat ini `npm create zentara` hanya punya template umum `api` dan `minimal` (keduanya tetap ada). Tiga tahap ini menambah 18 template per jenis website, dipakai lewat `npm create zentara -- --template <nama>` atau dipilih dari CLI interaktif dan Zentara AI.
+
+Setiap template berisi: contoh halaman utuh yang memakai kit UI, data contoh (seed), panel admin dari Tahap 13–13c, tes, e2e scaffold, `AGENTS.md`, dan teks Bahasa Indonesia serta Bahasa Inggris. Contoh halamannya juga menjadi tugas eval di Tahap 15.
+
+#### Tahap 13d · 0.13.3: konten dan bisnis
+
+- `bisnis` (Website Bisnis): beranda, layanan, tentang, tim, testimoni, dan kontak.
+- `portofolio`: proyek, galeri, profil, dan formulir kontak.
+- `blog`: artikel, kategori, tag, komentar, dan RSS.
+- `berita`: rubrik, berita utama, penulis, arsip, dan berita terpopuler.
+- `pemerintah`: profil instansi, layanan publik, pengumuman, dokumen publik, dan pengaduan.
+- `layanan` (Penyedia Layanan): daftar layanan, harga, booking jadwal, dan status pesanan.
+- `statis`: situs tanpa database yang diekspor menjadi file HTML. Menambah **`zentara build --static`** di inti.
+- `publik`: portal organisasi atau komunitas dengan acara, pengumuman, formulir, dan donasi.
+
+#### Tahap 13e · 0.13.4: aplikasi dan transaksi
+
+- `toko` (Toko Online): katalog, keranjang, checkout, pesanan, dan stok. Pembayaran lewat plugin Tahap 18.
+- `elearning`: kursus, materi, kuis, progres belajar, dan sertifikat.
+- `berbagi-berkas`: unggah, folder, tautan berbagi dengan masa berlaku, dan kuota.
+- `mesin-pencari`: indeks konten, halaman hasil, dan saran pencarian. Menambah **pencarian teks penuh** di inti (SQLite FTS5 dan PostgreSQL).
+- `dinamis`: aplikasi berbasis data umum dengan login, sebagai titik awal aplikasi apa pun.
+
+#### Tahap 13f · 0.13.5: komunitas dan akses
+
+- `sosial` (Media Sosial): profil, ikuti, feed, suka, komentar, dan notifikasi. Menambah **notifikasi realtime** (Server-Sent Events) di inti.
+- `intranet`: wajib login, direktori pegawai, pengumuman, dokumen, dan cuti.
+- `ekstranet`: portal mitra atau klien dengan role mitra, berbagi dokumen, dan tiket.
+- `pwa`: bisa dipasang di ponsel dan tetap jalan saat offline. Menambah **manifest, service worker, dan mode offline** di inti.
+- `spa`: navigasi tanpa muat ulang halaman lewat htmx, tetap tanpa build step. Island React/Preact tetap plugin di Tahap 18.
+
+### Agen AI: Tahap 14 dan 14b
+
+Dibandingkan dengan Laravel Boost, MCP devtools Next.js, Cursor, Devin, Replit Agent, Lovable, v0, ASP.NET, dan Spring.
+
+#### Tahap 14 · 0.14: Zentara untuk semua agen AI
 
 Pengembang yang memakai Claude Code, Cursor, atau agen lain tetap mendapat pengalaman terbaik di proyek Zentara, dengan aturan keamanan yang sama seperti Zentara AI. **[menunggu keputusan: MCP dimajukan ke tahap ini]**
 
 - `zentara mcp`: server MCP dengan tool baca (`describe`, `list_routes`, `view_page`, baca dan cari file, log server dev) dan tool ubah (`make:*`, `db:generate`, `db:migrate`, tulis dan edit file). Batas path, larangan `.env` dan file database, serta aksi krusial sama dengan Zentara AI, dan setiap perubahan bisa dibatalkan dengan `zentara undo`.
-- `AGENTS.md` (dan `CLAUDE.md` pendek) di template `api` dan `minimal` dalam dua bahasa. `zentara agents` menambahkannya ke proyek lama.
+- `search_docs`: mencari dokumentasi Zentara yang sesuai versi terpasang, supaya agen tidak memakai API lama.
+- Tool runtime: error terakhir dengan stack trace, log request, status job, email yang terkirim saat dev, dan query database baca-saja dengan kolom rahasia disamarkan.
+- Menjalankan potongan kode di konteks aplikasi (seperti `tinker` Laravel), selalu dengan persetujuan.
+- Zentara AI bisa memakai server MCP lain (mis. GitHub, Figma).
+- Indeks kode proyek supaya AI tetap akurat di proyek besar.
+- OpenAPI dan klien bertipe dibuat otomatis dari route, plus diagram arsitektur dari `zentara describe`.
+- File aturan AI per proyek (apa yang boleh dan tidak boleh dilakukan AI), batas biaya per tugas, log audit semua aksi agen, dan tampilan biaya token per tugas.
+- `AGENTS.md` (dan `CLAUDE.md` pendek) di semua template dalam dua bahasa. `zentara agents` menambahkannya ke proyek lama.
 - `llms.txt` dan `llms-full.txt` dibuat otomatis untuk situs dokumentasi.
 
-### Tahap 15 · 0.15: testing dan eval AI
+#### Tahap 14b · 0.14.1: AI yang merencanakan dan melihat
+
+- **Mode rencana:** untuk tugas besar, AI menampilkan rencana langkah dulu dan baru mengerjakan setelah disetujui.
+- **Titik simpan per tugas** lewat git, jadi satu tugas besar bisa dibatalkan sekaligus.
+- **Edit visual:** klik elemen di halaman lewat widget lalu minta "ubah ini", dan AI langsung tahu elemen dan filenya.
+- **Gambar atau desain jadi halaman:** unggah tangkapan layar atau sketsa, lalu AI menyusunnya dengan kit UI.
+
+### Testing: Tahap 15, 15b, dan 15c
+
+Dibandingkan dengan Laravel (Pest, Dusk, fake), Rails (system test), AdonisJS (Japa), Spring Boot (Testcontainers), ASP.NET, Phoenix (sandbox database), Go (fuzzing bawaan), Playwright, dan Stryker.
+
+#### Tahap 15 · 0.15: testing dan eval AI
 
 - `zentara/testing`: `testApp()`, `loginAs`, factory data uji, dan `zentara test --coverage`. Zentara AI dan generator ikut menulis tes.
-- Eval AI: 20 sampai 30 tugas standar pada template `api` yang dinilai otomatis (typecheck, tes, `view_page`, aksi terlarang, jumlah langkah, token). Hasilnya diterbitkan per versi di situs dokumentasi.
-- Benchmark dasar request per detik dan latensi dibandingkan Express dan Fastify, dijalankan di CI supaya tahap berikutnya tidak membuat Zentara lebih lambat.
+- Fake untuk email, job, unggahan, request HTTP keluar, dan waktu (lompat ke tanggal tertentu).
+- Database terisolasi per tes, tes paralel, dukungan PostgreSQL, dan database asli lewat Docker (seperti Testcontainers).
+- `zentara test --watch` dan menjalankan hanya tes yang terdampak perubahan.
+- **Alur "bug jadi tes":** setiap laporan bug ditulis dulu sebagai tes yang gagal, baru diperbaiki.
+- Eval AI: tugas standar pada template `api` dan template per jenis website, dinilai otomatis (typecheck, tes, `view_page`, aksi terlarang, jumlah langkah, token). Respons model bisa direkam supaya eval jalan di CI tanpa API key. Hasilnya diterbitkan per versi di situs dokumentasi.
+
+#### Tahap 15b · 0.15.1: tes browser dan performa
+
+- `zentara test --browser` (Playwright opsional): isi form, klik, tangkapan layar otomatis saat gagal, dan pemeriksaan tampilan `view_page` sebagai assertion.
+- Pemeriksaan aksesibilitas dasar sebagai assertion.
+- **Rekam tes dari browser:** klik-klik di halaman lewat widget, lalu jadi file tes.
+- Regresi visual: tangkapan layar dibandingkan dengan versi sebelumnya.
+- `zentara ci github` membuat workflow GitHub Actions untuk proyek pengguna.
+- `zentara bench` untuk performa aplikasi pengguna, dan benchmark framework dibandingkan Express dan Fastify di CI supaya tahap berikutnya tidak membuat Zentara lebih lambat.
+
+#### Tahap 15c · 0.15.2: tes keamanan dan kualitas tes
+
+- **Fuzz otomatis** dari schema validasi: setiap route diuji dengan input acak dan tidak valid.
+- **Uji keamanan otomatis:** route tanpa auth, CSRF, header keamanan, injeksi, dan akses ke data milik pengguna lain.
+- **Mutation testing** untuk mengukur apakah tes (termasuk buatan AI) benar-benar menangkap bug, bukan sekadar lulus.
 
 ### Tahap 16 · 0.16: runtime portabel dan paket produksi ringan
 
