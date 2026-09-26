@@ -29,17 +29,50 @@ Values of password fields, hidden fields, fields named like `token`/`secret`/`ca
 
 ## The AI checks its work: `view_page`
 
-After changing a page, Zentara AI calls the `view_page` tool to look at the result and fixes what is wrong, e.g. the requested button is missing or there is a console error.
+After changing a page, Zentara AI **must** call the `view_page` tool for that page on a desktop and a mobile screen and fix what it finds, just like the typecheck and tests. If problems remain after two attempts, the AI reports the findings as they are and the task is not marked done.
 
-- **A browser tab is open** (any page with the widget): the page is loaded in a hidden iframe in that tab, with the same screen size and your login cookie. The chat keeps running.
+- **A browser tab is open** (any page with the widget): the page is loaded in a hidden iframe in that tab, with your login cookie, at 1280×800 (`desktop`) or 390×844 (`mobile`). The chat keeps running.
 - **No tab is open:** the AI uses a text version from the server (no JavaScript, not logged in). If the page redirects to `/login`, the AI says so.
 
-You can look at the same text version yourself:
+An example call by the AI:
+
+```json
+{ "url": "/notes", "viewport": "mobile", "expect": { "text": ["Add"], "selector": ["table"], "noConsoleErrors": true, "noLayoutIssues": true } }
+```
+
+### Layout checks
+
+Every `view_page` result includes layout checks. Each finding names its element, and the result names the page's route file.
+
+| Finding | Meaning | In the browser | Text version |
+| --- | --- | --- | --- |
+| `overflow` | an element sticks out past the screen edge or makes the page scroll sideways (tables inside a scroll area do not count) | ✓ | |
+| `overlap` | two elements (text, buttons, inputs, images) overlap | ✓ | |
+| `truncated` | text is cut off by `overflow: hidden`, or shortened with "…" without a `title` attribute | ✓ | |
+| `image` | an image failed to load | ✓ | ✓ (local images) |
+| `contrast` | text contrast below WCAG AA: 4.5:1, or 3:1 for large text | ✓ | |
+| `style` | a `style` attribute, a `<style>` element, or a stylesheet outside the UI kit | ✓ | ✓ |
+| `kit` | the page is not built with `page()` from `zentara/ui` | ✓ | ✓ |
+| `meta` | no `<meta name="viewport">`, so phones show the page zoomed out | ✓ | ✓ |
+
+The framework's own welcome and error pages are not checked for `style`, `kit`, and `meta`.
+
+You can see the same result yourself. When `zentara dev` or the interactive CLI is running and a browser tab is open, `zentara view` uses that tab; otherwise the text version. It exits with 1 when there are findings, errors, or a missing `--text`.
 
 ```bash
-npx zentara view /notes                    # title, headings, tables, forms, buttons, links, text
-npx zentara view /login --text "Sign in"   # fails (exit 1) when the text is missing
+npx zentara view /notes                    # elements, console errors, and layout checks
+npx zentara view /notes --mobile           # phone screen (390 px)
+npx zentara view /login --text "Sign in"   # fails when the text is missing
 npx zentara view /api/hello --json
+```
+
+## AI task journal
+
+Every Zentara AI task (terminal, interactive CLI, and the browser chat) writes a summary to `.zentara/ai-tasks.jsonl`: status, steps, duration, tokens, the typecheck and test results, and every `view_page`. File contents and the conversation are not recorded. Only the first line of the request is kept, and the journal never leaves your computer. The AI evals in Stage 15 use this data.
+
+```bash
+npx zentara ai:log               # the last 20 tasks and the share that finished
+npx zentara ai:log --limit 100 --json
 ```
 
 ## Not in production
@@ -58,6 +91,7 @@ The e2e tests check that production pages do not include the widget, including w
 - it is only active during development, through a small server that only listens on `127.0.0.1`;
 - every request needs a random per-session token and is only accepted from `localhost` pages (other sites and DNS rebinding are rejected);
 - the rules are the same as in the terminal: `.env` and database files are off limits, critical actions are always asked, and every change can be undone;
+- `zentara dev` writes the devtools port and token to `.zentara/devtools.json` (readable only by the file's owner, removed when the server stops) so `zentara view` from another terminal can use the browser tab;
 - the devtools token is on the page during development, so a third-party script you load on the page (e.g. from a CDN) could technically use the chat too. The `ask` mode (the default) still asks for your approval before every change, so use it when your pages load outside scripts.
 
 In production (`zentara start`), visitors only see a simple error page without details, and the welcome page has no chat or route list. API clients (`Accept: application/json`) still get JSON.
@@ -68,4 +102,5 @@ In production (`zentara start`), visitors only see a simple error page without d
 2. It shares a short plan.
 3. It creates or changes files, with your approval.
 4. **It always runs the typecheck and tests.** If they fail, it fixes the problem itself (up to 2 times).
-5. It reports the result: which files changed and how to try them.
+5. **When a page changed, it checks it with `view_page`** on desktop and mobile and fixes the findings (up to 2 times).
+6. It reports the result: which files changed and how to try them.

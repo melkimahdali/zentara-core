@@ -10,7 +10,9 @@ import { createAiSession, type AiSession, type SessionUI } from "../ai/session.j
 import { c, summarizeCall } from "../ai/terminal.js";
 import type { ToolCall, ToolResult } from "../ai/types.js";
 import { ZENTARA_VERSION } from "../core/devpage/theme.js";
-import { formatSnapshot, normalizeSnapshot, type BrowserView, type PageViewer } from "./view.js";
+import fs from "node:fs";
+import path from "node:path";
+import { formatSnapshot, normalizeSnapshot, parseViewport, viewPage, VIEWPORTS, type BrowserView, type PageViewer, type ViewExpect } from "./view.js";
 
 /**
  * Server devtools: jembatan antara chat Zentara AI di browser (halaman sambutan & halaman error)
@@ -145,7 +147,7 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
         appWaiters.add(check);
       });
     },
-    browser(path, { selectors, signal }) {
+    browser(path, { selectors, viewport, signal }) {
       const tab = [...pages.values()].sort((a, b) => b.seen - a.seen)[0];
       if (!tab) return Promise.resolve(undefined);
       const id = `v${++viewSeq}`;
@@ -161,7 +163,7 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
         const timer = setTimeout(() => done({ error: "the browser did not answer in time" }), VIEW_TIMEOUT_MS);
         signal?.addEventListener("abort", onAbort, { once: true });
         views.set(id, done);
-        sendToPage(tab, { type: "view", id, path, selectors: (selectors ?? []).slice(0, 20) });
+        sendToPage(tab, { type: "view", id, path, selectors: (selectors ?? []).slice(0, 20), ...(viewport ? { size: VIEWPORTS[viewport] } : {}) });
       });
     },
   };
@@ -325,6 +327,16 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
           resolve(snapshot ? { snapshot } : { error: typeof body.error === "string" ? body.error.slice(0, 200) : "no snapshot" });
           return json(res, 200, { ok: true });
         }
+        case "POST /view": {
+          // `zentara view` dari terminal lain: hasil sama dengan tool view_page (browser bila ada tab).
+          const body = await readBody(req);
+          const raw = (body.expect && typeof body.expect === "object" ? body.expect : {}) as Record<string, unknown>;
+          const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 20) : undefined);
+          const expect: ViewExpect = { text: strings(raw.text), selector: strings(raw.selector), noConsoleErrors: raw.noConsoleErrors === true, noLayoutIssues: raw.noLayoutIssues === true };
+          const fallbackBase = typeof body.base === "string" && LOCAL_ORIGIN.test(body.base) ? body.base : "http://localhost:3000";
+          const result = await viewPage({ path: typeof body.path === "string" ? body.path : "/", viewport: parseViewport(body.viewport), expect }, viewer, { fallbackBase });
+          return json(res, 200, result);
+        }
         case "POST /app": {
           const body = await readBody(req);
           if (typeof body.url === "string" && /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?$/.test(body.url)) {
@@ -371,6 +383,7 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
     server.listen(0, "127.0.0.1", () => resolve());
   });
   const port = (server.address() as AddressInfo).port;
+  const info = writeDevtoolsInfo(options.root, port, token);
 
   return {
     port,
@@ -381,8 +394,49 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
       new Promise<void>((resolve) => {
         controller?.abort();
         for (const done of views.values()) done({ error: "devtools closed" });
+        removeDevtoolsInfo(info, token);
         server.close(() => resolve());
         server.closeAllConnections();
       }),
   };
+}
+
+/**
+ * `.zentara/devtools.json` (port + token, hanya bisa dibaca pemilik) supaya `zentara view` dari terminal lain
+ * bisa memakai tab browser yang terhubung. Dihapus saat devtools berhenti.
+ */
+export function devtoolsInfoPath(root: string): string {
+  return path.join(root, ".zentara", "devtools.json");
+}
+
+function writeDevtoolsInfo(root: string, port: number, token: string): string | undefined {
+  const file = devtoolsInfoPath(root);
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify({ port, token, pid: process.pid }) + "\n", { mode: 0o600 });
+    fs.chmodSync(file, 0o600);
+    return file;
+  } catch {
+    return undefined;
+  }
+}
+
+function removeDevtoolsInfo(file: string | undefined, token: string): void {
+  if (!file) return;
+  try {
+    // Jangan hapus milik devtools lain yang dimulai sesudahnya.
+    if ((JSON.parse(fs.readFileSync(file, "utf8")) as { token?: string }).token === token) fs.rmSync(file, { force: true });
+  } catch {
+    // Sudah tidak ada.
+  }
+}
+
+/** Baca `.zentara/devtools.json` (undefined bila devtools tidak berjalan). */
+export function readDevtoolsInfo(root: string): { port: number; token: string } | undefined {
+  try {
+    const data = JSON.parse(fs.readFileSync(devtoolsInfoPath(root), "utf8")) as { port?: unknown; token?: unknown };
+    return typeof data.port === "number" && typeof data.token === "string" ? { port: data.port, token: data.token } : undefined;
+  } catch {
+    return undefined;
+  }
 }

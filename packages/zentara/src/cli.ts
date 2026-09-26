@@ -12,8 +12,9 @@ import { latestJournal, undoLatest } from "./ai/journal.js";
 import type { AgentResult } from "./ai/agent.js";
 import { createTerminalSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
-import { startDevtools, type Devtools } from "./dev/devtools.js";
-import { checkExpect, fetchTextView, formatTextView, resolveViewTarget } from "./dev/view.js";
+import { readDevtoolsInfo, startDevtools, type Devtools } from "./dev/devtools.js";
+import { resolveViewTarget, viewPage, ViewUnreachableError, type ViewExpect, type Viewport } from "./dev/view.js";
+import { readTaskLog } from "./ai/task-log.js";
 import { DEV_ONLY_ENV } from "./core/devpage/info.js";
 import { startRepl } from "./repl/repl.js";
 import type { HostOptions } from "./repl/host.js";
@@ -57,7 +58,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     const [key, inline] = arg.slice(2).split("=", 2) as [string, string | undefined];
     const next = argv[i + 1];
     if (inline !== undefined) flags[key] = inline;
-    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule", "url", "text"].includes(key)) {
+    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule", "url", "text", "limit"].includes(key)) {
       flags[key] = next;
       i++;
     } else flags[key] = true;
@@ -284,7 +285,7 @@ async function listRoutes(args: ParsedArgs, io: CliIO): Promise<number> {
 }
 
 const KNOWN_COMMANDS = new Set([
-  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "make:job", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang", "jobs", "jobs:run", "view",
+  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "make:job", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang", "jobs", "jobs:run", "view", "ai:log",
 ]);
 
 /** Bahasa CLI: env ZENTARA_LANG, lalu `locale` di zentara.config.mjs, lalu preferensi global, lalu Indonesia. */
@@ -640,8 +641,10 @@ async function start(io: CliIO): Promise<number> {
 }
 
 /**
- * `zentara view <path>`: versi teks sebuah halaman dari server yang sedang berjalan (sama dengan cadangan
- * tool `view_page` saat tidak ada browser). `--text "a,b"` memeriksa teks yang harus ada.
+ * `zentara view <path> [--mobile]`: hasil yang sama dengan tool `view_page`, termasuk pemeriksaan tampilan.
+ * Bila devtools berjalan (`zentara dev`/CLI interaktif) dan ada tab browser terhubung, halaman dilihat di
+ * browser; bila tidak, versi teks dari server. `--text "a,b"` memeriksa teks yang harus ada. Kode keluar 0
+ * hanya bila tidak ada temuan, error, atau pemeriksaan yang gagal.
  */
 async function viewCommand(args: ParsedArgs, io: CliIO): Promise<number> {
   const target = args.positional[1];
@@ -651,19 +654,60 @@ async function viewCommand(args: ParsedArgs, io: CliIO): Promise<number> {
   }
   loadDotEnv(io.cwd);
   let base = typeof args.flags.url === "string" ? args.flags.url : undefined;
+  const viewport: Viewport = args.flags.mobile ? "mobile" : "desktop";
+  const texts = typeof args.flags.text === "string" ? args.flags.text.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  const expect: ViewExpect = { text: texts };
   try {
     base ??= `http://localhost:${resolveConfig(await loadConfigFile(io.cwd), process.env, io.cwd).port}`;
-    const { url } = resolveViewTarget(target, base);
-    const view = await fetchTextView(url);
-    const texts = typeof args.flags.text === "string" ? args.flags.text.split(",").map((s) => s.trim()).filter(Boolean) : [];
-    const check = checkExpect({ text: texts }, { text: view });
-    if (args.flags.json) io.out(JSON.stringify({ ...view, checks: check.lines }, null, 2));
-    else io.out([formatTextView(view), ...check.lines].join("\n"));
-    return view.status < 400 && check.ok ? 0 : 1;
+    resolveViewTarget(target, base);
+    // Bila `zentara dev`/CLI interaktif berjalan, lewat devtools: halaman dilihat di tab browser yang terhubung.
+    const result = (await viewThroughDevtools(io.cwd, { path: target, viewport, expect, base })) ?? (await viewPage({ path: target, viewport, expect }, undefined, { fallbackBase: base }));
+    if (args.flags.json) io.out(JSON.stringify(result, null, 2));
+    else io.out(result.text);
+    return result.ok ? 0 : 1;
   } catch (err) {
-    io.err(t().cli.viewFailed(base ?? "", (err as Error).message));
+    io.err(err instanceof ViewUnreachableError ? err.message : t().cli.viewFailed(base ?? "", (err as Error).message));
     return 1;
   }
+}
+
+async function viewThroughDevtools(
+  root: string,
+  body: { path: string; viewport: Viewport; expect: ViewExpect; base: string },
+): Promise<Awaited<ReturnType<typeof viewPage>> | undefined> {
+  const info = readDevtoolsInfo(root);
+  if (!info) return undefined;
+  try {
+    const res = await fetch(`http://127.0.0.1:${info.port}/view`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Zentara-Token": info.token },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) return undefined;
+    const data = (await res.json()) as Awaited<ReturnType<typeof viewPage>>;
+    return typeof data.text === "string" ? data : undefined;
+  } catch {
+    // Devtools sudah berhenti (file sisa): pakai versi teks.
+    return undefined;
+  }
+}
+
+/** `zentara ai:log`: hasil tugas Zentara AI terakhir dari journal lokal. */
+function aiLog(args: ParsedArgs, io: CliIO): number {
+  const limit = Math.min(1000, Math.max(1, Number(args.flags.limit) || 20));
+  const entries = readTaskLog(io.cwd, limit);
+  if (args.flags.json) {
+    io.out(JSON.stringify(entries, null, 2));
+    return 0;
+  }
+  if (entries.length === 0) {
+    io.out(t().cli.aiLogEmpty);
+    return 0;
+  }
+  for (const e of entries) io.out(t().cli.aiLogLine(e));
+  io.out(t().cli.aiLogSummary(entries.length, entries.filter((e) => e.ok).length));
+  return 0;
 }
 
 let tsxRegistered = false;
@@ -696,7 +740,7 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
     io.out(version());
     return 0;
   }
-  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "make:job", "db:generate", "lang", "view", undefined].includes(command);
+  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "make:job", "db:generate", "lang", "view", "ai:log", undefined].includes(command);
   if (needsProjectCode || isNaturalLanguage(args.positional)) await ensureTypeScriptLoader(io.cwd);
   if (isNaturalLanguage(args.positional)) return runAi(args.positional.join(" "), args, io);
   switch (command) {
@@ -728,6 +772,8 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return aiSetup(args, io);
     case "undo":
       return undo(args, io);
+    case "ai:log":
+      return aiLog(args, io);
     case "db:generate":
     case "db:migrate":
     case "db:seed": {

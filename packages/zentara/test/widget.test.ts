@@ -12,6 +12,7 @@ import { setAppInfo } from "../src/core/devpage/info.js";
 import { injectDevTools } from "../src/core/devpage/widget.js";
 import { startDevtools, type Devtools } from "../src/dev/devtools.js";
 import { checkExpect, formatSnapshot, htmlOutline, normalizeSnapshot, resolveViewTarget, viewPage } from "../src/dev/view.js";
+import { setLocale } from "../src/i18n/index.js";
 
 const DOC = "<!doctype html><html><head><title>Catatan</title></head><body><h1>Catatan</h1></body></html>";
 const DEV_ENV = { ZENTARA_DEV: "1", ZENTARA_DEVTOOLS_PORT: "4567", ZENTARA_DEVTOOLS_TOKEN: "tok" };
@@ -133,6 +134,9 @@ describe("widget chat di server aplikasi", () => {
 });
 
 describe("melihat halaman (view_page)", () => {
+  // Hasil view_page mengikuti bahasa Zentara; uji di sini memakai teks Bahasa Inggris.
+  before(() => setLocale("en"));
+  after(() => setLocale("id"));
   const html = `<!doctype html><html><head><title>Catatan · Uji</title><style>h1{}</style></head><body>
     <nav><a href="/dashboard">Dasbor</a></nav><main><h1>Catatan</h1>
     <div role="alert">Tersimpan &amp; aman</div>
@@ -179,7 +183,7 @@ describe("melihat halaman (view_page)", () => {
 
   it("pemeriksaan expect: teks, selector, dan error", () => {
     const snapshot = normalizeSnapshot({ url: "/", title: "T", viewport: {}, elements: [{ tag: "button", text: "Ekspor", x: 0, y: 0, w: 1, h: 1 }], text: "", errors: [{ kind: "error", message: "boom" }], failed: [], matches: { table: 0 } })!;
-    const check = checkExpect({ text: ["ekspor"], selector: ["table"], noErrors: true }, { snapshot });
+    const check = checkExpect({ text: ["ekspor"], selector: ["table"], noConsoleErrors: true }, { snapshot });
     assert.equal(check.ok, false);
     assert.deepEqual(check.lines.map((l) => l.split(" ")[0]), ["PASS", "FAIL", "FAIL"]);
   });
@@ -203,9 +207,12 @@ describe("melihat halaman (view_page)", () => {
     await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
     const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
     try {
-      const page = await viewPage({ path: "/notes", expect: { text: ["Simpan"], noErrors: true } }, undefined, { fallbackBase: base });
+      const page = await viewPage({ path: "/notes", expect: { text: ["Simpan"], noConsoleErrors: true } }, undefined, { fallbackBase: base });
       assert.equal(page.mode, "text");
-      assert.equal(page.ok, true);
+      // Halaman uji tidak memakai kit UI dan punya <style>: ada temuan tampilan, pemeriksaan expect tetap lulus.
+      assert.equal(page.ok, false);
+      assert.match(page.text, /PASS text "Simpan"/);
+      assert.match(page.text, /- \[kit\] The page does not use the UI kit/);
       assert.match(page.text, /No browser tab/);
       assert.match(page.text, /- table 2 rows/);
       const admin = await viewPage({ path: "/admin" }, undefined, { fallbackBase: base });
@@ -228,6 +235,7 @@ describe("devtools: kanal halaman untuk view_page", () => {
   let base: string;
 
   before(async () => {
+    setLocale("en");
     root = fs.mkdtempSync(path.join(os.tmpdir(), "zentara-view-"));
     fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ name: "uji", scripts: {} }));
     const config = resolveAiConfig({ mode: "ask", providers: [] });
@@ -235,6 +243,7 @@ describe("devtools: kanal halaman untuk view_page", () => {
     base = `http://127.0.0.1:${dt.port}`;
   });
   after(async () => {
+    setLocale("id");
     await dt.close();
     fs.rmSync(root, { recursive: true, force: true });
   });

@@ -1,3 +1,4 @@
+import { appendTaskLog, taskLogEntry } from "./task-log.js";
 import readline from "node:readline/promises";
 import { t } from "../i18n/index.js";
 import { Agent, type AgentResult, type AgentUI } from "./agent.js";
@@ -122,7 +123,12 @@ export function createAiSession(options: AiSessionOptions): AiSession {
       // Satu jurnal per perintah, jadi `zentara undo` membatalkan perintah terakhir saja.
       context.journal = new Journal(root, task);
       try {
-        return await agent.run(text, runOptions);
+        const result = await agent.run(text, runOptions);
+        appendTaskLog(root, taskLogEntry(task, result, { dryRun: context.dryRun }));
+        return result;
+      } catch (err) {
+        appendTaskLog(root, taskLogEntry(task, { error: (err as Error).message }, { dryRun: context.dryRun }));
+        throw err;
       } finally {
         persist();
       }

@@ -66,6 +66,62 @@ function startServer(cwd, args, port, extraEnv = {}) {
   };
 }
 
+/** Seperti sh(), tapi kode keluar bukan 0 tidak melempar error (mis. `zentara view` yang menemukan masalah). */
+function shAny(cmd, args, cwd) {
+  console.log(`\n$ ${cmd} ${args.join(" ")}   (${path.relative(WORK, cwd) || cwd})`);
+  try {
+    return { code: 0, out: execFileSync(cmd, args, { cwd, stdio: ["ignore", "pipe", "inherit"] }).toString() };
+  } catch (err) {
+    return { code: err.status ?? 1, out: String(err.stdout ?? "") };
+  }
+}
+
+/** Chrome/Chromium untuk uji tampilan di browser sungguhan: CHROME_PATH, atau lokasi umum (runner GitHub punya Chrome). */
+function findChrome() {
+  const candidates = [
+    process.env.CHROME_PATH,
+    "/usr/bin/google-chrome",
+    "/usr/bin/google-chrome-stable",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/opt/pw-browsers/chromium/chrome-linux/chrome",
+    ...(fs.existsSync("/opt/pw-browsers") ? fs.readdirSync("/opt/pw-browsers").filter((d) => /^chromium-\d+$/.test(d)).map((d) => `/opt/pw-browsers/${d}/chrome-linux/chrome`) : []),
+    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  ];
+  return candidates.find((p) => p && fs.existsSync(p));
+}
+
+/** Buka `url` di Chrome headless (seperti tab developer). Mengembalikan fungsi untuk menutupnya. */
+function openBrowser(chrome, url) {
+  const profile = fs.mkdtempSync(path.join(WORK, "chrome-"));
+  const child = spawn(chrome, ["--headless=new", "--no-sandbox", "--disable-gpu", "--no-first-run", "--no-default-browser-check", `--user-data-dir=${profile}`, "--window-size=1280,800", "--remote-debugging-port=0", url], {
+    stdio: "ignore",
+    detached: !isWindows,
+  });
+  return () => {
+    try {
+      if (isWindows) execFileSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore" });
+      else process.kill(-child.pid, "SIGKILL");
+    } catch {}
+  };
+}
+
+/** Halaman contoh yang sengaja rusak untuk pemeriksaan tampilan view_page. */
+const BROKEN_PAGE = `export const GET = () => \`<!doctype html><html><head><title>Rusak</title><style>.x{color:red}</style></head><body>
+<div style="width:1600px;height:20px">Kotak terlalu lebar</div>
+<p style="color:#bbb;background:#fff">Teks pucat</p>
+<div style="position:relative;height:60px"><button style="position:absolute;left:0;top:0;width:120px;height:40px">Satu</button><button style="position:absolute;left:10px;top:5px;width:120px;height:40px">Dua</button></div>
+<div style="width:80px;overflow:hidden;white-space:nowrap">Teks yang sangat panjang dan terpotong</div>
+<img src="/tidak-ada.png" alt="rusak" width="40" height="40">
+</body></html>\`;
+`;
+
+function kinds(out) {
+  return new Set([...out.matchAll(/^- \[(\w+)\]/gm)].map((m) => m[1]));
+}
+
 function pack(pkgDir) {
   const out = JSON.parse(sh(npm, ["pack", "--json", "--pack-destination", WORK], pkgDir));
   // npm <= 11 mengembalikan array [{...}], npm >= 12 object { "<nama>": {...} }.
@@ -183,17 +239,57 @@ try {
       const widgetJs = await fetch(`http://127.0.0.1:${devPort}/_zentara/dev/widget.js`);
       check(widgetJs.status === 200 && (await widgetJs.text()).includes("zentara-dev-widget"), "zentara dev: /_zentara/dev/widget.js tersedia");
       const cliView = [path.join(app, "node_modules", "zentara", "dist", "cli.js"), "view", "/api/hello?name=Nusantara", "--url", `http://127.0.0.1:${devPort}`, "--text", "Nusantara"];
-      check(sh(process.execPath, cliView, app).includes("HTTP 200"), "zentara view: versi teks halaman dari server dev");
+      check(sh(process.execPath, cliView, app).includes("(HTTP 200)"), "zentara view: versi teks halaman dari server dev");
       if (template === "api") {
         const devLogin = await (await fetch(`http://127.0.0.1:${devPort}/login`)).text();
         check(/\/_zentara\/dev\/widget\.js[^>]*data-ui="on"/.test(devLogin) && /<head[^>]*><script src="\/_zentara\/dev\/probe\.js"/.test(devLogin), "zentara dev: /login memuat probe dan widget chat mengambang");
         check(/data-route="src\/app\/routes\/login\.ts"/.test(devLogin), "zentara dev: widget tahu file route halaman ini");
-        const loginView = [path.join(app, "node_modules", "zentara", "dist", "cli.js"), "view", "/login", "--url", `http://127.0.0.1:${devPort}`, "--text", expect.signIn];
-        check(sh(process.execPath, loginView, app).includes(`- h1 "${expect.signIn}"`), "zentara view /login: heading halaman terbaca");
+        const cli = path.join(app, "node_modules", "zentara", "dist", "cli.js");
+        const view = (target, ...extra) => shAny(process.execPath, [cli, "view", target, "--url", `http://127.0.0.1:${devPort}`, ...extra], app);
+        const loginView = view("/login", "--text", expect.signIn);
+        check(loginView.code === 0 && loginView.out.includes(`- h1 "${expect.signIn}"`), "zentara view /login: heading halaman terbaca, tanpa temuan");
+        check(view("/login", "--mobile").code === 0, "zentara view /login --mobile: tanpa temuan (versi teks)");
+        // Halaman yang sengaja rusak: temuan versi teks (tanpa browser).
+        fs.writeFileSync(path.join(app, "src", "app", "routes", "rusak.ts"), BROKEN_PAGE);
+        await waitFor(`http://127.0.0.1:${devPort}/rusak`);
+        let broken = view("/rusak");
+        for (let i = 0; i < 20 && !broken.out.includes("[kit]"); i++) {
+          await new Promise((r) => setTimeout(r, 500));
+          broken = view("/rusak");
+        }
+        const textKinds = kinds(broken.out);
+        check(broken.code === 1 && ["kit", "meta", "style", "image"].every((k) => textKinds.has(k)), `zentara view /rusak: temuan versi teks benar (${[...textKinds].join(", ")})`);
+
+        // Browser sungguhan (Chrome headless sebagai tab developer): pemeriksaan posisi, tumpang tindih, dan kontras.
+        const chrome = findChrome();
+        if (!chrome) console.log("  - Chrome tidak ditemukan (CHROME_PATH): uji tampilan di browser dilewati");
+        else {
+          const closeBrowser = openBrowser(chrome, `http://127.0.0.1:${devPort}/login`);
+          try {
+            let login = view("/login", "--json");
+            for (let i = 0; i < 40 && !login.out.includes('"mode": "browser"'); i++) {
+              await new Promise((r) => setTimeout(r, 500));
+              login = view("/login", "--json");
+            }
+            const loginResult = JSON.parse(login.out);
+            check(loginResult.mode === "browser", "zentara view lewat tab browser yang terhubung ke devtools");
+            check(loginResult.ok === true, `zentara view /login di browser: tanpa temuan\n${loginResult.ok ? "" : loginResult.text}`);
+            const mobile = JSON.parse(view("/login", "--mobile", "--json").out);
+            check(mobile.mode === "browser" && mobile.summary.viewport === "mobile" && /390x844/.test(mobile.text), "zentara view /login --mobile: dilihat di layar 390px");
+            check(mobile.ok === true, `zentara view /login --mobile di browser: tanpa temuan\n${mobile.ok ? "" : mobile.text}`);
+            const shot = view("/rusak");
+            const browserKinds = kinds(shot.out);
+            const want = ["overflow", "overlap", "truncated", "image", "contrast", "style", "kit", "meta"];
+            check(shot.code === 1 && want.every((k) => browserKinds.has(k)), `zentara view /rusak di browser: semua jenis temuan (${[...browserKinds].join(", ")})`);
+          } finally {
+            closeBrowser();
+          }
+        }
         const signin = await fetch(`http://127.0.0.1:${devPort}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "admin@zentara.test", password: "admin12345" }) });
         const cookie = signin.headers.getSetCookie()[0]?.split(";")[0] ?? "";
         const devDash = await (await fetch(`http://127.0.0.1:${devPort}/dashboard`, { headers: { cookie } })).text();
         check(devDash.includes('data-ui="on"'), "zentara dev: /dashboard (login) memuat widget chat");
+        fs.rmSync(path.join(app, "src", "app", "routes", "rusak.ts"), { force: true });
       }
     } finally {
       stop();

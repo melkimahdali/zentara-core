@@ -18,7 +18,7 @@ export const UI_CSS = `
 :root{color-scheme:light dark;
 --zu-bg:#f3f5f3;--zu-surface:#fff;--zu-surface-2:#eef2ef;--zu-surface-3:#e4eae6;--zu-border:#dde4e0;--zu-border-strong:#c7d1cc;
 --zu-text:${BRAND.obsidian};--zu-muted:#56686a;--zu-faint:#7d8d8a;
---zu-accent:#0b8a76;--zu-accent-hover:#08705f;--zu-on-accent:#fff;--zu-accent-soft:rgba(11,138,118,.1);--zu-accent-line:rgba(11,138,118,.35);
+--zu-accent:#097e6b;--zu-accent-hover:#08705f;--zu-on-accent:#fff;--zu-accent-soft:rgba(9,126,107,.1);--zu-accent-line:rgba(9,126,107,.35);
 --zu-danger:#b42318;--zu-danger-soft:rgba(180,35,24,.08);--zu-ok:#067647;--zu-ok-soft:rgba(6,118,71,.09);--zu-warn:#a15c07;--zu-warn-soft:rgba(200,155,82,.16);--zu-gold:#9a7337;--zu-gold-soft:rgba(200,155,82,.16);
 --zu-glow:rgba(46,211,183,.14);--zu-grain:.035;
 --zu-shadow:0 1px 2px rgba(13,23,25,.04),0 6px 20px -10px rgba(13,40,36,.16);--zu-shadow-lift:0 1px 2px rgba(13,23,25,.06),0 14px 34px -14px rgba(13,40,36,.24);

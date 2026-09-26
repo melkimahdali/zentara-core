@@ -33,8 +33,10 @@ export interface Output {
 
 function mainArg(call: ToolCall): string | undefined {
   const input = (call.input ?? {}) as Record<string, unknown>;
-  const main = input.path ?? input.query ?? input.check ?? input.command ?? input.name ?? input.action;
-  return typeof main === "string" ? main : undefined;
+  const main = input.path ?? input.url ?? input.query ?? input.check ?? input.command ?? input.name ?? input.action;
+  if (typeof main !== "string") return undefined;
+  // view_page: sebutkan layar ponsel, mis. "view_page /notes (mobile)".
+  return call.name === "view_page" && input.viewport === "mobile" ? `${main} (mobile)` : main;
 }
 
 export function summarizeCall(call: ToolCall): string {
@@ -61,9 +63,10 @@ export function toolResultSummary(call: ToolCall, result: ToolResult): string {
     case "search":
       return result.content === t().ai.tools.noResults ? result.content : t().ai.summary.hits(lines);
     case "view_page": {
-      const errors = Number(/^Console errors \((\d+)\)/m.exec(result.content)?.[1] ?? 0);
-      const failed = (result.content.match(/^FAIL /gm) ?? []).length;
-      return t().ai.summary.view(result.content.includes("seen in the developer's browser"), errors, failed);
+      // Baris pertama hasil view_page: "RESULT ok|fail · browser|text · desktop|mobile · N temuan[ · N FAIL]".
+      const head = /^RESULT (ok|fail) · (browser|text) · (desktop|mobile) · (\d+)[^·]*(?:· (\d+) FAIL)?/.exec(result.content);
+      if (!head) return first;
+      return t().ai.summary.view(head[2] === "browser", head[3] === "mobile", Number(head[4]), Number(head[5] ?? 0));
     }
     default:
       return first;

@@ -41,7 +41,7 @@ const pack = (dir) => {
   return path.join(WORK, info.filename);
 };
 
-/** Widget chat di browser sungguhan: permintaan dari halaman, persetujuan di browser, lalu view_page. */
+/** Widget chat di browser sungguhan: permintaan dari halaman, persetujuan di browser, lalu view_page desktop dan ponsel. */
 async function widgetFlow(app) {
   let chromium;
   try {
@@ -78,6 +78,12 @@ async function widgetFlow(app) {
     console.log(`--- chat widget ---\n${log}`);
     if (!done) throw new Error("AI tidak selesai dalam 5 menit");
     if (!/view page \/halo/.test(log)) throw new Error("AI tidak memeriksa halaman dengan view_page");
+    // Journal lokal: tugas selesai dengan view_page yang lulus di desktop dan ponsel.
+    const journal = fs.readFileSync(path.join(app, ".zentara", "ai-tasks.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    const last = journal.at(-1);
+    const latest = new Map(last.checks.views.filter((v) => !v.unreachable).map((v) => [v.viewport, v]));
+    if (!latest.get("desktop")?.ok || !latest.get("mobile")?.ok) throw new Error(`view_page tidak lulus di desktop dan ponsel: ${JSON.stringify(last.checks.views)}`);
+    console.log(`✓ journal: ${last.status}, ${last.steps} langkah, view_page ${last.checks.views.map((v) => `${v.viewport}:${v.ok ? "ok" : "gagal"}`).join(" ")}`);
     // Verifikasi (typecheck & test) harus lulus walau server dev sedang berjalan di PORT yang sama dengan .env.
     if (!/✓ (Selesai|Done)/.test(log)) throw new Error("AI tidak selesai dengan verifikasi lulus");
     if (!fs.readFileSync(route, "utf8").includes("Ekspor")) throw new Error("src/app/routes/halo.ts tidak memuat tombol Ekspor");

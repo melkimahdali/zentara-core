@@ -1,7 +1,7 @@
 import type { Risk } from "./approval.js";
 import type { ProviderChain } from "./chain.js";
 import { t } from "../i18n/index.js";
-import type { AgentTool, CommandResult, ToolContext } from "./tools.js";
+import type { AgentTool, CommandResult, ToolContext, ViewRecord } from "./tools.js";
 import { ToolError } from "./tools.js";
 import { AbortedError, type ChatMessage, type ToolCall, type ToolResult } from "./types.js";
 
@@ -47,6 +47,19 @@ export interface AgentResult {
   /** Aksi yang tidak disetujui (ditolak pengguna, atau otomatis ditolak di mode --auto/non-interaktif). */
   denied: { tool: string; risk: Risk; summary: string }[];
   durationMs: number;
+  /**
+   * Hasil pemeriksaan otomatis: `verify` = typecheck/test terakhir (kosong bila tidak dijalankan),
+   * `views` = setiap `view_page` dalam tugas ini, `viewAttempts` = permintaan cek/perbaikan tampilan.
+   */
+  checks: { verify: { name: string; ok: boolean }[]; views: ViewRecord[]; viewAttempts: number };
+}
+
+/** File yang menentukan tampilan halaman (bukan route API, test, database, atau job). */
+export function isPageFile(rel: string): boolean {
+  const p = rel.replace(/\\/g, "/").replace(/^\.\//, "");
+  if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(p)) return false;
+  if (/^src\/app\/routes\//.test(p)) return !/^src\/app\/routes\/api\//.test(p) && /\.[cm]?[jt]sx?$/.test(p);
+  return /^src\/app\/(views?|components?|layouts?|ui|pages)\//.test(p);
 }
 
 const COMPACT_PROMPT =
@@ -124,6 +137,15 @@ export class Agent {
     const startedAt = Date.now();
     let dirty = false;
     let fixAttempts = 0;
+    // Pemeriksaan tampilan wajib: setelah halaman berubah, view_page desktop dan ponsel harus lulus.
+    context.views ??= [];
+    const views = context.views;
+    const viewsBefore = views.length;
+    let pageMark = -1;
+    let viewAttempts = 0;
+    let mutations = 0;
+    let verifiedAt = -1;
+    let lastVerify: { name: string; ok: boolean }[] = [];
     const finish = (status: AgentResult["status"], steps: number): AgentResult => ({
       status,
       steps,
@@ -135,6 +157,7 @@ export class Agent {
       toolCalls: [...toolCalls],
       denied: context.approval.denied.slice(deniedBefore),
       durationMs: Date.now() - startedAt,
+      checks: { verify: [...lastVerify], views: views.slice(viewsBefore), viewAttempts },
     });
 
     this.messages.push({ role: "user", text: task });
@@ -184,12 +207,28 @@ export class Agent {
         }
         if (!dirty || context.dryRun) return result("done");
 
-        ui.info(t().ai.agent.verifying);
-        const check = await verify();
-        if (signal?.aborted) return interrupted();
+        let check: CommandResult = { ok: true, output: "" };
+        if (verifiedAt !== mutations) {
+          ui.info(t().ai.agent.verifying);
+          check = await verify();
+          if (signal?.aborted) return interrupted();
+          lastVerify = check.steps ?? [{ name: "verify", ok: check.ok }];
+          if (check.ok) {
+            verifiedAt = mutations;
+            ui.info(t().ai.agent.verified);
+          }
+        }
         if (check.ok) {
-          ui.info(t().ai.agent.verified);
-          return result("done");
+          const pending = pageMark >= 0 ? pendingViews(views.slice(pageMark)) : undefined;
+          if (!pending) return result("done");
+          if (viewAttempts >= maxFix) {
+            ui.info(t().ai.agent.viewStillFailing(pending.problems.join("; ")));
+            return result("verification_failed");
+          }
+          viewAttempts++;
+          ui.info(t().ai.agent.viewChecking(viewAttempts, maxFix));
+          this.messages.push({ role: "user", text: pending.problems.length ? t().ai.agent.viewFixRequest(pending.problems.join("\n")) : t().ai.agent.viewRequest });
+          continue;
         }
         if (fixAttempts >= maxFix) {
           ui.info(t().ai.agent.stillFailing);
@@ -214,7 +253,13 @@ export class Agent {
           res = { id: call.id, isError: true, content: t().ai.agent.inputTruncated };
         } else {
           res = await this.execute(call);
-          if (!res.isError && !context.dryRun && this.mutates(call)) dirty = true;
+          if (!res.isError && !context.dryRun && this.mutates(call)) {
+            dirty = true;
+            mutations++;
+            const input = call.input as Record<string, unknown> | undefined;
+            // Halaman yang dihapus tidak perlu (dan tidak bisa) diperiksa.
+            if (call.name !== "delete_file" && typeof input?.path === "string" && isPageFile(input.path)) pageMark = views.length;
+          }
         }
         ui.toolEnd(call, res);
         toolCalls.push({ name: call.name, ok: !res.isError });
@@ -254,10 +299,30 @@ export class Agent {
 
 async function defaultVerify(context: ToolContext): Promise<CommandResult> {
   const outputs: string[] = [];
+  const steps: { name: string; ok: boolean }[] = [];
   for (const script of ["typecheck", "test"]) {
     const r = await context.runScript(script, [], context.signal);
     outputs.push(`$ npm run ${script}\n${r.output}`);
-    if (!r.ok) return { ok: false, output: outputs.join("\n\n") };
+    steps.push({ name: script, ok: r.ok });
+    if (!r.ok) return { ok: false, output: outputs.join("\n\n"), steps };
   }
-  return { ok: true, output: outputs.join("\n\n") };
+  return { ok: true, output: outputs.join("\n\n"), steps };
+}
+
+/**
+ * Apa yang masih kurang dari pemeriksaan tampilan sejak halaman terakhir diubah. undefined = selesai:
+ * desktop dan ponsel sudah dilihat dan lulus, atau server aplikasi tidak bisa dihubungi sama sekali
+ * (mis. tugas dari `zentara ai` tanpa server dev), jadi tidak ada yang bisa diperiksa.
+ */
+export function pendingViews(since: ViewRecord[]): { problems: string[] } | undefined {
+  const reachable = since.filter((v): v is Exclude<ViewRecord, { unreachable: true }> => !v.unreachable);
+  if (since.length > 0 && reachable.length === 0) return undefined;
+  const latest = new Map<string, (typeof reachable)[number]>();
+  for (const v of reachable) latest.set(`${v.path} ${v.viewport}`, v);
+  const seen = new Set([...latest.values()].map((v) => v.viewport));
+  if (!seen.has("desktop") || !seen.has("mobile")) return { problems: [] };
+  const problems = [...latest.values()]
+    .filter((v) => !v.ok)
+    .map((v) => `${v.path} (${v.viewport}): ${[v.issues ? `${v.issues} layout` : "", v.errors ? `${v.errors} errors` : "", v.failedChecks ? `${v.failedChecks} FAIL` : ""].filter(Boolean).join(", ")}`);
+  return problems.length ? { problems } : undefined;
 }

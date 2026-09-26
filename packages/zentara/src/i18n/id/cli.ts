@@ -1,3 +1,4 @@
+import type { TaskLogEntry } from "../../ai/task-log.js";
 export const cli = {
   dbDepsMissing: "drizzle-orm belum terpasang untuk proyek ini. Jalankan `npm install` di folder proyek (template api sudah memuat drizzle-orm dan drizzle-kit), atau `npm install drizzle-orm drizzle-kit`.",
   help: `Zentara Core CLI
@@ -34,7 +35,8 @@ Perintah manual:
   zentara make:route <path> [--methods GET,POST]   Buat file route baru, mis. api/events/[id]
   zentara make:middleware <nama>                   Buat file middleware baru
   zentara make:job <nama> [--schedule "<cron>"]    Buat file job baru, mis. kirim-laporan
-  zentara view <path> [--text "a,b"] [--json]     Lihat versi teks halaman dari server yang berjalan
+  zentara view <path> [--mobile] [--text "a,b"]   Lihat halaman dan periksa tampilannya (browser bila ada tab)
+  zentara ai:log [--limit 20] [--json]            Hasil tugas Zentara AI terakhir (journal lokal)
   zentara lang [id|en]                             Lihat atau ganti bahasa Zentara (disimpan global)
   zentara help                                     Tampilkan bantuan ini
   zentara --version
@@ -43,7 +45,13 @@ Opsi:
   --force        Timpa file yang sudah ada
   --dir <path>   Folder aplikasi (default: src/app)
 `,
-  viewUsage: "Pakai: zentara view <path> [--url http://localhost:3000] [--text \"teks1,teks2\"] [--json]",
+  viewUsage: "Pakai: zentara view <path> [--mobile] [--url http://localhost:3000] [--text \"teks1,teks2\"] [--json]",
+  aiLogEmpty: "Belum ada tugas Zentara AI yang tercatat di proyek ini (.zentara/ai-tasks.jsonl).",
+  aiLogLine: (e: TaskLogEntry) =>
+    `${e.at.slice(0, 16).replace("T", " ")}  ${e.ok ? "✓" : "✗"} ${e.status.padEnd(19)} ${String(e.steps).padStart(2)} langkah` +
+    `${e.checks.typecheck === undefined ? "" : ` · typecheck ${e.checks.typecheck ? "✓" : "✗"}`}${e.checks.test === undefined ? "" : ` · test ${e.checks.test ? "✓" : "✗"}`}` +
+    `${e.checks.views.length ? ` · view_page ${e.checks.views.filter((v) => v.ok).length}/${e.checks.views.length}` : ""}${e.dryRun ? " · dry-run" : ""}  ${e.task}`,
+  aiLogSummary: (n: number, ok: number) => `${n} tugas, ${ok} selesai (${Math.round((ok / n) * 100)}%). Data ini hanya ada di komputer Anda.`,
   viewFailed: (base: string, reason: string) => `Tidak bisa membuka halaman dari ${base || "server"}: ${reason}. Pastikan server berjalan (npx zentara dev).`,
   fileExists: (file: string) => `File sudah ada: ${file} (pakai --force untuk menimpa)`,
   created: (file: string) => `Dibuat: ${file}`,
