@@ -25,6 +25,6 @@
     }
   },
   "devDependencies": {
-    "marked": "^16.4.2"
+    "marked": "^18.0.14"
   }
 }
