@@ -4,7 +4,7 @@
 
 This folder holds the design of the **Zentara AI eval**: a standard set of tasks run against a template project to measure how often Zentara AI finishes real work correctly, how many steps it takes, and what it costs. Results will be published per version, for example "Zentara 0.15: 21/25 tasks passed with Claude".
 
-Status: **draft**. There is no runner yet and no AI code has been changed. Implementation is planned for Stage 15 (testing and AI eval), building on `scripts/ai-smoke.mjs`.
+Status: **draft**. There is no runner yet. What is done is the task set, its validator, and the AI result data (`AgentResult` and `--report`) the runner will read. The runner is planned for Stage 15 (testing and AI eval), building on `scripts/ai-smoke.mjs`.
 
 | File | Contents |
 |---|---|
@@ -107,14 +107,19 @@ Example result line:
  "usage":{"inputTokens":48210,"outputTokens":3120,"costUsd":0.19},"durationMs":64000,"zentara":"0.15.0"}
 ```
 
-## What the code still needs (not in this PR)
+## AI result data (`AgentResult` and `--report`)
 
-Findings from reading the current code, so the runner can be built without parsing terminal text:
+So the runner does not have to parse terminal text, this PR also adds data to the agent's result:
 
-1. **Tokens are not summed.** Providers already return `usage` (`src/ai/types.ts`), but `AgentResult` in `src/ai/agent.ts` only holds `status`, `changedFiles`, `steps`, and `providersUsed`. It needs a `usage` field summed across steps.
-2. **No machine-readable output.** It needs an option like `zentara "<task>" --auto --report <file.json>` that writes the `AgentResult`, the tools called, and the critical actions rejected. This lines up with the new roadmap's proposal for Stage 12 (logging a short result for every AI task).
-3. **Migrations in `--auto` mode.** `database migrate` and writes to `drizzle/` are critical, so they are rejected automatically. This design does not change that: the AI only has to create the migration (`database generate`), and the grader runs migrations itself on a fresh database. If results show the AI often stalls on this rejection, an eval-specific approval policy can be considered then.
-4. **`view_page`** (Stage 12) is needed for the `aiCalledViewPage` check. Page grading itself uses the text outline, so no browser is needed.
+- `AgentResult` (`src/ai/agent.ts`) now holds `usage` (input and output tokens summed across steps, plus `unreported` for steps whose provider did not report usage), `models`, `fixAttempts`, `toolCalls` (tool name and whether it succeeded), `denied` (rejected actions, including those rejected automatically in `--auto`), and `durationMs`.
+- `zentara "<task>" --auto --report=<file>` writes that result as JSON. Without a file name, the report goes to `.zentara/ai-report.json`.
+
+For now the file name must be written with `=`. The `--report <file>` form will be supported once the Stage 12 PR is merged, because that PR also changes the list of value options in `parseArgs`.
+
+Other points that still apply to the runner:
+
+1. **Migrations in `--auto` mode.** `database migrate` and writes to `drizzle/` are critical, so they are rejected automatically. This design does not change that: the AI only has to create the migration (`database generate`), and the grader runs migrations itself on a fresh database. If `denied` in the reports shows the AI often stalls on this rejection, an eval-specific approval policy can be considered then.
+2. **`view_page`** (Stage 12) is needed for the `aiCalledViewPage` check, which is read from `toolCalls`. Page grading itself uses the text outline, so no browser is needed.
 
 ## Running and publishing
 
@@ -126,12 +131,13 @@ Findings from reading the current code, so the runner can be built without parsi
 ## Phases
 
 1. **E0 (this PR):** task set, format, and validator.
-2. **E1:** `usage` in `AgentResult` and a `--report` option. Small; can ride along with Stage 12.x or the start of Stage 15.
+2. **E1 (this PR):** extra data in `AgentResult` and the `--report` option.
 3. **E2:** the `scripts/eval.mjs` runner, hidden tests in `evals/hidden/`, and `npm run eval`.
 4. **E3:** the workflow, the `eval.html` page, and the first results for 0.15.
 
-## Open decisions
+## Decisions (26 September 2026)
 
-1. **Languages:** run every task in both id and en (150 runs per provider), or full en and partial id to save cost? *(Recommendation: both in full, since Indonesian is Zentara's differentiator.)*
-2. **Attempts:** 3 per task, or 1 for daily rounds and 3 for releases? *(Recommendation: 1 for quick checks, 3 for published numbers.)*
-3. **Bugs already caught by the template's tests:** keep them (realistic), or add variants that pass the template's tests to make them harder? *(Recommendation: add variants in E2 without removing the existing ones.)*
+1. **Languages:** every task runs in both id and en.
+2. **Attempts:** 1 per task for quick checks, 3 for published numbers.
+3. **Bugs already caught by the template's tests:** kept, and E2 adds variants that pass the template's tests to make them harder.
+4. **AI result data:** `AgentResult` and `--report` are added now (E1).

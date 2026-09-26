@@ -4,7 +4,7 @@
 
 Folder ini berisi rancangan **eval Zentara AI**: satu set tugas standar yang dijalankan terhadap proyek template untuk mengukur seberapa sering AI Zentara menyelesaikan pekerjaan nyata dengan benar, berapa langkah yang dibutuhkan, dan berapa biayanya. Hasilnya akan diterbitkan per versi, misalnya "Zentara 0.15: 21/25 tugas berhasil dengan Claude".
 
-Status: **rancangan**. Belum ada runner dan belum ada kode AI yang diubah. Implementasinya direncanakan di Tahap 15 (testing dan eval AI), dengan fondasi dari `scripts/ai-smoke.mjs`.
+Status: **rancangan**. Runner belum ada. Yang sudah jadi adalah set tugas, validatornya, dan data hasil AI (`AgentResult` dan `--report`) yang nanti dibaca runner. Runner direncanakan di Tahap 15 (testing dan eval AI), dengan fondasi dari `scripts/ai-smoke.mjs`.
 
 | File | Isi |
 |---|---|
@@ -107,14 +107,19 @@ Contoh satu baris hasil:
  "usage":{"inputTokens":48210,"outputTokens":3120,"costUsd":0.19},"durationMs":64000,"zentara":"0.15.0"}
 ```
 
-## Yang perlu ditambahkan ke kode (bukan di PR ini)
+## Data hasil AI (`AgentResult` dan `--report`)
 
-Temuan dari membaca kode saat ini, supaya runner bisa dibuat tanpa mengurai teks terminal:
+Supaya runner tidak perlu mengurai teks terminal, PR ini juga menambah data ke hasil agen:
 
-1. **Token belum dijumlahkan.** Provider sudah mengembalikan `usage` (`src/ai/types.ts`), tetapi `AgentResult` di `src/ai/agent.ts` hanya berisi `status`, `changedFiles`, `steps`, dan `providersUsed`. Perlu field `usage` yang dijumlahkan per langkah.
-2. **Belum ada keluaran untuk mesin.** Perlu opsi seperti `zentara "<tugas>" --auto --report <file.json>` yang menulis `AgentResult`, daftar tool yang dipanggil, dan aksi krusial yang ditolak. Ini sejalan dengan usulan roadmap baru untuk Tahap 12 (mencatat hasil ringkas setiap tugas AI).
-3. **Migrasi di mode `--auto`.** `database migrate` dan penulisan ke `drizzle/` tergolong krusial, jadi ditolak otomatis. Rancangan ini tidak mengubahnya: AI cukup membuat migrasi (`database generate`), dan penilai sendiri yang menjalankan migrasi pada database baru. Bila hasil eval menunjukkan AI sering macet karena penolakan ini, baru dipertimbangkan kebijakan persetujuan khusus eval.
-4. **`view_page`** (Tahap 12) dibutuhkan untuk cek `aiCalledViewPage`. Penilaian halaman sendiri memakai outline teks, jadi tidak butuh browser.
+- `AgentResult` (`src/ai/agent.ts`) sekarang memuat `usage` (token input dan output dijumlahkan dari semua langkah, plus `unreported` untuk langkah yang providernya tidak melaporkan usage), `models`, `fixAttempts`, `toolCalls` (nama tool dan berhasil atau tidak), `denied` (aksi yang ditolak, termasuk yang otomatis ditolak di `--auto`), dan `durationMs`.
+- `zentara "<tugas>" --auto --report=<file>` menulis hasil itu sebagai JSON. Tanpa nama file, laporan ditulis ke `.zentara/ai-report.json`.
+
+Untuk sementara nama file harus ditulis dengan `=`. Bentuk `--report <file>` baru didukung setelah PR Tahap 12 di-merge, karena PR itu juga mengubah daftar opsi bernilai di `parseArgs`.
+
+Hal lain yang tetap berlaku untuk runner:
+
+1. **Migrasi di mode `--auto`.** `database migrate` dan penulisan ke `drizzle/` tergolong krusial, jadi ditolak otomatis. Rancangan ini tidak mengubahnya: AI cukup membuat migrasi (`database generate`), dan penilai sendiri yang menjalankan migrasi pada database baru. Bila `denied` di laporan menunjukkan AI sering macet karena penolakan ini, baru dipertimbangkan kebijakan persetujuan khusus eval.
+2. **`view_page`** (Tahap 12) dibutuhkan untuk cek `aiCalledViewPage`, yang dibaca dari `toolCalls`. Penilaian halaman sendiri memakai outline teks, jadi tidak butuh browser.
 
 ## Menjalankan dan menerbitkan
 
@@ -126,12 +131,13 @@ Temuan dari membaca kode saat ini, supaya runner bisa dibuat tanpa mengurai teks
 ## Tahapan
 
 1. **E0 (PR ini):** set tugas, format, dan validator.
-2. **E1:** `usage` di `AgentResult` dan opsi `--report`. Kecil, bisa ikut Tahap 12.x atau awal Tahap 15.
+2. **E1 (PR ini):** data tambahan di `AgentResult` dan opsi `--report`.
 3. **E2:** runner `scripts/eval.mjs`, tes tersembunyi di `evals/hidden/`, dan `npm run eval`.
 4. **E3:** workflow, halaman `eval.html`, dan hasil pertama untuk 0.15.
 
-## Keputusan terbuka
+## Keputusan (26 September 2026)
 
-1. **Bahasa:** jalankan semua tugas di id dan en (150 run per provider), atau en penuh dan id sebagian untuk menghemat biaya? *(Rekomendasi: keduanya penuh, karena bahasa Indonesia adalah pembeda Zentara.)*
-2. **Jumlah percobaan:** 3 per tugas, atau 1 untuk putaran harian dan 3 untuk rilis? *(Rekomendasi: 1 untuk cek cepat, 3 untuk angka yang diterbitkan.)*
-3. **Bug yang sudah terdeteksi tes bawaan:** biarkan (realistis), atau tambah varian yang lolos tes bawaan supaya lebih sulit? *(Rekomendasi: tambah varian di E2, tanpa menghapus yang ada.)*
+1. **Bahasa:** semua tugas dijalankan dalam id dan en.
+2. **Jumlah percobaan:** 1 per tugas untuk cek cepat, 3 untuk angka yang diterbitkan.
+3. **Bug yang sudah terdeteksi tes bawaan:** tetap dipakai, dan di E2 ditambah varian yang lolos tes bawaan supaya lebih sulit.
+4. **Data hasil AI:** `AgentResult` dan `--report` ditambahkan sekarang (E1).

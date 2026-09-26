@@ -28,6 +28,8 @@ export type Prompter = (action: PendingAction, signal?: AbortSignal) => Promise<
 export class ApprovalPolicy {
   private approveAllWrites: boolean;
   private currentMode: ApprovalMode;
+  /** Aksi yang tidak disetujui selama sesi ini (untuk AgentResult dan laporan eval). */
+  readonly denied: { tool: string; risk: Risk; summary: string }[] = [];
 
   constructor(mode: ApprovalMode, private readonly prompter: Prompter) {
     this.currentMode = mode;
@@ -53,6 +55,7 @@ export class ApprovalPolicy {
       this.approveAllWrites = true;
       return true;
     }
+    if (answer !== "yes") this.denied.push({ tool: action.tool, risk: action.risk, summary: action.summary });
     return answer === "yes";
   }
 }
