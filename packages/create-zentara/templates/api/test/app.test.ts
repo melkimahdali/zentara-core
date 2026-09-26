@@ -166,9 +166,11 @@ describe("aplikasi contoh: auth + catatan", () => {
     assert.match(badHtml, /<details class="zu-disclosure" open>/);
 
     const created = await form("/notes", { title: "Rapat <tim>", body: "Bahas rilis" }, budi);
-    assert.equal(created.headers.get("location"), "/notes?msg=created");
-    const list = await (await page("/notes?msg=created", budi)).text();
-    assert.match(list, /Catatan disimpan/);
+    assert.equal(created.headers.get("location"), "/notes");
+    const listRes = await page("/notes", cookieOf(created));
+    const list = await listRes.text();
+    assert.match(list, /class="zu-toast success" role="status"[^>]*><span>Catatan disimpan\./);
+    assert.doesNotMatch(await (await page("/notes", cookieOf(listRes))).text(), /Catatan disimpan/, "pesan flash hanya tampil sekali");
     assert.match(list, /Rapat &lt;tim&gt;/);
     assert.match(list, /aria-current="page">Catatan/);
     const id = /href="\/notes\/(\d+)">Rapat/.exec(list)![1];
@@ -183,7 +185,7 @@ describe("aplikasi contoh: auth + catatan", () => {
     assert.equal((await page(`/notes/${id}`, admin)).status, 404);
     assert.equal((await form(`/notes/${id}/delete`, {}, admin)).status, 404);
 
-    assert.equal((await form(`/notes/${id}/delete`, {}, budi)).headers.get("location"), "/notes?msg=deleted");
+    assert.equal((await form(`/notes/${id}/delete`, {}, budi)).headers.get("location"), "/notes");
     assert.equal((await page(`/notes/${id}`, budi)).status, 404);
     assert.equal((await page("/notes/abc", budi)).status, 404);
     assert.equal((await page("/admin", admin)).headers.get("location"), "/admin/users");

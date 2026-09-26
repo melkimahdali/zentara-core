@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { h, html, HttpError, readInput, redirect, tryParse, type ZenContext } from "zentara";
+import { flash, h, html, HttpError, readInput, redirect, tryParse, type ZenContext } from "zentara";
 import { Button, Card, Field, Form, FormActions, PostButton } from "zentara/ui";
 import { db } from "../../db/index.js";
 import { notes, type Note, type User } from "../../db/schema.js";
@@ -51,5 +51,6 @@ export async function POST(ctx: ZenContext) {
   const input = await tryParse(NoteInput, raw);
   if (!input.ok) return html(view(ctx, note, { values: raw, errors: input.errors }), { status: 422 });
   await db.update(notes).set(input.data).where(eq(notes.id, note.id));
-  return redirect("/notes?msg=updated", 303);
+  flash(ctx, "Changes saved.");
+  return redirect("/notes", 303);
 }

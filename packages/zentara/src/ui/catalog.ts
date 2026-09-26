@@ -17,7 +17,7 @@ export interface CatalogProp {
 
 export interface CatalogEntry {
   name: string;
-  group: "page" | "layout" | "form" | "data" | "feedback" | "format" | string;
+  group: "page" | "layout" | "nav" | "form" | "overlay" | "data" | "feedback" | "format" | string;
   /** "component" dipakai dengan h(Nama, props); "function" dipanggil langsung. */
   kind: "component" | "function";
   id: string;
@@ -29,7 +29,7 @@ export interface CatalogEntry {
 
 export { UI_CATALOG };
 
-export const CATALOG_GROUPS = ["page", "layout", "form", "data", "feedback", "format"] as const;
+export const CATALOG_GROUPS = ["page", "layout", "nav", "form", "overlay", "data", "feedback", "format"] as const;
 
 export function findCatalogEntry(name: string): CatalogEntry | undefined {
   const n = name.trim().toLowerCase();

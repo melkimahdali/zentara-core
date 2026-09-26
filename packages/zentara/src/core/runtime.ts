@@ -9,7 +9,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveConfig, type UserConfig, type ZenConfig } from "./config.js";
 import { createContext, parseRequestUrl, type ZenContext } from "./context.js";
-import { renderErrorPage, renderNotFoundPage, renderStatusPage } from "./devpage/error.js";
+import { renderErrorPage, renderNotFoundPage } from "./devpage/error.js";
+import { statusPage } from "../ui/status.js";
 import { appInfo, devtoolsClient, setAppInfo } from "./devpage/info.js";
 import { announceAppUrl, injectDevTools, sendDevAsset } from "./devpage/widget.js";
 import { HttpError } from "./errors.js";
@@ -246,7 +247,7 @@ export class ZenRuntime {
     try {
       if (this.config.debug && err instanceof RouteNotFoundError) return renderNotFoundPage(req, appInfo().routes);
       if (this.config.debug && status >= 500) return renderErrorPage(err, req, status);
-      return renderStatusPage(status, httpError?.expose ? httpError.message : undefined);
+      return statusPage(status, { message: httpError?.expose ? httpError.message : undefined, appName: this.config.appName });
     } catch (renderErr) {
       this.logger.error(t().core.errorPageFailed, renderErr);
       return `<!doctype html><title>${status}</title><h1>${status}</h1>`;

@@ -44,12 +44,6 @@ export function appPage(ctx: ZenContext, options: AppPageOptions, ...children: C
   );
 }
 
-/** Short message after a redirect (?msg=code). Only known codes are shown, never free text from the URL. */
-export function flash(ctx: ZenContext, messages: Record<string, string>): string | undefined {
-  const code = ctx.query.msg;
-  return typeof code === "string" ? messages[code] : undefined;
-}
-
 /** Today's date, e.g. "Thursday, September 25, 2026". */
 export function today(): string {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "full" }).format(new Date());

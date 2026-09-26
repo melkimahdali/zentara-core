@@ -2,6 +2,21 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.7]
+
+### Added
+- **Navigation in the UI kit:** `Navbar` for public pages (links and buttons move into a *Menu* on phones, no JavaScript), `Breadcrumb`, link-based `Tabs` (with `count`), `Pagination` (`href: "?page={page}"`, compact on phones), `Steps`, `DropdownMenu` (links or POSTs), a phone-only `BottomNav`, and `Footer`.
+- **Dialogs and overlays:** `Dialog`, `ConfirmDialog` (a confirmation dialog that sends a POST), `Drawer`, `Sheet`, `Popover`, and `Tooltip`. They all use the browser's built-in `popover` attribute, so they open with `trigger: "Label"` or `h(Button, { opens: id })` and close with Esc or a click outside, without JavaScript. `Dialog({ open: true })` opens when the page loads.
+- **Flash messages:** `flash(ctx, "Note saved.")` before a redirect and `h(Toast, { flash: takeFlash(ctx) })` on the target page. The message shows once and is stored in the session when `session()` is installed, otherwise in a short-lived `zen_flash` cookie. `Toast` disappears after 6 seconds.
+- **More feedback:** `Progress` (with or without a value), `Spinner`, and `Skeleton`.
+- **Data display:** `DescriptionList`, `Accordion` (`single: true` = one open at a time), `Timeline`, `Tag`, `AvatarGroup`, `Rating` (display, or a star input with `name`), `CodeBlock` with a *Copy* button, and a one-month `Calendar` with events for bookings and schedules (a list on phones). `Stat` gets `trend` and `change` for a colored up/down change.
+- **Themed error pages:** in production, 403, 404, 500, and other statuses now use the UI kit with the app theme and name. `StatusPage` and `statusPage()` are available for your own status pages.
+- The catalog has new *Navigation* and *Overlays* groups; every new component is in `zentara ui`, Zentara AI's `ui_catalog` tool, and the `/_zentara/ui` gallery, which e2e checks in Chrome (desktop and phone, two themes).
+
+### Changed
+- **The `api` template uses flash messages** for "Note saved", "Changes saved", and "Note deleted", instead of `?msg=` in the URL. Its test makes sure the message shows only once.
+- The last word of the app name in `Brand` uses a slightly darker accent so it has enough contrast on grey backgrounds too (e.g. `Footer`).
+
 ## [0.12.6]
 
 ### Added

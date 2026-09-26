@@ -1,3 +1,4 @@
+import { statusPage } from "../../ui/status.js";
 import fs from "node:fs";
 import { t } from "../../i18n/index.js";
 import path from "node:path";
@@ -262,12 +263,9 @@ ${causes ? `<section class="zx-card zx-pad ze-sec"><h2>${escapeHtml(m.causes)}</
 }
 
 
-/** Halaman status sederhana yang aman untuk produksi (tanpa detail internal). */
+/** Halaman status yang aman untuk produksi (tanpa detail internal), memakai kit UI dan tema aplikasi. */
 export function renderStatusPage(status: number, message?: string): string {
-  const texts = t().dev.status;
-  const [title, text] = texts[status] ?? (status >= 500 ? texts[500]! : [defaultMessage(status), ""]);
-  const body = `<main class="zs"><div>${LOGO_SVG.replace('class="zx-logo"', 'class="zx-logo" style="width:56px;height:56px;margin-bottom:18px"')}<div class="code-big">${status}</div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message && message !== defaultMessage(status) ? message : text)}</p><a class="zx-btn" href="/">${escapeHtml(t().dev.error.backHome)}</a></div></main>`;
-  return renderPage({ title: `${status} · ${title}`, body, css: ERROR_CSS });
+  return statusPage(status, { message });
 }
 
 /** 404 saat pengembangan: tunjukkan route yang ada dan tawarkan untuk membuatnya dengan AI. */

@@ -44,7 +44,7 @@ Every page from `page()` also comes with:
 | `page(options, ...body)` | a complete HTML document: `title`, `description`, `lang`, extra `head`, `script` |
 | `AuthCard` | sign-in and sign-up pages: `title`, `subtitle`, `footer`, `appName`. With `aside: { title, text }` the screen splits in two: a brand panel on the left, the form on the right (stacked on phones) |
 | `AppShell` | an app frame with top navigation: logo, menu (`nav`, `active`, separators via `section`), user and *Sign out* button (POST to `/logout`), title, `subtitle`, `actions` |
-| `StatGroup` · `Stat` | a strip of summary numbers with thin dividers (not a row of identical cards) |
+| `StatGroup` · `Stat` | a strip of summary numbers with thin dividers (not a row of identical cards); `trend: "up"` and `change: "12%"` show a colored change |
 | `Container` · `Stack` · `Row` · `Cluster` · `Columns` | layout without CSS: content width, a vertical stack, a horizontal row, a group of small items, and equal columns that stack on phones. Spacing through `gap` (`none`, `xs`, `sm`, `md`, `lg`, `xl`), alignment through `align` and `justify` |
 | `PageHeader` · `Section` · `Divider` | a page header (breadcrumb, title, description, action buttons), a titled section without a box, and a separator line (optionally with text, e.g. "or") |
 | `Card` · `Split` · `Grid` | a titled card, a 2:1 two-column layout (main content and side panel), and a responsive grid |
@@ -56,6 +56,17 @@ Every page from `page()` also comes with:
 | `Alert` · `Badge` | messages (`info`, `success`, `error`, `warn`) and small square labels (`accent`, `ok`, `warn`, `danger`) |
 | `Table` · `List` · `EmptyState` | a data table (`align: "num"` columns for numbers, `"end"` for right alignment), a compact two-sided list, and an empty state that suggests the next step |
 | `Avatar` · `Brand` | name initials and the logo with the app name |
+| `Navbar` · `Footer` · `BottomNav` | top bar for public pages (links and buttons move into a *Menu* on phones, no JavaScript), a footer with link columns, and a phone-only bottom navigation |
+| `Breadcrumb` · `Tabs` · `Pagination` · `Steps` | page location trail, tabs made of links (`?tab=…`, with `count`), page numbers (`href: "?page={page}"`, compact on phones), and process steps (`current` starts at 1) |
+| `DropdownMenu` | a button that opens a list of actions: links, or POSTs (`action`) for actions such as delete |
+| `Dialog` · `ConfirmDialog` · `Drawer` · `Sheet` | a centered dialog, a confirmation dialog that sends a POST, a drawer from the side (`side`), and a sheet from the bottom. Open them with `trigger: "Label"` or `h(Button, { opens: id })`; they use the browser's built-in `popover` attribute, so Esc and clicking outside close them without JavaScript |
+| `Popover` · `Tooltip` | a small box below its button, and a hint on hover or keyboard focus |
+| `Toast` · `flash()` · `takeFlash()` | a floating message that disappears by itself, including a one-time message after a redirect (see below) |
+| `Progress` · `Spinner` · `Skeleton` | a progress bar (no `value` = in progress), a loading indicator, and a placeholder for content that is loading |
+| `DescriptionList` · `Timeline` · `Accordion` | details of one record (label and value), a sequence of events, and sections that open and close (`single: true` = one open at a time) |
+| `Tag` · `AvatarGroup` · `Rating` · `CodeBlock` | a pill-shaped category label (optionally a link), a row of avatars with "+N", a star rating (display, or an input with `name`), and a code block with a *Copy* button |
+| `Calendar` | a one-month calendar with events (bookings, schedules); `href: "/schedule?month={month}"` for the previous and next month, a list on phones |
+| `StatusPage` · `statusPage()` | a status page (403, 404, 500, …) in the app theme. The framework uses it for errors in production |
 | `money()` · `formatNumber()` · `formatDate()` · `rupiah()` | money, numbers, and dates in the active [language](bahasa.html); `rupiah(45000)` is always `Rp45.000` |
 
 ## Layout without CSS
@@ -129,6 +140,52 @@ npx zentara theme --reset                          # back to the default
 
 The dev server reloads the config on its own. Zentara AI runs the same command when you ask, for example, *"make the main color blue"*.
 
+## Navigation and dialogs
+
+All navigation is made of plain links, so every tab and page has its own URL and works without JavaScript:
+
+```ts
+h(Navbar, { appName: "Senja Bakery", links: [{ href: "/", label: "Home" }, { href: "/menu", label: "Menu" }], active: "/menu", actions: h(Button, { href: "/order", small: true }, "Order") }),
+h(Tabs, { items: [{ href: "?tab=new", label: "New", count: 3 }, { href: "?tab=done", label: "Done" }], active: `?tab=${tab}` }),
+h(Pagination, { page, pages, href: "/products?page={page}" }),
+```
+
+Dialogs, drawers, and popovers use the browser's built-in `popover` attribute. Set `trigger` to render the opening button too, or open them from any button with `opens`:
+
+```ts
+h(ConfirmDialog, { id: `delete-${p.id}`, trigger: "Delete", title: `Delete ${p.name}?`, text: "Deleted products cannot be restored.", action: `/products/${p.id}/delete`, confirm: "Delete" }),
+h(Button, { opens: "filters", variant: "secondary" }, "Filters"),
+h(Drawer, { id: "filters", title: "Filters" }, ...),
+```
+
+A `Dialog` with `open: true` opens as soon as the page loads, for example when the form inside it has errors.
+
+## Messages after a redirect (flash)
+
+`flash(ctx, message)` stores a message to show once on the next page, and `takeFlash(ctx)` takes it. The message lives in the session when the `session()` middleware is installed, otherwise in a short-lived `zen_flash` cookie:
+
+```ts
+import { flash, redirect, takeFlash } from "zentara";
+import { Toast } from "zentara/ui";
+
+export async function POST(ctx: ZenContext) {
+  // … save the data
+  flash(ctx, "Note saved.");
+  return redirect("/notes", 303);
+}
+
+// On the target page: no message = Toast renders nothing.
+h(Toast, { flash: takeFlash(ctx) })
+```
+
+The default tone is `success`; use `flash(ctx, "Could not send the email", "error")` for others. The toast disappears after 6 seconds (`timeout: 0` = stays).
+
+## Error pages
+
+In production, 403, 404, 500, and other statuses are shown with the UI kit and the app theme (`ui` in `zentara.config.mjs`), with the app name (`appName`) and a button back to the home page. The message from `throw new HttpError(403, "Only admins can open this page")` is shown too; details of a 500 error never are. During development, 404 and 500 keep the richer developer pages.
+
+For your own status page, use `h(StatusPage, { status: 404, text: "…", action: … })` inside `page()`, or `statusPage(404)` for a full document.
+
 ## Component catalog and gallery
 
 - **`zentara ui`** prints every component by group. `zentara ui Select` shows what it is for, every prop with its type and allowed values, and an example. `--json` for other tools.
@@ -142,14 +199,15 @@ The catalog is generated from the JSDoc in the UI kit's code, so it always match
 `tryParse()` validates without throwing, so the form can be shown again with its messages:
 
 ```ts
-import { html, readInput, redirect, tryParse } from "zentara";
+import { flash, html, readInput, redirect, tryParse } from "zentara";
 
 export async function POST(ctx: ZenContext) {
   const raw = await readInput(ctx); // HTML forms or JSON
   const input = await tryParse(NoteForm, raw);
   if (!input.ok) return html(view({ values: raw, errors: input.errors }), { status: 422 });
   await db.insert(notes).values({ ...input.data, userId: (ctx.state.user as User).id });
-  return redirect("/notes?msg=created", 303);
+  flash(ctx, "Note saved.");
+  return redirect("/notes", 303);
 }
 ```
 

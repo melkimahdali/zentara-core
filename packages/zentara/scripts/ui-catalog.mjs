@@ -11,9 +11,9 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SOURCES = ["src/ui/layout.ts", "src/ui/forms.ts", "src/ui/index.ts"];
+const SOURCES = ["src/ui/layout.ts", "src/ui/forms.ts", "src/ui/index.ts", "src/ui/nav.ts", "src/ui/overlay.ts", "src/ui/feedback.ts", "src/ui/data.ts", "src/ui/status.ts", "src/core/flash.ts"];
 export const OUTPUT = "src/ui/catalog.gen.ts";
-const GROUPS = ["page", "layout", "form", "data", "feedback", "format"];
+const GROUPS = ["page", "layout", "nav", "form", "overlay", "data", "feedback", "format"];
 
 const clean = (text) => text.replace(/\s+/g, " ").trim();
 

@@ -2,6 +2,21 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.7]
+
+### Ditambahkan
+- **Navigasi di kit UI:** `Navbar` untuk halaman publik (tautan dan tombol pindah ke menu *Menu* di ponsel, tanpa JavaScript), `Breadcrumb`, `Tabs` berupa tautan (dengan `count`), `Pagination` (`href: "?page={page}"`, ringkas di ponsel), `Steps`, `DropdownMenu` (tautan atau POST), `BottomNav` khusus ponsel, dan `Footer`.
+- **Dialog dan lapisan:** `Dialog`, `ConfirmDialog` (dialog konfirmasi yang mengirim POST), `Drawer`, `Sheet`, `Popover`, dan `Tooltip`. Semuanya memakai atribut `popover` bawaan browser, jadi dibuka dengan `trigger: "Label"` atau `h(Button, { opens: id })` dan ditutup dengan Esc atau klik di luar tanpa JavaScript. `Dialog({ open: true })` terbuka saat halaman dimuat.
+- **Pesan flash:** `flash(ctx, "Catatan disimpan.")` sebelum redirect dan `h(Toast, { flash: takeFlash(ctx) })` di halaman tujuan. Pesan tampil satu kali, disimpan di session bila `session()` terpasang atau di cookie pendek `zen_flash`. `Toast` hilang sendiri setelah 6 detik.
+- **Umpan balik lain:** `Progress` (dengan atau tanpa nilai), `Spinner`, dan `Skeleton`.
+- **Tampilan data:** `DescriptionList`, `Accordion` (`single: true` = satu terbuka), `Timeline`, `Tag`, `AvatarGroup`, `Rating` (tampilan, atau input bintang dengan `name`), `CodeBlock` dengan tombol *Salin*, dan `Calendar` satu bulan dengan acara untuk booking dan jadwal (daftar di ponsel). `Stat` mendapat `trend` dan `change` untuk perubahan naik/turun berwarna.
+- **Halaman error bertema:** di produksi, 403, 404, 500, dan status lainnya kini memakai kit UI dengan tema dan nama aplikasi. `StatusPage` dan `statusPage()` tersedia untuk halaman status buatan sendiri.
+- Katalog punya kelompok baru *Navigasi* dan *Lapisan*; semua komponen baru ada di `zentara ui`, tool `ui_catalog` Zentara AI, dan galeri `/_zentara/ui`, yang diperiksa e2e di Chrome (desktop dan ponsel, dua tema).
+
+### Diubah
+- **Template `api` memakai pesan flash** untuk "Catatan disimpan", "Perubahan disimpan", dan "Catatan dihapus", menggantikan `?msg=` di URL. Tesnya memastikan pesan hanya tampil sekali.
+- Kata terakhir nama aplikasi di `Brand` memakai warna aksen yang sedikit lebih gelap, supaya kontrasnya cukup juga di latar abu-abu (mis. `Footer`).
+
 ## [0.12.6]
 
 ### Ditambahkan

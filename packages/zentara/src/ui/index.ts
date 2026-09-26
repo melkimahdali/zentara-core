@@ -29,10 +29,12 @@ export interface PageOptions {
 
 /**
  * Skrip kecil bawaan page(): tombol kirim terkunci selama formulir dikirim (dipulihkan bila halaman
- * dikembalikan dari cache lewat tombol Back), tombol Tampilkan pada password, dan pratinjau gambar
- * yang baru dipilih di FileInput. Semuanya hanya menambah kenyamanan; halaman berfungsi tanpanya.
+ * dikembalikan dari cache lewat tombol Back), tombol Tampilkan pada password, pratinjau gambar yang
+ * baru dipilih di FileInput, dialog `open`, tooltip untuk pembaca layar, toast yang hilang sendiri,
+ * tombol Salin di CodeBlock, dan menutup menu tarik-turun dengan klik di luar atau Esc. Semuanya
+ * hanya menambah kenyamanan; halaman berfungsi tanpanya.
  */
-const FORM_SCRIPT = `document.addEventListener("submit",function(e){var b=e.submitter||e.target.querySelector("button[type=submit]");if(!b||b.getAttribute("aria-busy")==="true"||e.defaultPrevented)return;b.setAttribute("aria-busy","true");if(b.dataset.loading){b.dataset.label=b.textContent;b.textContent=b.dataset.loading}setTimeout(function(){b.disabled=true})});addEventListener("pageshow",function(e){if(!e.persisted)return;document.querySelectorAll("button[aria-busy=true]").forEach(function(b){b.disabled=false;b.removeAttribute("aria-busy");if(b.dataset.label)b.textContent=b.dataset.label})});document.querySelectorAll("[data-zu-reveal]").forEach(function(b){var i=document.getElementById(b.getAttribute("data-zu-reveal"));if(!i)return;b.hidden=false;b.addEventListener("click",function(){var s=i.type==="password";i.type=s?"text":"password";b.setAttribute("aria-pressed",String(s));b.textContent=s?b.dataset.hide:b.dataset.show})});document.addEventListener("change",function(e){var i=e.target;if(!i.matches||!i.matches("input[type=file][data-zu-preview]"))return;var img=document.getElementById(i.getAttribute("data-zu-preview")),f=i.files&&i.files[0];if(img&&f&&/^image\\//.test(f.type)){img.src=URL.createObjectURL(f);img.hidden=false}});`;
+const FORM_SCRIPT = `document.addEventListener("submit",function(e){var b=e.submitter||e.target.querySelector("button[type=submit]");if(!b||b.getAttribute("aria-busy")==="true"||e.defaultPrevented)return;b.setAttribute("aria-busy","true");if(b.dataset.loading){b.dataset.label=b.textContent;b.textContent=b.dataset.loading}setTimeout(function(){b.disabled=true})});addEventListener("pageshow",function(e){if(!e.persisted)return;document.querySelectorAll("button[aria-busy=true]").forEach(function(b){b.disabled=false;b.removeAttribute("aria-busy");if(b.dataset.label)b.textContent=b.dataset.label})});document.querySelectorAll("[data-zu-reveal]").forEach(function(b){var i=document.getElementById(b.getAttribute("data-zu-reveal"));if(!i)return;b.hidden=false;b.addEventListener("click",function(){var s=i.type==="password";i.type=s?"text":"password";b.setAttribute("aria-pressed",String(s));b.textContent=s?b.dataset.hide:b.dataset.show})});document.addEventListener("change",function(e){var i=e.target;if(!i.matches||!i.matches("input[type=file][data-zu-preview]"))return;var img=document.getElementById(i.getAttribute("data-zu-preview")),f=i.files&&i.files[0];if(img&&f&&/^image\\//.test(f.type)){img.src=URL.createObjectURL(f);img.hidden=false}});document.querySelectorAll("[data-zu-open]").forEach(function(d){try{d.showPopover()}catch(e){}});document.querySelectorAll("[data-zu-tip]").forEach(function(w){var f=w.querySelector("a,button,input,select,textarea,[tabindex]");if(!f){f=w;w.tabIndex=0}f.setAttribute("aria-describedby",w.getAttribute("data-zu-tip"))});document.querySelectorAll(".zu-toast").forEach(function(t){var b=t.querySelector("[data-zu-dismiss]");function hide(){t.classList.add("hide");setTimeout(function(){var r=t.parentNode;t.remove();if(r&&!r.children.length)r.remove()},220)}if(b){b.hidden=false;b.addEventListener("click",hide)}var s=Number(t.getAttribute("data-zu-timeout"));if(s>0)setTimeout(hide,s*1000)});document.querySelectorAll("[data-zu-copy]").forEach(function(b){if(!navigator.clipboard)return;b.hidden=false;var l=b.textContent;b.addEventListener("click",function(){var c=b.closest("figure").querySelector("code");navigator.clipboard.writeText(c.textContent).then(function(){b.textContent=b.dataset.done;setTimeout(function(){b.textContent=l},1500)})})});function zuShut(t){document.querySelectorAll("details.zu-dropdown[open],details.zu-navbar-menu[open]").forEach(function(d){if(!t||!d.contains(t))d.open=false})}document.addEventListener("click",function(e){zuShut(e.target)});document.addEventListener("keydown",function(e){if(e.key==="Escape")zuShut(null)});`;
 
 /**
  * Dokumen HTML lengkap (dengan doctype) yang memuat stylesheet, font, dan tema kit UI. Semua halaman
@@ -231,12 +233,25 @@ export function Split({ children }: WithChildren<object>): Child {
 
 /**
  * Satu angka ringkasan. Kumpulkan beberapa di dalam StatGroup agar tampil sebagai satu strip bersekat.
- * @en One summary number. Put several inside a StatGroup to show them as one divided strip.
+ * `trend` + `change` menampilkan perubahan naik/turun berwarna (hijau bila baik); `good: "down"` untuk
+ * angka yang lebih baik bila turun (mis. keluhan).
+ * @en One summary number. Put several inside a StatGroup to show them as one divided strip. `trend` + `change` show a colored up/down change (green when good); `good: "down"` for numbers that are better when they go down (e.g. complaints).
  * @group data
- * @example h(Stat, { label: "Pesanan hari ini", value: formatNumber(42), hint: "+8 dari kemarin" })
+ * @example h(Stat, { label: "Pendapatan", value: rupiah(12500000), trend: "up", change: "12%", hint: "dari bulan lalu" })
  */
-export function Stat({ label, value, hint }: WithChildren<{ label: string; value: string | number; hint?: string }>): Child {
-  return h("div", { class: "zu-stat" }, h("span", null, label), h("b", null, value), hint ? h("small", null, hint) : null);
+export function Stat({
+  label,
+  value,
+  hint,
+  trend,
+  change,
+  good = "up",
+}: WithChildren<{ label: string; value: string | number; hint?: string; trend?: "up" | "down" | "flat"; change?: string; good?: "up" | "down" }>): Child {
+  const m = t().ui;
+  const tone = !trend || trend === "flat" ? "flat" : trend === good ? "good" : "bad";
+  const arrow = trend === "up" ? "↑" : trend === "down" ? "↓" : "→";
+  const delta = trend ? h("span", { class: `zu-trend ${tone}` }, h("span", { role: "img", "aria-label": m.trend[trend] }, arrow), change ? [" ", change] : null) : null;
+  return h("div", { class: "zu-stat" }, h("span", null, label), h("b", null, value), delta || hint ? h("small", null, delta, delta && hint ? " " : null, hint ?? null) : null);
 }
 
 /**
@@ -251,8 +266,8 @@ export function StatGroup({ children }: WithChildren<object>): Child {
 
 /**
  * Tombol atau tautan bergaya tombol (`href`). `variant`: primary (default), secondary, ghost, danger.
- * `loading` mengganti teks selama formulir dikirim.
- * @en Button, or a link styled as a button (`href`). `variant`: primary (default), secondary, ghost, danger. `loading` replaces the label while the form is being sent.
+ * `loading` mengganti teks selama formulir dikirim. `opens`/`closes` membuka atau menutup Dialog, Drawer, atau Popover.
+ * @en Button, or a link styled as a button (`href`). `variant`: primary (default), secondary, ghost, danger. `loading` replaces the label while the form is being sent. `opens`/`closes` open or close a Dialog, Drawer, or Popover.
  * @group form
  * @example h(Button, { loading: "Menyimpan…" }, "Simpan")
  */
@@ -265,6 +280,8 @@ export function Button({
   name,
   value,
   loading,
+  opens,
+  closes,
   children,
 }: WithChildren<{
   variant?: "primary" | "secondary" | "ghost" | "danger";
@@ -276,9 +293,19 @@ export function Button({
   value?: string;
   /** Label selama formulir dikirim, mis. "Menyimpan…" (butuh skrip bawaan page()). */
   loading?: string;
+  /** id Dialog, Drawer, atau Popover yang dibuka tombol ini (tanpa JavaScript). */
+  opens?: string;
+  /** id Dialog, Drawer, atau Popover yang ditutup tombol ini. */
+  closes?: string;
 }>): Child {
   const cls = ["zu-btn", variant, small ? "small" : "", block ? "block" : ""].filter(Boolean).join(" ");
-  return href ? h("a", { class: cls, href }, children) : h("button", { class: cls, type, name, value, "data-loading": loading }, children);
+  if (href) return h("a", { class: cls, href }, children);
+  const target = opens ?? closes;
+  return h(
+    "button",
+    { class: cls, type: target ? "button" : type, name, value, "data-loading": loading, popovertarget: target, popovertargetaction: opens ? "show" : closes ? "hide" : undefined },
+    children,
+  );
 }
 
 /**
@@ -407,6 +434,12 @@ export function rupiah(value: number): string {
 export { UI_CSS } from "./styles.js";
 export * from "./layout.js";
 export * from "./forms.js";
+export * from "./nav.js";
+export * from "./overlay.js";
+export * from "./feedback.js";
+export * from "./data.js";
+export { StatusPage, statusPage } from "./status.js";
+export { flash, takeFlash, type Flash } from "../core/flash.js";
 export type { Align, Gap, Justify } from "./types.js";
 export { ACCENT_PRESETS, DEFAULT_THEME, resolveUiTheme, type ThemeFont, type ThemeMode, type ThemeRadius, type UiTheme, type UiThemeConfig } from "./theme.js";
 
