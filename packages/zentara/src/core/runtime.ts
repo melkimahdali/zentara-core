@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { setLocale } from "../i18n/index.js";
 import { t } from "../i18n/index.js";
 import { sendBuiltinAsset } from "./assets.js";
+import { setUiTheme } from "../ui/theme.js";
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
@@ -40,6 +41,7 @@ export class ZenRuntime {
   constructor(userConfig: UserConfig = {}) {
     this.config = resolveConfig(userConfig);
     setLocale(this.config.locale);
+    setUiTheme(this.config.ui);
     this.logger = new ZenLogger(this.config.logLevel);
     this.router = new ZenRouter(this.logger);
     this.plugins = new ZenPluginManager(this, this.config.plugins);
@@ -139,6 +141,11 @@ export class ZenRuntime {
       }
       if ((ctx.method === "GET" || ctx.method === "HEAD") && ctx.path.startsWith("/_zentara/") && sendBuiltinAsset(ctx.req, ctx.res, ctx.path)) {
         return undefined;
+      }
+      // Galeri kit UI: hanya saat debug (pengembangan), dimuat saat pertama diminta.
+      if ((ctx.method === "GET" || ctx.method === "HEAD") && ctx.path === "/_zentara/ui" && this.config.debug) {
+        const { renderGallery } = await import("../ui/gallery.js");
+        return renderGallery();
       }
       if ((ctx.method === "GET" || ctx.method === "HEAD") && this.config.publicDir) {
         const file = await resolveStaticFile(this.config.publicDir, ctx.path);

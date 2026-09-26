@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { t } from "../i18n/index.js";
+import { CATALOG_GROUPS, catalogForAi, similarEntries } from "../ui/catalog.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -430,11 +431,11 @@ export const agentTools: AgentTool[] = [
     spec: {
       name: "zentara",
       description:
-        "Run a Zentara CLI command in the project, using the project's own zentara install: routes (list routes), jobs (list background jobs, schedules, and queue), jobs:run <name> [--data <json>] (run one job now), make:route <path> [--methods GET,POST], make:middleware <name>, make:job <name> [--schedule \"<cron>\"], build. Use the database tool for db:*; the dev server is controlled by the developer.",
+        "Run a Zentara CLI command in the project, using the project's own zentara install: routes (list routes), jobs (list background jobs, schedules, and queue), jobs:run <name> [--data <json>] (run one job now), make:route <path> [--methods GET,POST], make:middleware <name>, make:job <name> [--schedule \"<cron>\"], build, theme (show the UI kit theme) or theme --accent <color> [--radius none|sm|md|lg] [--font jakarta|system|serif|mono] [--mode auto|light|dark] [--reset] (change it in zentara.config.mjs; colors: teal, blue, sky, cyan, indigo, violet, purple, pink, rose, red, orange, amber, gold, brown, green, emerald, slate, or #rrggbb). Use the database tool for db:*; the dev server is controlled by the developer.",
       inputSchema: {
         type: "object",
         properties: {
-          command: { type: "string", enum: ["routes", "jobs", "jobs:run", "make:route", "make:middleware", "make:job", "build"] },
+          command: { type: "string", enum: ["routes", "jobs", "jobs:run", "make:route", "make:middleware", "make:job", "build", "theme"] },
           args: { type: "array", items: { type: "string" }, description: "Extra arguments, e.g. [\"reports/daily\", \"--schedule\", \"0 7 * * *\"]" },
         },
         required: ["command"],
@@ -443,8 +444,10 @@ export const agentTools: AgentTool[] = [
     },
     async run(input, ctx) {
       const command = str(input, "command")!;
-      const risks: Record<string, Risk> = { routes: "read", jobs: "read", "jobs:run": "critical", "make:route": "write", "make:middleware": "write", "make:job": "write", build: "write" };
-      const risk = risks[command];
+      const risks: Record<string, Risk> = { routes: "read", jobs: "read", "jobs:run": "critical", "make:route": "write", "make:middleware": "write", "make:job": "write", build: "write", theme: "write" };
+      const args0 = Array.isArray(input.args) ? input.args.map(String) : [];
+      // `theme` tanpa argumen hanya membaca tema.
+      const risk = command === "theme" && args0.length === 0 ? "read" : risks[command];
       if (!risk) throw new ToolError(t().ai.tools.zentaraArgInvalid(command));
       const args = Array.isArray(input.args) ? input.args.map(String) : [];
       for (const arg of args) {
@@ -462,7 +465,14 @@ export const agentTools: AgentTool[] = [
       const src = path.join(ctx.root, "src");
       const snapshot = new Map<string, string>();
       if (command.startsWith("make:")) for (const f of listFiles(ctx.root, src, 5_000, true)) snapshot.set(f, fs.readFileSync(path.join(ctx.root, f), "utf8"));
+      // theme mengubah zentara.config.mjs: foto dulu isinya (atau catat bahwa belum ada) untuk `zentara undo`.
+      const configFile = "zentara.config.mjs";
+      const configBefore = command === "theme" && risk !== "read" ? (fs.existsSync(path.join(ctx.root, configFile)) ? fs.readFileSync(path.join(ctx.root, configFile), "utf8") : null) : undefined;
       const result = await runZentaraCli(ctx.root, [command, ...args]);
+      if (configBefore !== undefined) {
+        const after = fs.existsSync(path.join(ctx.root, configFile)) ? fs.readFileSync(path.join(ctx.root, configFile), "utf8") : null;
+        if (after !== configBefore) ctx.journal.recordExternal(configFile, configBefore);
+      }
       if (command.startsWith("make:")) {
         for (const f of listFiles(ctx.root, src, 5_000, true)) {
           const before = snapshot.get(f);
@@ -471,6 +481,28 @@ export const agentTools: AgentTool[] = [
         }
       }
       return `${result.ok ? t().ai.tools.ok : t().ai.tools.failed}: zentara ${line}\n${truncate(redactSecrets(result.output, secretValues(ctx.root)), 3000)}`;
+    },
+  },
+  {
+    spec: {
+      name: "ui_catalog",
+      description:
+        "Look up the Zentara UI kit (zentara/ui) before building or changing a page. Without arguments: every component by group with its props. With component: what it is for, every prop with its type and allowed values, and an example. Build pages only from these components and props (layout, spacing, forms, colors come from the kit and the theme), never with custom CSS.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          component: { type: "string", description: "Component or function name, e.g. \"Select\" or \"PageHeader\"" },
+          group: { type: "string", enum: [...CATALOG_GROUPS] },
+        },
+        additionalProperties: false,
+      },
+    },
+    async run(input) {
+      const component = str(input, "component", true);
+      const group = str(input, "group", true);
+      const text = catalogForAi({ component, group });
+      if (text === undefined) throw new ToolError(t().ai.tools.unknownComponent(component!, similarEntries(component!).join(", ")));
+      return text;
     },
   },
   {

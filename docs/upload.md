@@ -20,13 +20,15 @@ export async function POST(ctx: ZenContext) {
 }
 ```
 
-Formulir HTML-nya:
+Formulirnya dengan [kit UI](ui.html). Berikan `types` dan `maxBytes` yang sama dengan `saveUpload()`, sehingga browser hanya menawarkan file yang cocok, petunjuk "Gambar, maks. 5 MB" ditulis otomatis, dan gambar yang dipilih langsung dipratinjau:
 
-```html
-<form method="post" action="/profil/foto" enctype="multipart/form-data">
-  <input type="file" name="photo" accept="image/*">
-  <button>Unggah</button>
-</form>
+```ts
+import { Button, FileInput, Form, FormActions } from "zentara/ui";
+
+h(Form, { action: "/profil/foto", upload: true },
+  h(FileInput, { name: "photo", label: "Foto profil", types: ["image/*"], maxBytes: "5mb", preview: user.photoUrl }),
+  h(FormActions, null, h(Button, null, "Unggah")),
+)
 ```
 
 ## readForm

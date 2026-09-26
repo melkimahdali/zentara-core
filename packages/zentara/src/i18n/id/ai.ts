@@ -13,6 +13,7 @@ export const ai = {
     database: "Database",
     zentara: "Zentara",
     install_package: "Pasang",
+    ui_catalog: "Katalog UI",
     view_page: "Lihat",
     dev_server: "Server",
   } as Record<string, string>,
@@ -23,6 +24,7 @@ export const ai = {
     hits: (n: number) => `${n} hasil`,
     view: (browser: boolean, mobile: boolean, issues: number, failed: number) =>
       `${browser ? "di browser" : "versi teks"}${mobile ? " · ponsel" : ""} · ${issues ? `${issues} temuan tampilan` : "tampilan rapi"}${failed ? ` · ${failed} pemeriksaan gagal` : ""}`,
+    catalog: (n: number) => `${n} komponen`,
     moreLines: (n: number) => `… (+${n} baris)`,
   },
   tools: {
@@ -77,6 +79,7 @@ export const ai = {
     packageInvalid: (name: string) => `nama paket tidak valid: ${name}`,
     zentaraSummary: (command: string) => `Jalankan zentara ${command}`,
     jobRunReason: "menjalankan job bisa mengirim email atau mengubah data",
+    unknownComponent: (name: string, similar: string) => `Komponen kit UI tidak ada: ${name}.${similar ? ` Mungkin: ${similar}.` : ""} Panggil ui_catalog tanpa argumen untuk melihat semuanya.`,
     zentaraArgInvalid: (arg: string) => `Argumen tidak valid: ${arg}`,
     packageReason: "mengunduh dan memasang kode pihak ketiga",
     dryRunNotInstalled: (name: string) => `[dry-run] ${name} tidak dipasang`,

@@ -182,6 +182,7 @@ try {
       const homeHtml = await home.text();
       check(home.status === 200 && homeHtml.includes(expect.home) && !homeHtml.includes("window.ZentaraChat") && noWidget(homeHtml), "zentara start: halaman sambutan tanpa chat AI dan tanpa widget");
       for (const asset of ["widget.js", "probe.js"]) check((await fetch(`http://127.0.0.1:${prodPort}/_zentara/dev/${asset}`)).status === 404, `zentara start: /_zentara/dev/${asset} tidak ada (404)`);
+      check((await fetch(`http://127.0.0.1:${prodPort}/_zentara/ui`)).status === 404, "zentara start: galeri /_zentara/ui tidak ada di produksi (404)");
       const missing = await fetch(`http://127.0.0.1:${prodPort}/tidak-ada`, { headers: { accept: "text/html" } });
       const missingHtml = await missing.text();
       check(missing.status === 404 && missingHtml.includes(expect.notFound) && !missingHtml.includes(expect.devRoutes) && noWidget(missingHtml), "zentara start: halaman 404 tanpa detail internal dan tanpa widget");
@@ -249,6 +250,10 @@ try {
         const loginView = view("/login", "--text", expect.signIn);
         check(loginView.code === 0 && loginView.out.includes(`- h1 "${expect.signIn}"`), "zentara view /login: heading halaman terbaca, tanpa temuan");
         check(view("/login", "--mobile").code === 0, "zentara view /login --mobile: tanpa temuan (versi teks)");
+        // Katalog kit UI dari CLI (sama dengan tool ui_catalog Zentara AI).
+        const catalog = sh(process.execPath, [cli, "ui"], app);
+        check(catalog.includes("Select") && catalog.includes("PageHeader"), "zentara ui: katalog komponen kit UI");
+        check(sh(process.execPath, [cli, "ui", "FileInput"], app).includes("maxBytes"), "zentara ui FileInput: props dan contoh");
         // Halaman yang sengaja rusak: temuan versi teks (tanpa browser).
         fs.writeFileSync(path.join(app, "src", "app", "routes", "rusak.ts"), BROKEN_PAGE);
         await waitFor(`http://127.0.0.1:${devPort}/rusak`);
@@ -281,6 +286,35 @@ try {
             const browserKinds = kinds(shot.out);
             const want = ["overflow", "overlap", "truncated", "image", "contrast", "style", "kit", "meta"];
             check(shot.code === 1 && want.every((k) => browserKinds.has(k)), `zentara view /rusak di browser: semua jenis temuan (${[...browserKinds].join(", ")})`);
+
+            // Galeri kit UI: setiap komponen katalog lolos pemeriksaan tampilan di desktop dan ponsel.
+            const gallery = (label) => {
+              for (const extra of [[], ["--mobile"]]) {
+                const g = JSON.parse(view("/_zentara/ui", ...extra, "--json").out);
+                check(g.mode === "browser" && g.ok === true, `zentara view /_zentara/ui${extra.length ? " --mobile" : ""} (${label}): semua komponen tanpa temuan\n${g.ok ? "" : g.text}`);
+              }
+            };
+            gallery("tema bawaan");
+            // Tema dari config: zentara theme menulis zentara.config.mjs, server dev memuat ulang, halaman memuat theme.css.
+            const configFile = path.join(app, "zentara.config.mjs");
+            const themed = sh(process.execPath, [cli, "theme", "--accent", "biru", "--radius", "lg", "--mode", "dark"], app);
+            check(themed.includes("accent blue") && /\n {2}ui: \{ accent: "blue", radius: "lg", mode: "dark" \},/.test(fs.readFileSync(configFile, "utf8")), "zentara theme --accent biru: tema tersimpan di zentara.config.mjs");
+            const themedLogin = async (want) => {
+              for (let i = 0; i < 120; i++) {
+                const body = await fetch(`http://127.0.0.1:${devPort}/login`).then((r) => r.text(), () => "");
+                if (body.includes("<html") && body.includes("/_zentara/theme.css") === want) return body;
+                await new Promise((r) => setTimeout(r, 500));
+              }
+              return "";
+            };
+            const withTheme = await themedLogin(true);
+            check(/<html lang="\w+" data-zu-mode="dark">/.test(withTheme), "zentara dev: config baru dimuat ulang, halaman memakai tema (mode gelap)");
+            const themeHref = withTheme.match(/href="(\/_zentara\/theme\.css\?v=\w+)"/)?.[1] ?? "";
+            const themeCss = await (await fetch(`http://127.0.0.1:${devPort}${themeHref}`)).text();
+            check(/--zu-accent:#[0-9a-f]{6}/.test(themeCss) && themeCss.includes("--zu-r-lg:22px"), "/_zentara/theme.css: warna aksen dan radius dari tema");
+            gallery("accent blue, radius lg, mode dark");
+            sh(process.execPath, [cli, "theme", "--reset"], app);
+            check(!/^\s*ui:/m.test(fs.readFileSync(configFile, "utf8")) && (await themedLogin(false)) !== "", "zentara theme --reset: kembali ke tema bawaan");
           } finally {
             closeBrowser();
           }

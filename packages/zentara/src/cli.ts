@@ -24,6 +24,9 @@ import { checkForUpdate } from "./update.js";
 import { findLocalCli } from "./process.js";
 import { ProviderUnavailableError } from "./ai/types.js";
 import { defaultAppDir, loadConfigFile, resolveConfig, type UserConfig } from "./core/config.js";
+import { formatUiObject, writeConfigUi } from "./core/config-edit.js";
+import { CATALOG_GROUPS, catalogDetail, catalogList, findCatalogEntry, similarEntries, UI_CATALOG } from "./ui/catalog.js";
+import { ACCENT_PRESETS, DEFAULT_THEME, resolveUiTheme, type UiTheme, type UiThemeConfig } from "./ui/theme.js";
 import type { DbCommandResult } from "./db/commands.js";
 import { ZenLogger } from "./core/logger.js";
 import { allowedMethods, HTTP_METHODS, segmentsFromFile, ZenRouter } from "./core/router.js";
@@ -58,7 +61,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     const [key, inline] = arg.slice(2).split("=", 2) as [string, string | undefined];
     const next = argv[i + 1];
     if (inline !== undefined) flags[key] = inline;
-    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule", "url", "text", "limit", "report"].includes(key)) {
+    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule", "url", "text", "limit", "report", "group", "accent", "radius", "font", "mode"].includes(key)) {
       flags[key] = next;
       i++;
     } else flags[key] = true;
@@ -285,7 +288,7 @@ async function listRoutes(args: ParsedArgs, io: CliIO): Promise<number> {
 }
 
 const KNOWN_COMMANDS = new Set([
-  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "make:job", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang", "jobs", "jobs:run", "view", "ai:log",
+  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "make:job", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang", "jobs", "jobs:run", "view", "ai:log", "ui", "theme",
 ]);
 
 /** Bahasa CLI: env ZENTARA_LANG, lalu `locale` di zentara.config.mjs, lalu preferensi global, lalu Indonesia. */
@@ -710,6 +713,99 @@ function aiLog(args: ParsedArgs, io: CliIO): number {
   return 0;
 }
 
+/** `zentara ui [Nama] [--group form] [--json]`: katalog komponen kit UI (sama dengan tool ui_catalog AI). */
+function uiCommand(args: ParsedArgs, io: CliIO): number {
+  const m = t().cli.ui;
+  const name = args.positional[1];
+  const group = typeof args.flags.group === "string" ? args.flags.group : undefined;
+  if (group && !(CATALOG_GROUPS as readonly string[]).includes(group)) {
+    io.err(m.badGroup(group, CATALOG_GROUPS.join(", ")));
+    return 1;
+  }
+  if (name) {
+    const entry = findCatalogEntry(name);
+    if (!entry) {
+      io.err(m.notFound(name, similarEntries(name)));
+      return 1;
+    }
+    io.out(args.flags.json ? JSON.stringify(entry, null, 2) : catalogDetail(entry));
+    return 0;
+  }
+  if (args.flags.json) {
+    io.out(JSON.stringify(UI_CATALOG.filter((e) => !group || e.group === group), null, 2));
+    return 0;
+  }
+  io.out(m.intro(UI_CATALOG.length));
+  io.out("");
+  io.out(catalogList(getLocale(), group));
+  io.out("");
+  io.out(m.more);
+  return 0;
+}
+
+const THEME_KEYS = ["accent", "radius", "font", "mode"] as const;
+
+/** `zentara theme [--accent biru] [--radius lg] [--font system] [--mode dark] [--reset] [--json]`: tema kit UI. */
+async function themeCommand(args: ParsedArgs, io: CliIO): Promise<number> {
+  const m = t().cli.theme;
+  let user: UserConfig;
+  try {
+    user = await loadConfigFile(io.cwd);
+  } catch (err) {
+    io.err((err as Error).message);
+    return 1;
+  }
+  const raw = (user.ui && typeof user.ui === "object" ? user.ui : {}) as Record<string, unknown>;
+  const current: UiThemeConfig = {};
+  for (const k of THEME_KEYS) if (typeof raw[k] === "string") (current as Record<string, string>)[k] = raw[k] as string;
+  const changes: UiThemeConfig = {};
+  for (const k of THEME_KEYS) {
+    const v = args.flags[k];
+    if (v === true) {
+      io.err(m.needValue(k));
+      return 1;
+    }
+    if (typeof v === "string") (changes as Record<string, string>)[k] = v;
+  }
+  const reset = args.flags.reset === true;
+  const next: UiThemeConfig = reset ? {} : { ...current, ...changes };
+  let resolved: UiTheme;
+  try {
+    resolved = resolveUiTheme(next);
+  } catch (err) {
+    io.err((err as Error).message);
+    return 1;
+  }
+  const file = path.relative(io.cwd, fs.existsSync(path.join(io.cwd, "zentara.config.js")) && !fs.existsSync(path.join(io.cwd, "zentara.config.mjs")) ? path.join(io.cwd, "zentara.config.js") : path.join(io.cwd, "zentara.config.mjs"));
+  if (!reset && Object.keys(changes).length === 0) {
+    if (args.flags.json) {
+      io.out(JSON.stringify({ config: current, theme: resolved, accents: Object.keys(ACCENT_PRESETS) }, null, 2));
+      return 0;
+    }
+    io.out(m.title(file));
+    for (const k of THEME_KEYS) io.out(`  ${k.padEnd(7)} ${resolved[k]}${resolved[k] === DEFAULT_THEME[k] ? ` (${m.isDefault})` : ""}`);
+    io.out("");
+    io.out(m.colors(Object.keys(ACCENT_PRESETS).join(", ")));
+    io.out(m.change);
+    io.out(m.reset);
+    io.out(m.gallery);
+    return 0;
+  }
+  // Nama warna Indonesia disimpan sebagai nama preset (mis. "biru" -> "blue") agar config mudah dibaca.
+  if (next.accent !== undefined) next.accent = resolved.accent;
+  const result = writeConfigUi(io.cwd, reset ? null : next);
+  if (!result.ok) {
+    io.err((result.reason === "multiline" ? m.manual : m.noExport)(path.relative(io.cwd, result.file), formatUiObject(next)));
+    return 1;
+  }
+  const rel = path.relative(io.cwd, result.file);
+  if (!result.changed) io.out(m.unchanged);
+  else if (reset) io.out(m.resetDone(rel));
+  else io.out(m.saved(rel, THEME_KEYS.map((k) => `${k} ${resolved[k]}`).join(" · ")));
+  if (result.changed) io.out(m.reload);
+  return 0;
+}
+
 let tsxRegistered = false;
 
 /** Pasang loader TypeScript agar CLI bisa memuat route/db/seed .ts milik proyek (tidak perlu untuk dist/). */
@@ -740,7 +836,7 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
     io.out(version());
     return 0;
   }
-  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "make:job", "db:generate", "lang", "view", "ai:log", undefined].includes(command);
+  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "make:job", "db:generate", "lang", "view", "ai:log", "ui", "theme", undefined].includes(command);
   if (needsProjectCode || isNaturalLanguage(args.positional)) await ensureTypeScriptLoader(io.cwd);
   if (isNaturalLanguage(args.positional)) return runAi(args.positional.join(" "), args, io);
   switch (command) {
@@ -809,6 +905,10 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return lang(args, io, source);
     case "view":
       return viewCommand(args, io);
+    case "ui":
+      return uiCommand(args, io);
+    case "theme":
+      return themeCommand(args, io);
     default:
       io.err(t().cli.unknownCommand(String(command)));
       io.err(t().cli.help);

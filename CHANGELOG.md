@@ -2,6 +2,25 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.6]
+
+### Ditambahkan
+- **Primitif tata letak di kit UI:** `Container`, `Stack`, `Row`, `Cluster`, `Columns`, `Section`, `Divider`, dan `PageHeader` (breadcrumb, judul, deskripsi, tombol aksi). Jarak dan perataan lewat prop bernilai terbatas (`gap: "none" | "xs" | "sm" | "md" | "lg" | "xl"`, `align`, `justify`), jadi halaman tersusun rapi di desktop dan ponsel tanpa CSS.
+- **Formulir lengkap:** `Select` (dengan kelompok dan `placeholder`), `Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `FileInput`, dan `Fieldset`. `Field` mendapat awalan/akhiran (`prefix: "Rp"`, `suffix: "kg"`), tombol *Tampilkan* pada password, dan tipe `time`, `datetime-local`, `month`, `range`, serta `color`. `FileInput` memakai `types` dan `maxBytes` yang sama dengan `saveUpload()`, sehingga petunjuk "Gambar, maks. 5 MB" ditulis otomatis dan gambar yang dipilih langsung dipratinjau. `Form({ upload: true })` untuk formulir multipart. Semuanya tetap berfungsi tanpa JavaScript.
+- **Tema di `zentara.config.mjs`:** `ui: { accent, radius, font, mode }`. Warna aksen bisa nama (`blue`, `rose`, …, juga `biru`, `merah`, `hijau`) atau hex, dan disesuaikan otomatis untuk mode terang dan gelap supaya tetap memenuhi kontras WCAG AA. `mode: "light"` atau `"dark"` memaksa satu mode. Tema disajikan di `/_zentara/theme.css` dan hanya dimuat bila berbeda dari bawaan.
+- **`zentara theme`** melihat dan mengubah tema (`--accent biru --radius lg --font system --mode dark`, `--reset`), langsung di `zentara.config.mjs`. Server dev memuat ulang config sendiri.
+- **Katalog komponen** yang dibuat otomatis dari JSDoc kit UI (id/en): kegunaan, setiap prop dengan tipe dan pilihannya, dan contoh. `zentara ui` mencetaknya, `zentara ui Select` menampilkan satu komponen, `--json` untuk alat lain.
+- **Galeri `/_zentara/ui`** saat `zentara dev`: setiap komponen dengan contoh hidup dan tema aplikasi. Tidak ada di produksi.
+- **Alur AI baru untuk halaman:** Zentara AI memilih komponen dari katalog (tool `ui_catalog`), menyusunnya dengan primitif tata letak, lalu memeriksa dengan `view_page`. Warna dan font diubah lewat `zentara theme`, bukan CSS (bisa dibatalkan dengan `zentara undo`). Bila kit belum cukup, AI menjelaskan batasnya dan menawarkan CSS khusus yang baru ditulis setelah Anda setuju.
+- e2e membuka galeri di Chrome dan memeriksanya dengan `view_page` di desktop dan ponsel, dengan tema bawaan dan dengan tema lain (biru, radius besar, mode gelap), sehingga setiap komponen baru otomatis ikut diperiksa tata letak dan kontrasnya.
+
+### Diubah
+- Template baru menyebut opsi `ui` di `zentara.config.mjs`. Dokumentasi tidak lagi menyarankan `<style>` untuk mengganti warna.
+
+### Diperbaiki
+- **Kontras kit UI:** teks badge `accent` dan `gold` serta keterangan di bawah `Stat` kini memenuhi WCAG AA di mode terang (sebelumnya 3,5 sampai 4,4:1). Galeri menemukannya.
+- **Pemeriksaan tampilan tidak lagi menganggap isi `<details>` yang tertutup terlihat**, sehingga `Disclosure` tertutup tidak menghasilkan temuan "saling menimpa" palsu.
+
 ## [0.12.5]
 
 ### Ditambahkan

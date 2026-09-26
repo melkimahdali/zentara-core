@@ -33,7 +33,7 @@ export interface Output {
 
 function mainArg(call: ToolCall): string | undefined {
   const input = (call.input ?? {}) as Record<string, unknown>;
-  const main = input.path ?? input.url ?? input.query ?? input.check ?? input.command ?? input.name ?? input.action;
+  const main = input.path ?? input.url ?? input.query ?? input.check ?? input.command ?? input.name ?? input.action ?? input.component ?? input.group;
   if (typeof main !== "string") return undefined;
   // view_page: sebutkan layar ponsel, mis. "view_page /notes (mobile)".
   return call.name === "view_page" && input.viewport === "mobile" ? `${main} (mobile)` : main;
@@ -60,6 +60,8 @@ export function toolResultSummary(call: ToolCall, result: ToolResult): string {
     case "list_files":
     case "list_routes":
       return result.content.startsWith("(") ? result.content : call.name === "list_files" ? t().ai.summary.files(lines) : t().ai.summary.routes(lines);
+    case "ui_catalog":
+      return (call.input as Record<string, unknown> | undefined)?.component ? first : t().ai.summary.catalog(result.content.split("\n").filter((l) => l.startsWith("- ")).length);
     case "search":
       return result.content === t().ai.tools.noResults ? result.content : t().ai.summary.hits(lines);
     case "view_page": {

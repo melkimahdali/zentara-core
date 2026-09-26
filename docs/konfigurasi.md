@@ -25,10 +25,11 @@ export default {
   cli: { animation: true, fullscreen: true }, // animasi logo & layar penuh saat `zentara` dibuka (env ZENTARA_ANIMATION=off, ZENTARA_FULLSCREEN=off)
   jobs: { store: "sqlite", path: "data/jobs.db", worker: true, concurrency: 2 }, // job latar belakang (env ZENTARA_JOBS=off)
   mail: { from: "Aplikasi Saya <halo@example.com>" }, // env MAIL_URL / MAIL_FROM menimpa nilai ini
+  ui: { accent: "blue", radius: "lg", font: "system", mode: "auto" }, // tema kit UI (zentara theme)
 };
 ```
 
-Rincian: [Bahasa](bahasa.html), [Job & jadwal](jobs.html), [Email](email.html).
+Rincian: [Bahasa](bahasa.html), [Job & jadwal](jobs.html), [Email](email.html), [Kit UI dan tema](ui.html#tema).
 
 ## Plugin
 

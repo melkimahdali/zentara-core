@@ -45,8 +45,12 @@ Every page from `page()` also comes with:
 | `AuthCard` | sign-in and sign-up pages: `title`, `subtitle`, `footer`, `appName`. With `aside: { title, text }` the screen splits in two: a brand panel on the left, the form on the right (stacked on phones) |
 | `AppShell` | an app frame with top navigation: logo, menu (`nav`, `active`, separators via `section`), user and *Sign out* button (POST to `/logout`), title, `subtitle`, `actions` |
 | `StatGroup` · `Stat` | a strip of summary numbers with thin dividers (not a row of identical cards) |
+| `Container` · `Stack` · `Row` · `Cluster` · `Columns` | layout without CSS: content width, a vertical stack, a horizontal row, a group of small items, and equal columns that stack on phones. Spacing through `gap` (`none`, `xs`, `sm`, `md`, `lg`, `xl`), alignment through `align` and `justify` |
+| `PageHeader` · `Section` · `Divider` | a page header (breadcrumb, title, description, action buttons), a titled section without a box, and a separator line (optionally with text, e.g. "or") |
 | `Card` · `Split` · `Grid` | a titled card, a 2:1 two-column layout (main content and side panel), and a responsive grid |
-| `Form` · `FormRow` · `Field` · `FormActions` | a POST form, a row of several fields, a labeled input with `error`, `hint`, and `inputmode` (correct accessibility attributes; passwords are never refilled), and the button row at the end of a form |
+| `Form` · `FormRow` · `Field` · `FormActions` | a POST form (`upload: true` for file uploads), a row of several fields, a labeled input with `error`, `hint`, `inputmode`, a prefix/suffix (`prefix: "$"`), a *Show* button on passwords, and the `date`, `time`, `datetime-local`, `month`, `range`, and `color` types (passwords are never refilled), and the button row at the end of a form |
+| `Select` · `Checkbox` · `CheckboxGroup` · `RadioGroup` · `Switch` | a dropdown (with groups and a `placeholder`), a single checkbox, several checkboxes, pick-one options, and an on/off switch |
+| `FileInput` · `Fieldset` | a file upload with a hint written from `types` and `maxBytes` (the same as `saveUpload`) and an image preview, and a titled group of fields |
 | `Button` · `PostButton` | a button or button-styled link (`loading` for the text while submitting), and a button that sends a POST with a confirmation (e.g. delete) |
 | `Search` · `Disclosure` | a search field (GET, `?q=`, with a *Clear* link), and a JavaScript-free expandable section, e.g. an "add item" form |
 | `Alert` · `Badge` | messages (`info`, `success`, `error`, `warn`) and small square labels (`accent`, `ok`, `warn`, `danger`) |
@@ -54,11 +58,84 @@ Every page from `page()` also comes with:
 | `Avatar` · `Brand` | name initials and the logo with the app name |
 | `money()` · `formatNumber()` · `formatDate()` · `rupiah()` | money, numbers, and dates in the active [language](bahasa.html); `rupiah(45000)` is always `Rp45.000` |
 
-Every color is a CSS variable (`--zu-accent`, `--zu-bg`, `--zu-surface`, and so on). Change the theme by overriding them through `head`:
+## Layout without CSS
+
+Build pages with the layout primitives. Spacing and alignment are props with a fixed set of values, so the page stays tidy on desktop and phones without any CSS:
 
 ```ts
-page({ title: "Studio", head: h("style", null, raw(":root{--zu-accent:#c89b52}")) }, ...);
+page(
+  { title: "Products" },
+  h(Container, { pad: true },
+    h(PageHeader, {
+      title: "Products",
+      description: "Manage the store catalog",
+      breadcrumb: [{ label: "Home", href: "/" }, { label: "Products" }],
+      actions: h(Button, { href: "/products/new" }, "Add"),
+    }),
+    h(Stack, { gap: "lg" },
+      h(Columns, { cols: 3 }, ...cards),
+      h(Section, { title: "Best sellers" }, h(Table, { ... })),
+    ),
+  ),
+);
 ```
+
+## Complete forms
+
+```ts
+h(Form, { action: "/products", upload: true },
+  h(Field, { name: "name", label: "Name", value: values.name, error: errors.name }),
+  h(FormRow, null,
+    h(Field, { name: "price", label: "Price", type: "number", prefix: "$", value: values.price }),
+    h(Select, { name: "category", label: "Category", placeholder: "Choose a category", options: ["Coffee", "Tea"], value: values.category }),
+  ),
+  h(CheckboxGroup, { name: "days", label: "Available days", inline: true, options: ["Mon", "Tue", "Wed"], values: values.days }),
+  h(RadioGroup, { name: "delivery", label: "Delivery", options: [{ value: "pickup", label: "Pick up" }, { value: "courier", label: "Courier", hint: "$2" }], value: values.delivery }),
+  h(Switch, { name: "active", label: "Show in the store", checked: true }),
+  h(FileInput, { name: "photo", label: "Photo", types: ["image/*"], maxBytes: "5mb", preview: product.photoUrl }),
+  h(FormActions, null, h(Button, { loading: "Saving…" }, "Save")),
+)
+```
+
+- **Every field** has a `label`, `error`, and `hint` with the right `aria-describedby`, and works without JavaScript.
+- **`FileInput`** takes the same `types` and `maxBytes` as `saveUpload()` in the handler, so the browser only offers matching files and the hint is written for you (e.g. "Image, max. 5 MB"). A newly chosen image is previewed right away. The form needs `upload: true`. See [File uploads](upload.html).
+- **Checkboxes and switches** send nothing when off. `CheckboxGroup` sends the same name several times: read it with `form.getAll("days")` from `readForm()`.
+- **The *Show* button** on passwords only appears when JavaScript runs. Turn it off with `reveal: false`.
+
+## Theme
+
+The accent color, corner radius, font, and dark/light mode are set in `zentara.config.mjs`, without CSS:
+
+```js
+export default {
+  ui: { accent: "blue", radius: "lg", font: "system", mode: "auto" },
+};
+```
+
+| Option | Values |
+|---|---|
+| `accent` | `teal` (default), `blue`, `sky`, `cyan`, `indigo`, `violet`, `purple`, `pink`, `rose`, `red`, `orange`, `amber`, `gold`, `brown`, `green`, `emerald`, `slate`, or a `#rrggbb` hex |
+| `radius` | `none`, `sm`, `md` (default), `lg` |
+| `font` | `jakarta` (Plus Jakarta Sans, default), `system`, `serif`, `mono` |
+| `mode` | `auto` (follow the system, default), `light`, `dark` |
+
+The accent color is adjusted for light and dark mode automatically, so text on buttons and links keeps WCAG AA contrast whatever color you pick. You can also set it from the terminal:
+
+```bash
+npx zentara theme                                  # show the current theme
+npx zentara theme --accent blue --radius lg        # change it (written to zentara.config.mjs)
+npx zentara theme --reset                          # back to the default
+```
+
+The dev server reloads the config on its own. Zentara AI runs the same command when you ask, for example, *"make the main color blue"*.
+
+## Component catalog and gallery
+
+- **`zentara ui`** prints every component by group. `zentara ui Select` shows what it is for, every prop with its type and allowed values, and an example. `--json` for other tools.
+- **The `/_zentara/ui` gallery** during `zentara dev`: every component with a live example in your app's theme. The gallery does not exist in production.
+- **Zentara AI** reads the same catalog (the `ui_catalog` tool), arranges the page with the layout primitives, then checks it with `view_page` on desktop and mobile. When the kit cannot build what you asked for, the AI explains the limit and offers custom CSS, which it only writes after you agree.
+
+The catalog is generated from the JSDoc in the UI kit's code, so it always matches the installed zentara version.
 
 ## Forms with per-field errors
 

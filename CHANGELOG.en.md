@@ -2,6 +2,25 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.6]
+
+### Added
+- **Layout primitives in the UI kit:** `Container`, `Stack`, `Row`, `Cluster`, `Columns`, `Section`, `Divider`, and `PageHeader` (breadcrumb, title, description, action buttons). Spacing and alignment are props with a fixed set of values (`gap: "none" | "xs" | "sm" | "md" | "lg" | "xl"`, `align`, `justify`), so pages line up on desktop and phones without CSS.
+- **Complete forms:** `Select` (with groups and a `placeholder`), `Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `FileInput`, and `Fieldset`. `Field` gains a prefix/suffix (`prefix: "$"`, `suffix: "kg"`), a *Show* button on passwords, and the `time`, `datetime-local`, `month`, `range`, and `color` types. `FileInput` takes the same `types` and `maxBytes` as `saveUpload()`, so the "Image, max. 5 MB" hint is written for you and a chosen image is previewed right away. `Form({ upload: true })` for multipart forms. Everything still works without JavaScript.
+- **Theme in `zentara.config.mjs`:** `ui: { accent, radius, font, mode }`. The accent can be a name (`blue`, `rose`, …) or a hex, and is adjusted for light and dark mode automatically to keep WCAG AA contrast. `mode: "light"` or `"dark"` forces one mode. The theme is served at `/_zentara/theme.css` and only loaded when it differs from the default.
+- **`zentara theme`** shows and changes the theme (`--accent blue --radius lg --font system --mode dark`, `--reset`), directly in `zentara.config.mjs`. The dev server reloads the config on its own.
+- **Component catalog** generated from the UI kit's JSDoc (id/en): what each component is for, every prop with its type and allowed values, and an example. `zentara ui` prints it, `zentara ui Select` shows one component, `--json` for other tools.
+- **`/_zentara/ui` gallery** during `zentara dev`: every component with a live example in the app's theme. It does not exist in production.
+- **New AI flow for pages:** Zentara AI picks components from the catalog (the `ui_catalog` tool), arranges them with the layout primitives, then checks the page with `view_page`. Colors and fonts change through `zentara theme`, not CSS (undoable with `zentara undo`). When the kit is not enough, the AI explains the limit and offers custom CSS, which it only writes after you agree.
+- e2e opens the gallery in Chrome and checks it with `view_page` on desktop and mobile, with the default theme and with another theme (blue, large radius, dark mode), so every new component gets its layout and contrast checked automatically.
+
+### Changed
+- New projects mention the `ui` option in `zentara.config.mjs`. The docs no longer suggest `<style>` to change colors.
+
+### Fixed
+- **UI kit contrast:** the text of `accent` and `gold` badges and the note under `Stat` now meet WCAG AA in light mode (previously 3.5 to 4.4:1). The gallery found them.
+- **Layout checks no longer treat the content of a closed `<details>` as visible**, so a closed `Disclosure` no longer produces false "overlap" findings.
+
 ## [0.12.5]
 
 ### Added
