@@ -148,6 +148,12 @@ export class ZenRuntime {
         const { renderGallery } = await import("../ui/gallery.js");
         return renderGallery();
       }
+      // Contoh halaman utuh dari katalog, juga hanya saat debug.
+      if ((ctx.method === "GET" || ctx.method === "HEAD") && ctx.path.startsWith("/_zentara/ui/examples/") && this.config.debug) {
+        const { renderExample } = await import("../ui/examples/index.js");
+        const html = renderExample(ctx.path.slice("/_zentara/ui/examples/".length));
+        if (html) return html;
+      }
       if ((ctx.method === "GET" || ctx.method === "HEAD") && this.config.publicDir) {
         const file = await resolveStaticFile(this.config.publicDir, ctx.path);
         if (file) {

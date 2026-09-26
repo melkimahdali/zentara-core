@@ -25,7 +25,7 @@ import { findLocalCli } from "./process.js";
 import { ProviderUnavailableError } from "./ai/types.js";
 import { defaultAppDir, loadConfigFile, resolveConfig, type UserConfig } from "./core/config.js";
 import { formatUiObject, writeConfigUi } from "./core/config-edit.js";
-import { CATALOG_GROUPS, catalogDetail, catalogList, findCatalogEntry, similarEntries, UI_CATALOG } from "./ui/catalog.js";
+import { CATALOG_GROUPS, catalogDetail, catalogList, exampleList, findCatalogEntry, findExample, similarEntries, UI_CATALOG, UI_EXAMPLES } from "./ui/catalog.js";
 import { ACCENT_PRESETS, DEFAULT_THEME, resolveUiTheme, type UiTheme, type UiThemeConfig } from "./ui/theme.js";
 import type { DbCommandResult } from "./db/commands.js";
 import { ZenLogger } from "./core/logger.js";
@@ -713,9 +713,27 @@ function aiLog(args: ParsedArgs, io: CliIO): number {
   return 0;
 }
 
-/** `zentara ui [Nama] [--group form] [--json]`: katalog komponen kit UI (sama dengan tool ui_catalog AI). */
+/**
+ * `zentara ui [Nama] [--group form] [--json]`: katalog komponen kit UI (sama dengan tool ui_catalog AI).
+ * `zentara ui --example [nama]`: daftar contoh halaman utuh, atau kode route lengkap satu contoh.
+ */
 function uiCommand(args: ParsedArgs, io: CliIO): number {
   const m = t().cli.ui;
+  if (args.flags.example !== undefined) {
+    const which = typeof args.flags.example === "string" ? args.flags.example : args.positional[1];
+    if (!which) {
+      if (args.flags.json) io.out(JSON.stringify(UI_EXAMPLES.map((e) => ({ name: e.name, title: e.title[getLocale()], text: e.text[getLocale()] })), null, 2));
+      else io.out([m.examples, "", exampleList(getLocale()), "", m.examplesMore].join("\n"));
+      return 0;
+    }
+    const example = findExample(which);
+    if (!example) {
+      io.err(m.exampleNotFound(which, UI_EXAMPLES.map((e) => e.name).join(", ")));
+      return 1;
+    }
+    io.out(args.flags.json ? JSON.stringify({ name: example.name, title: example.title[getLocale()], text: example.text[getLocale()], source: example.source[getLocale()] }, null, 2) : `// ${example.title[getLocale()]}: ${example.text[getLocale()]}\n// ${m.exampleOpen(example.name)}\n\n${example.source[getLocale()]}`);
+    return 0;
+  }
   const name = args.positional[1];
   const group = typeof args.flags.group === "string" ? args.flags.group : undefined;
   if (group && !(CATALOG_GROUPS as readonly string[]).includes(group)) {
@@ -740,6 +758,7 @@ function uiCommand(args: ParsedArgs, io: CliIO): number {
   io.out(catalogList(getLocale(), group));
   io.out("");
   io.out(m.more);
+  io.out(m.examplesHint);
   return 0;
 }
 

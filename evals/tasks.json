@@ -245,6 +245,86 @@
       }
     },
     {
+      "id": "page-landing-bakery",
+      "category": "page",
+      "difficulty": "medium",
+      "prompt": {
+        "id": "Buatkan landing page toko kue di /toko-kue: hero dengan foto, keunggulan, produk unggulan dengan harga, testimoni pelanggan, FAQ, dan tombol pesan lewat WhatsApp.",
+        "en": "Build a bakery landing page at /bakery: a hero with a photo, benefits, featured products with prices, customer testimonials, an FAQ, and an order-on-WhatsApp button."
+      },
+      "checks": {
+        "view": [
+          {
+            "as": "guest",
+            "url": { "id": "/toko-kue", "en": "/bakery" },
+            "selector": [".zu-hero", ".zu-product", ".zu-testimonial", ".zu-accordion", "a[href^=\"https://wa.me/\"]"],
+            "viewports": ["desktop", "mobile"],
+            "noLayoutIssues": true,
+            "noCustomCss": true,
+            "noConsoleErrors": true
+          }
+        ],
+        "aiCalledViewPage": true
+      }
+    },
+    {
+      "id": "page-team-profile",
+      "category": "page",
+      "difficulty": "medium",
+      "prompt": {
+        "id": "Buatkan halaman profil tim dengan foto di /tim: nama, jabatan, dan keterangan singkat setiap anggota, plus formulir kontak.",
+        "en": "Build a team profile page with photos at /team: each member's name, role, and a short bio, plus a contact form."
+      },
+      "checks": {
+        "view": [
+          {
+            "as": "guest",
+            "url": { "id": "/tim", "en": "/team" },
+            "selector": [".zu-team img", "form"],
+            "viewports": ["desktop", "mobile"],
+            "noLayoutIssues": true,
+            "noCustomCss": true,
+            "noConsoleErrors": true
+          }
+        ],
+        "aiCalledViewPage": true
+      }
+    },
+    {
+      "id": "page-booking-schedule",
+      "category": "page",
+      "difficulty": "medium",
+      "prompt": {
+        "id": "Buatkan halaman jadwal booking di /jadwal: kalender bulan ini dengan beberapa contoh jadwal yang sudah terisi, dan formulir booking (nama, tanggal, jam).",
+        "en": "Build a booking schedule page at /schedule: this month's calendar with a few sample bookings already taken, and a booking form (name, date, time)."
+      },
+      "checks": {
+        "view": [
+          {
+            "as": "guest",
+            "url": { "id": "/jadwal", "en": "/schedule" },
+            "selector": [".zu-calendar", "input[type=date]", "input[type=time]"],
+            "viewports": ["desktop", "mobile"],
+            "noLayoutIssues": true,
+            "noCustomCss": true,
+            "noConsoleErrors": true
+          }
+        ],
+        "aiCalledViewPage": true
+      }
+    },
+    {
+      "id": "theme-blue",
+      "category": "page",
+      "difficulty": "easy",
+      "prompt": { "id": "Ubah warna utama aplikasi jadi biru.", "en": "Change the app's main color to blue." },
+      "checks": {
+        "files": { "changedOnly": ["zentara.config.mjs"] },
+        "config": { "ui.accent": "blue" },
+        "view": [{ "as": "guest", "url": "/login", "selector": ["link[href^=\"/_zentara/theme.css\"]"], "viewports": ["desktop", "mobile"], "noLayoutIssues": true, "noCustomCss": true }]
+      }
+    },
+    {
       "id": "job-daily-summary",
       "category": "jobs",
       "difficulty": "medium",

@@ -255,6 +255,10 @@ try {
         const catalog = sh(process.execPath, [cli, "ui"], app);
         check(catalog.includes("Select") && catalog.includes("PageHeader"), "zentara ui: katalog komponen kit UI");
         check(sh(process.execPath, [cli, "ui", "FileInput"], app).includes("maxBytes"), "zentara ui FileInput: props dan contoh");
+        const example = sh(process.execPath, [cli, "ui", "--example", "landing"], app);
+        check(example.includes('from "zentara/ui"') && example.includes("h(Hero, {") && !example.includes('from "../'), "zentara ui --example landing: kode route lengkap dari zentara/ui");
+        const placeholderRes = await fetch(`http://127.0.0.1:${devPort}/_zentara/placeholder.svg?text=Kue&w=400&h=300`);
+        check(placeholderRes.status === 200 && (await placeholderRes.text()).includes(">Kue</text>"), "/_zentara/placeholder.svg: gambar contoh bawaan");
         // Halaman yang sengaja rusak: temuan versi teks (tanpa browser).
         fs.writeFileSync(path.join(app, "src", "app", "routes", "rusak.ts"), BROKEN_PAGE);
         await waitFor(`http://127.0.0.1:${devPort}/rusak`);
@@ -295,11 +299,14 @@ try {
             const want = ["overflow", "overlap", "truncated", "image", "contrast", "style", "kit", "meta"];
             check(shot.code === 1 && want.every((k) => browserKinds.has(k)), `zentara view /rusak di browser: semua jenis temuan (${[...browserKinds].join(", ")})`);
 
-            // Galeri kit UI: setiap komponen katalog lolos pemeriksaan tampilan di desktop dan ponsel.
+            // Galeri kit UI dan contoh halaman utuh: setiap komponen katalog dan setiap contoh (landing, profil,
+            // toko, booking, dasbor) lolos pemeriksaan tampilan di desktop dan ponsel.
             const gallery = (label) => {
-              for (const extra of [[], ["--mobile"]]) {
-                const g = JSON.parse(view("/_zentara/ui", ...extra, "--json").out);
-                check(g.mode === "browser" && g.ok === true, `zentara view /_zentara/ui${extra.length ? " --mobile" : ""} (${label}): semua komponen tanpa temuan\n${g.ok ? "" : g.text}`);
+              for (const page of ["/_zentara/ui", ...["landing", "profile", "store", "booking", "dashboard"].map((n) => `/_zentara/ui/examples/${n}`)]) {
+                for (const extra of [[], ["--mobile"]]) {
+                  const g = JSON.parse(view(page, ...extra, "--json").out);
+                  check(g.mode === "browser" && g.ok === true, `zentara view ${page}${extra.length ? " --mobile" : ""} (${label}): tanpa temuan\n${g.ok ? "" : g.text}`);
+                }
               }
             };
             gallery("tema bawaan");

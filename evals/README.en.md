@@ -2,19 +2,19 @@
 
 [Bahasa Indonesia](README.md)
 
-This folder holds the design of the **Zentara AI eval**: a standard set of tasks run against a template project to measure how often Zentara AI finishes real work correctly, how many steps it takes, and what it costs. Results will be published per version, for example "Zentara 0.15: 21/25 tasks passed with Claude".
+This folder holds the design of the **Zentara AI eval**: a standard set of tasks run against a template project to measure how often Zentara AI finishes real work correctly, how many steps it takes, and what it costs. Results will be published per version, for example "Zentara 0.15: 25/29 tasks passed with Claude".
 
 Status: **draft**. There is no runner yet. What is done is the task set, its validator, and the AI result data (`AgentResult` and `--report`) the runner will read. The runner is planned for Stage 15 (testing and AI eval), building on `scripts/ai-smoke.mjs`.
 
 | File | Contents |
 |---|---|
-| `tasks.json` | 25 standard tasks, each with id and en prompts, an injected bug (for fix tasks), and grading checks |
+| `tasks.json` | 29 standard tasks, each with id and en prompts, an injected bug (for fix tasks), and grading checks |
 | `validate-tasks.mjs` | Checks `tasks.json` without AI: unique ids, prompts in both languages, and every injected bug matches both the id and en templates |
 | `README.md`, `README.en.md` | This document |
 
 ```bash
 node evals/validate-tasks.mjs
-# ✓ 25 tugas valid: api 5, database 2, auth 4, page 3, jobs 2, bugfix 6, safety 3
+# ✓ 29 tugas valid: api 5, database 2, auth 4, page 7, jobs 2, bugfix 6, safety 3
 ```
 
 ## What is measured
@@ -44,7 +44,7 @@ Every task uses the `api` template, except `smoke-ping`, which carries over the 
 | api (5) | `smoke-ping`, `hello-lang`, `notes-stats`, `notes-pagination`, `notes-export` | New routes, validated queries, existing behavior not broken |
 | database (2) | `notes-pinned`, `categories-crud` | Schema changes, migrations, relations, per-user data ownership |
 | auth (4) | `admin-users-api`, `admin-change-role`, `profile-update`, `change-password` | Correct 401/403, no leaked hashes, mass assignment rejected |
-| page (3) | `page-profile`, `page-dashboard-stat`, `page-bookings` | UI kit pages, forms, navigation, login redirects, `view_page` |
+| page (7) | `page-profile`, `page-dashboard-stat`, `page-bookings`, `page-landing-bakery`, `page-team-profile`, `page-booking-schedule`, `theme-blue` | UI kit pages, forms, navigation, login redirects, `view_page`; the last four (Stage 12d) require public pages with no AI-written CSS or `style`, passing the layout checks on desktop and mobile, and colors changed through the theme |
 | jobs (2) | `job-daily-summary`, `email-note-shared` | Scheduled jobs, the queue, email through the outbox |
 | bugfix (6) | `fix-500-hello`, `fix-idor-notes`, `fix-empty-title`, `fix-open-redirect`, `fix-login-bruteforce`, `fix-typecheck` | Finding and fixing a bug injected before the AI starts |
 | safety (3) | `safety-secret`, `safety-drop-users`, `safety-exfiltrate` | The AI refuses or its critical action is rejected, and nothing leaks or gets deleted |
@@ -80,6 +80,14 @@ HTTP probe rules:
 - `{name.path}` in `path` or `body` is filled from a response stored with `save`, or from actor data (`{userA.id}`, `{userA.email}`, `{userA.password}`).
 - `expect` can hold `status`, `statusIn`, `json` (partial match), `jsonPath` (e.g. `"0.title"`), `arrayLength`, `header` (the value must contain the text), `notContains`, and `eventuallyStatus` together with `repeat`.
 - Probes run in order against one server, so a probe may depend on earlier ones.
+
+Page check rules (`view`):
+- `url` may be `{ "id": "...", "en": "..." }` when the path differs per language.
+- `selector` = elements that must exist (CSS selectors), e.g. `.zu-hero` to make sure the page uses kit components.
+- `viewports` = screen sizes to check (`desktop` 1280px, `mobile` 390px); desktop only by default.
+- `noLayoutIssues` = no `view_page` layout findings (past the screen edge, overlapping, cut-off text, broken images, contrast).
+- `noCustomCss` = no `style` attribute, `<style>` tag, or stylesheet other than the kit's on that page, and no new `.css` file in the project.
+- `config` (in `checks`) = values in `zentara.config.mjs` after the AI finishes, e.g. `{ "ui.accent": "blue" }`.
 
 ## One run, step by step
 
@@ -123,7 +131,7 @@ Other points that still apply to the runner:
 
 - `npm run eval` (Stage 15) with `--task`, `--category`, `--lang`, `--provider`, and `--repeat` filters. Without an API key, the runner stops with the same message as `ai-smoke.mjs`.
 - GitHub Actions workflow `eval.yml`: manual (`workflow_dispatch`) like AI smoke, plus a weekly schedule once the cost is known. At least Claude and OmniRoute.
-- Estimated runs for one full round: 25 tasks × 2 languages × 3 attempts = 150 runs per provider. The real cost is measured in the first round and then becomes a budget cap (the runner stops when it is exceeded).
+- Estimated runs for one full round: 29 tasks × 2 languages × 3 attempts = 174 runs per provider. The real cost is measured in the first round and then becomes a budget cap (the runner stops when it is exceeded).
 - Results are summarized on an `eval.html` docs page (id and en) per version: pass rate per category, average steps and cost, and a comparison with the previous version. A sharp drop from the previous version is an early warning that prompts, tools, or models got worse.
 
 ## Phases

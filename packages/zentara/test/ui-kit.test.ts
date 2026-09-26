@@ -11,7 +11,7 @@ import { resolveConfig } from "../src/core/config.js";
 import { session } from "../src/core/session.js";
 import { h, renderToString, type Child } from "../src/core/view.js";
 import { setLocale } from "../src/i18n/index.js";
-import { catalogDetail, catalogForAi, findCatalogEntry, similarEntries, UI_CATALOG } from "../src/ui/catalog.js";
+import { catalogDetail, catalogForAi, findCatalogEntry, similarEntries, UI_CATALOG, UI_EXAMPLES } from "../src/ui/catalog.js";
 import { GALLERY_DEMOS, WHOLE_PAGE } from "../src/ui/gallery.js";
 import * as ui from "../src/ui/index.js";
 import {
@@ -226,6 +226,41 @@ describe("katalog komponen dan galeri", () => {
     await assert.rejects(tool.run({ component: "Selekt" }, ctx), /Select/);
   });
 
+  it("contoh halaman utuh: kode route id/en dari zentara dan zentara/ui, tool ui_catalog, halaman saat debug", async () => {
+    assert.deepEqual(UI_EXAMPLES.map((e) => e.name), ["landing", "profile", "store", "booking", "dashboard"]);
+    for (const e of UI_EXAMPLES) {
+      for (const lang of ["id", "en"] as const) {
+        assert.ok(e.title[lang] && e.text[lang], `${e.name} ${lang}: judul dan keterangan`);
+        assert.match(e.source[lang], /^import \{ h \} from "zentara";\nimport \{ [^}]+ \} from "zentara\/ui";\n/, `${e.name} ${lang}: impor`);
+        assert.match(e.source[lang], /export function GET\(\)/);
+        assert.doesNotMatch(e.source[lang], /style|class:|<style|\.css/, `${e.name} ${lang}: tanpa CSS sendiri`);
+      }
+    }
+    const tool = agentTools.find((x) => x.spec.name === "ui_catalog")!;
+    const ctx = {} as Parameters<typeof tool.run>[1];
+    assert.match(await tool.run({}, ctx), /whole-page examples .*\n- landing: Bakery landing page/);
+    const store = await tool.run({ example: "store" }, ctx);
+    assert.match(store, /^Online store with a cart: /);
+    assert.match(store, /h\(CartSummary, \{/);
+    await assert.rejects(tool.run({ example: "nope" }, ctx), /landing, profile/);
+    const dev = await startServer({ debug: true });
+    const prod = await startServer({ debug: false });
+    try {
+      for (const e of UI_EXAMPLES) {
+        const res = await fetch(`${dev.base}/_zentara/ui/examples/${e.name}`);
+        assert.equal(res.status, 200, e.name);
+        assert.match(await res.text(), /<body class="zu">/);
+      }
+      assert.equal((await fetch(`${dev.base}/_zentara/ui/examples/nope`)).status, 404);
+      assert.equal((await fetch(`${dev.base}/_zentara/ui/examples/constructor`)).status, 404);
+      assert.equal((await fetch(`${prod.base}/_zentara/ui/examples/landing`)).status, 404);
+      assert.match(await (await fetch(`${dev.base}/_zentara/ui`)).text(), /href="\/_zentara\/ui\/examples\/booking"/);
+    } finally {
+      await dev.close();
+      await prod.close();
+    }
+  });
+
   it("galeri /_zentara/ui hanya saat debug, berisi setiap komponen", async () => {
     const dev = await startServer({ debug: true });
     const prod = await startServer({ debug: false });
@@ -311,6 +346,15 @@ describe("zentara theme dan zentara ui", () => {
     assert.equal(missing.code, 1);
     assert.match(missing.err, /Mungkin maksud Anda: Select/);
     assert.equal((await cli(dir, ["ui", "--group", "x"])).code, 1);
+    const examples = await cli(dir, ["ui", "--example"]);
+    assert.match(examples.out, /^Contoh halaman utuh.*\n\n {2}landing +Landing page toko kue: /);
+    const store = await cli(dir, ["ui", "--example", "store"]);
+    assert.equal(store.code, 0);
+    assert.match(store.out, /\/_zentara\/ui\/examples\/store[\s\S]*from "zentara\/ui";[\s\S]*CartSummary/);
+    assert.equal(JSON.parse((await cli(dir, ["ui", "--example", "booking", "--json"])).out).name, "booking");
+    const bad = await cli(dir, ["ui", "--example", "nope"]);
+    assert.equal(bad.code, 1);
+    assert.match(bad.err, /Pilihan: landing, profile, store, booking, dashboard/);
   });
 });
 
@@ -445,6 +489,121 @@ describe("kit UI 12c: navigasi, lapisan, umpan balik, tampilan data", () => {
     const en = html(h(ui.Calendar, { month: "2026-09" }));
     assert.match(en, /<th scope="col">Sun<\/th>/);
     assert.match(en, /<tbody><tr><td class="out"><\/td><td class="out"><\/td><td><span class="zu-cal-day">1<\/span>/);
+  });
+});
+
+describe("kit UI 12d: halaman publik dan pola usaha", () => {
+  afterEach(() => setLocale("id"));
+
+  it("Hero: teks, aksi, gambar di samping; rata tengah tanpa gambar", () => {
+    const out = html(h(ui.Hero, { eyebrow: "Toko kue", title: "Kue <segar>", text: "Tanpa pengawet", actions: h(ui.Button, { href: "/menu" }, "Menu"), image: { src: "/kue.jpg", alt: "Kue" } }));
+    assert.match(out, /^<section class="zu-hero media"><div class="zu-hero-text"><p class="zu-eyebrow">Toko kue<\/p><h1>Kue &lt;segar&gt;<\/h1><p class="zu-hero-lead">Tanpa pengawet<\/p><div class="zu-hero-actions"><a class="zu-btn primary" href="\/menu">Menu<\/a><\/div><\/div>/);
+    assert.match(out, /<img src="\/kue.jpg" alt="Kue" width="800" height="600" fetchpriority="high">/);
+    assert.match(html(h(ui.Hero, { title: "T", align: "center" })), /^<section class="zu-hero center">/);
+  });
+
+  it("FeatureGrid, MediaCard, Gallery, LogoCloud, TeamCard, Testimonial, CTA", () => {
+    assert.match(html(h(ui.FeatureGrid, { title: "Kenapa kami", features: [{ icon: "🌾", title: "Lokal" }], cols: 2 })), /<h2>Kenapa kami<\/h2>.*<div class="zu-features c2"><div class="zu-feature"><span class="zu-feature-icon" aria-hidden="true">🌾<\/span><h3>Lokal<\/h3>/);
+    const card = html(h(ui.MediaCard, { image: { src: "/a.jpg", alt: "" }, title: "Resep", href: "/resep", meta: "20 Sep" }));
+    assert.match(card, /<img src="\/a.jpg" alt="" loading="lazy"/);
+    assert.match(card, /<small>20 Sep<\/small><h3><a href="\/resep" class="zu-stretch">Resep<\/a><\/h3>/);
+    const gallery = html(h(ui.Gallery, { images: [{ src: "/1.jpg", alt: "Satu", caption: "Etalase" }, { src: "/2.jpg", alt: "Dua", href: false }], ratio: "square" }));
+    assert.match(gallery, /^<div class="zu-gallery c3 square"><figure><a href="\/1.jpg"><img src="\/1.jpg" alt="Satu" loading="lazy"><\/a><figcaption>Etalase<\/figcaption><\/figure><figure><img src="\/2.jpg"/);
+    assert.match(html(h(ui.LogoCloud, { title: "Mitra", logos: [{ src: "/l.svg", alt: "Bank", href: "https://bank.id" }] })), /<p>Mitra<\/p><ul><li><a href="https:\/\/bank.id"><img src="\/l.svg" alt="Bank"/);
+    assert.match(html(h(ui.TeamCard, { name: "Sari Dewi", role: "Kepala dapur", photo: "/s.jpg" })), /<img class="zu-team-photo" src="\/s.jpg" alt="Sari Dewi".*<p class="zu-team-role">Kepala dapur<\/p>/);
+    assert.match(html(h(ui.TeamCard, { name: "Andi Pratama" })), /<div class="zu-team-photo initials" aria-hidden="true"><span class="zu-avatar" aria-hidden="true">AP<\/span>/);
+    const quote = html(h(ui.Testimonial, { quote: "Enak", name: "Rina", rating: 4 }));
+    assert.match(quote, /aria-label="Rating 4 dari 5"><span class="on" aria-hidden="true">★★★★<\/span><span aria-hidden="true">★<\/span>/);
+    assert.match(quote, /<blockquote><p>Enak<\/p><\/blockquote><figcaption><span class="zu-avatar"/);
+    assert.match(html(h(ui.CTA, { title: "Pesan", actions: h(ui.Button, { href: "/p" }, "Pesan") })), /^<section class="zu-cta"><div><h2>Pesan<\/h2><\/div><div class="zu-cta-actions">/);
+  });
+
+  it("Pricing: harga rupiah, periode, paket unggulan, dan teks bebas", () => {
+    const out = html(h(ui.Pricing, { plans: [{ name: "Dasar", price: 49000, period: "/bulan", features: ["1 toko"], cta: { label: "Mulai", href: "/d" } }, { name: "Tim", price: "Hubungi kami", features: [], cta: { label: "Hubungi", href: "/k" }, featured: true }] }));
+    assert.match(out, /^<div class="zu-pricing n2">/);
+    assert.match(out, /<p class="zu-plan-price"><b>Rp49.000<\/b><span>\/bulan<\/span><\/p><ul><li>1 toko<\/li><\/ul><a class="zu-btn secondary block" href="\/d">Mulai<\/a>/);
+    assert.match(out, /<section class="zu-plan featured"><span class="zu-plan-badge">Paling populer<\/span>.*<b>Hubungi kami<\/b>.*<a class="zu-btn primary block"/);
+    setLocale("en");
+    assert.match(html(h(ui.Pricing, { plans: [{ name: "Pro", price: 9, features: [], cta: { label: "Go", href: "/" }, featured: true }] })), /Most popular.*<b>\$9.00<\/b>/);
+  });
+
+  it("FAQ: daftar buka-tutup plus JSON-LD FAQPage yang aman dari </script>", () => {
+    const out = html(h(ui.FAQ, { title: "Pertanyaan", items: [{ question: "Kirim </script><script>alert(1)</script>?", answer: "Ya & cepat" }] }));
+    assert.match(out, /<details><summary>Kirim &lt;\/script&gt;/);
+    const json = out.match(/<script type="application\/ld\+json">(.*?)<\/script>/)![1]!;
+    assert.doesNotMatch(json, /</);
+    const data = JSON.parse(json);
+    assert.equal(data["@type"], "FAQPage");
+    assert.equal(data.mainEntity[0].name, "Kirim </script><script>alert(1)</script>?");
+    assert.equal(data.mainEntity[0].acceptedAnswer.text, "Ya & cepat");
+    assert.doesNotMatch(html(h(ui.FAQ, { items: [{ question: "a", answer: "b" }], schema: false })), /ld\+json/);
+  });
+
+  it("ContactForm: nilai, error, dan tautan WhatsApp dengan nomor 62", () => {
+    const out = html(h(ui.ContactForm, { action: "/kontak", values: { name: "Sari", email: 5 }, errors: { email: "Email wajib diisi" }, whatsapp: "0812-3456-7890" }));
+    assert.match(out, /^<form class="zu-form" method="post" action="\/kontak">/);
+    assert.match(out, /name="name" type="text" value="Sari"/);
+    assert.match(out, /name="email" type="email" required autocomplete="email" maxlength="200" aria-invalid="true"/);
+    assert.match(out, /<textarea class="zu-input zu-textarea" id="f-message" name="message" rows="5"/);
+    assert.match(out, /<a class="zu-btn secondary" href="https:\/\/wa.me\/6281234567890" rel="noopener">Chat WhatsApp<\/a>/);
+    setLocale("en");
+    assert.match(html(h(ui.ContactForm, { action: "/c" })), /<label for="f-message">Message<\/label>.*>Send message<\/button>/);
+  });
+
+  it("placeholder(): URL gambar contoh bawaan", () => {
+    assert.equal(ui.placeholder("Kue & roti", 400, 300), "/_zentara/placeholder.svg?w=400&h=300&text=Kue+%26+roti");
+    assert.equal(ui.placeholder(), "/_zentara/placeholder.svg?w=800&h=600");
+  });
+
+  it("PriceTag dan ProductCard: harga coret, persen hemat, rating, stok habis", () => {
+    assert.equal(html(h(ui.PriceTag, { amount: 45000, original: 60000 })), '<span class="zu-price"><b>Rp45.000</b><del aria-label="Harga sebelumnya Rp60.000">Rp60.000</del></span>');
+    assert.doesNotMatch(html(h(ui.PriceTag, { amount: 45000, original: 40000 })), /<del/, "harga coret hanya bila lebih mahal");
+    const card = html(h(ui.ProductCard, { name: "Bolu", href: "/bolu", image: { src: "/b.jpg", alt: "Bolu" }, price: 45000, original: 60000, rating: 4.8, reviews: 1200, action: h(ui.Button, { small: true }, "Tambah") }));
+    assert.match(card, /<span class="zu-badge danger">Hemat 25%<\/span><h3><a href="\/bolu" class="zu-stretch">Bolu<\/a><\/h3>/);
+    assert.match(card, /aria-label="Rating 4,8 dari 5">.*<small aria-hidden="true"> \(1.200\)<\/small>/);
+    assert.match(card, /<div class="zu-product-action"><button/);
+    const sold = html(h(ui.ProductCard, { name: "Lapis", image: { src: "/l.jpg", alt: "Lapis" }, price: 52000, soldOut: true, action: h(ui.Button, null, "Tambah") }));
+    assert.match(sold, /<article class="zu-product sold-out">.*<span class="zu-badge">Stok habis<\/span>/);
+    assert.doesNotMatch(sold, /zu-product-action/, "stok habis tanpa tombol beli");
+    assert.match(html(h(ui.ProductCard, { name: "B", image: { src: "/b.jpg", alt: "" }, price: 1, badge: "Baru" })), /<span class="zu-badge accent">Baru<\/span>/);
+  });
+
+  it("QuantityInput: input angka biasa, tombol −/+ muncul lewat skrip bawaan", () => {
+    const out = html(h(ui.QuantityInput, { name: "qty", value: 2, max: 5 }));
+    const id = out.match(/id="(zu-qty-\d+)"/)![1];
+    assert.match(out, new RegExp(`<label for="${id}">Jumlah</label>`));
+    assert.match(out, new RegExp(`<button type="button" hidden data-zu-step="-1" aria-label="Kurangi jumlah" aria-controls="${id}">−</button><input class="zu-input" id="${id}" name="qty" type="number" inputmode="numeric" value="2" min="1" max="5" step="1" required>`));
+    assert.match(html(h(ui.QuantityInput, { name: "q", hideLabel: true })), /^<div class="zu-qty-field"><div class="zu-qty">.*aria-label="Jumlah"/);
+    assert.match(page({ title: "x" }), /data-zu-step/);
+  });
+
+  it("CartSummary: jumlah × harga, subtotal, ongkir gratis, potongan, total; keranjang kosong", () => {
+    const out = html(h(ui.CartSummary, { items: [{ name: "Bolu", price: 45000, qty: 2, note: "20 cm" }, { name: "Brownies", price: 38000, qty: 1 }], shipping: 0, discount: 10000, action: h(ui.Button, { href: "/bayar" }, "Bayar") }));
+    assert.match(out, /<b>Bolu<\/b><small>20 cm<\/small><small>2 × Rp45.000<\/small><\/div><b class="zu-cart-line">Rp90.000<\/b>/);
+    assert.match(out, /<dt>Subtotal<\/dt><dd>Rp128.000<\/dd>.*<dt>Ongkos kirim<\/dt><dd>Gratis<\/dd>.*<dt>Potongan<\/dt><dd>−Rp10.000<\/dd>.*<div class="total"><dt>Total<\/dt><dd>Rp118.000<\/dd>/);
+    assert.match(out, /<div class="zu-cart-action"><a class="zu-btn primary" href="\/bayar">/);
+    assert.match(html(h(ui.CartSummary, { items: [] })), /<div class="zu-cart-empty">Keranjang masih kosong.<\/div>/);
+    setLocale("en");
+    assert.match(html(h(ui.CartSummary, { items: [{ name: "A", price: 2.5, qty: 2 }], shipping: 3 })), /<dd>\$5.00<\/dd>.*<dt>Shipping<\/dt><dd>\$3.00<\/dd>.*<dd>\$8.00<\/dd>/);
+  });
+
+  it("/_zentara/placeholder.svg: ukuran dibatasi, teks di-escape, tidak menjalankan skrip", async () => {
+    const srv = await startServer({ routesDir: path.join(FIXTURES, "flash") });
+    try {
+      const res = await fetch(`${srv.base}/_zentara/placeholder.svg?w=300&h=200&text=${encodeURIComponent('<script>alert("x")</script>')}`);
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get("content-type"), "image/svg+xml; charset=utf-8");
+      assert.match(res.headers.get("content-security-policy") ?? "", /default-src 'none'.*sandbox/);
+      assert.equal(res.headers.get("x-content-type-options"), "nosniff");
+      const svg = await res.text();
+      assert.match(svg, /^<svg xmlns="http:\/\/www.w3.org\/2000\/svg" width="300" height="200"/);
+      assert.doesNotMatch(svg, /<script/);
+      assert.match(svg, /&#60;script&#62;alert\(&#34;x&#34;\)/);
+      const big = await (await fetch(`${srv.base}/_zentara/placeholder.svg?w=99999&h=abc`)).text();
+      assert.match(big, /width="800" height="600".*>800×600<\/text>/);
+    } finally {
+      await srv.close();
+    }
   });
 });
 

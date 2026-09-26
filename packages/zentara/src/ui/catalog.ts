@@ -1,5 +1,5 @@
 import { t, type Locale, getLocale } from "../i18n/index.js";
-import { UI_CATALOG } from "./catalog.gen.js";
+import { UI_CATALOG, UI_EXAMPLES } from "./catalog.gen.js";
 
 /**
  * Katalog komponen kit UI: kegunaan (id/en), props, dan contoh untuk setiap komponen. Isinya dibuat
@@ -17,7 +17,7 @@ export interface CatalogProp {
 
 export interface CatalogEntry {
   name: string;
-  group: "page" | "layout" | "nav" | "form" | "overlay" | "data" | "feedback" | "format" | string;
+  group: "page" | "layout" | "nav" | "form" | "overlay" | "data" | "public" | "commerce" | "feedback" | "format" | string;
   /** "component" dipakai dengan h(Nama, props); "function" dipanggil langsung. */
   kind: "component" | "function";
   id: string;
@@ -27,9 +27,32 @@ export interface CatalogEntry {
   signature?: string;
 }
 
-export { UI_CATALOG };
+/**
+ * Contoh halaman utuh (landing, profil, toko, booking, dasbor) sebagai rujukan AI dan developer: judul,
+ * keterangan, dan kode route lengkap dalam dua bahasa. Sumbernya src/ui/examples/{id,en}.
+ */
+export interface PageExample {
+  name: string;
+  title: Record<Locale, string>;
+  text: Record<Locale, string>;
+  /** Kode file route lengkap yang mengimpor dari "zentara" dan "zentara/ui". */
+  source: Record<Locale, string>;
+}
 
-export const CATALOG_GROUPS = ["page", "layout", "nav", "form", "overlay", "data", "feedback", "format"] as const;
+export { UI_CATALOG, UI_EXAMPLES };
+
+export function findExample(name: string): PageExample | undefined {
+  const n = name.trim().toLowerCase();
+  return UI_EXAMPLES.find((e) => e.name === n);
+}
+
+/** Daftar contoh halaman utuh, satu baris per contoh. */
+export function exampleList(locale: Locale = getLocale()): string {
+  const width = Math.max(...UI_EXAMPLES.map((e) => e.name.length));
+  return UI_EXAMPLES.map((e) => `  ${e.name.padEnd(width)}  ${e.title[locale]}: ${e.text[locale]}`).join("\n");
+}
+
+export const CATALOG_GROUPS = ["page", "layout", "nav", "form", "overlay", "data", "public", "commerce", "feedback", "format"] as const;
 
 export function findCatalogEntry(name: string): CatalogEntry | undefined {
   const n = name.trim().toLowerCase();
@@ -98,8 +121,15 @@ export function compactCatalog(): string {
   }).join("\n");
 }
 
-/** Katalog untuk tool ui_catalog Zentara AI (Bahasa Inggris): satu baris per komponen, atau detail satu komponen. */
-export function catalogForAi(options: { component?: string; group?: string } = {}): string | undefined {
+/**
+ * Katalog untuk tool ui_catalog Zentara AI (Bahasa Inggris): satu baris per komponen, detail satu
+ * komponen, atau kode lengkap satu contoh halaman utuh.
+ */
+export function catalogForAi(options: { component?: string; group?: string; example?: string } = {}): string | undefined {
+  if (options.example) {
+    const e = findExample(options.example);
+    return e ? `${e.title.en}: ${e.text.en}\n\nComplete route file (adapt the data, texts, and routes to the app; keep the components):\n\n${e.source.en}` : undefined;
+  }
   if (options.component) {
     const e = findCatalogEntry(options.component);
     return e ? catalogDetail(e, "en") : undefined;
@@ -109,6 +139,10 @@ export function catalogForAi(options: { component?: string; group?: string } = {
     if (options.group && g !== options.group) continue;
     lines.push(`${g}:`);
     for (const e of UI_CATALOG.filter((x) => x.group === g)) lines.push(`- ${entryUsage(e)}: ${firstSentence(e.en)}`);
+  }
+  if (!options.group) {
+    lines.push("whole-page examples (call ui_catalog with example for the complete route file):");
+    for (const e of UI_EXAMPLES) lines.push(`- ${e.name}: ${e.title.en}. ${e.text.en}`);
   }
   return lines.join("\n");
 }

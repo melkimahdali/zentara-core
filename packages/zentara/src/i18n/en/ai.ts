@@ -80,6 +80,7 @@ export const ai: Messages["ai"] = {
     packageInvalid: (name) => `invalid package name: ${name}`,
     zentaraSummary: (command) => `Run zentara ${command}`,
     jobRunReason: "running a job can send emails or change data",
+    unknownExample: (name: string, names: string) => `No such page example: ${name}. Options: ${names}.`,
     unknownComponent: (name: string, similar: string) => `No such UI kit component: ${name}.${similar ? ` Maybe: ${similar}.` : ""} Call ui_catalog without arguments to see them all.`,
     zentaraArgInvalid: (arg) => `Invalid argument: ${arg}`,
     packageReason: "downloads and installs third-party code",

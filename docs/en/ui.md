@@ -66,6 +66,13 @@ Every page from `page()` also comes with:
 | `DescriptionList` · `Timeline` · `Accordion` | details of one record (label and value), a sequence of events, and sections that open and close (`single: true` = one open at a time) |
 | `Tag` · `AvatarGroup` · `Rating` · `CodeBlock` | a pill-shaped category label (optionally a link), a row of avatars with "+N", a star rating (display, or an input with `name`), and a code block with a *Copy* button |
 | `Calendar` | a one-month calendar with events (bookings, schedules); `href: "/schedule?month={month}"` for the previous and next month, a list on phones |
+| `Hero` · `FeatureGrid` · `CTA` | the opening of a public page (large title, text, buttons, a photo beside it or centered), a benefits grid with icons, and a call-to-action band |
+| `MediaCard` · `Gallery` · `LogoCloud` | a card with an image (articles, services; the whole card is clickable with `href`), a photo gallery with a uniform ratio, and a row of partner logos |
+| `Pricing` · `Testimonial` · `FAQ` | side-by-side plan prices (`featured` highlights one, numeric prices go through `money()`), a customer quote with a rating, and open/close frequently asked questions plus FAQPage structured data for search engines |
+| `TeamCard` · `ContactForm` | a team member card (photo or initials), and a ready-made contact form with `values`, `errors`, and a WhatsApp link (`whatsapp: "0812…"`) |
+| `PriceTag` · `ProductCard` | a price with a struck-through original and a period, and a product card (photo, price, automatic discount label, rating, sold out, action button) |
+| `QuantityInput` · `CartSummary` | a quantity input with − and + buttons (a plain number input without JavaScript), and a cart summary (quantity × price, subtotal, shipping, discount, total) |
+| `placeholder()` | URL of the built-in sample image `/_zentara/placeholder.svg` for prototypes before real photos exist |
 | `StatusPage` · `statusPage()` | a status page (403, 404, 500, …) in the app theme. The framework uses it for errors in production |
 | `money()` · `formatNumber()` · `formatDate()` · `rupiah()` | money, numbers, and dates in the active [language](bahasa.html); `rupiah(45000)` is always `Rp45.000` |
 
@@ -180,6 +187,31 @@ h(Toast, { flash: takeFlash(ctx) })
 
 The default tone is `success`; use `flash(ctx, "Could not send the email", "error")` for others. The toast disappears after 6 seconds (`timeout: 0` = stays).
 
+## Public pages and shops
+
+Front pages, business profiles, shops, and booking pages are built from the components above without custom CSS:
+
+```ts
+import { h } from "zentara";
+import { Button, Container, CTA, FAQ, Hero, Navbar, page, placeholder, Stack } from "zentara/ui";
+
+export function GET() {
+  return page(
+    { title: "Dusk Kitchen", description: "Fresh cakes every morning" },
+    h(Navbar, { appName: "Dusk Kitchen", links: [{ href: "/menu", label: "Menu" }], actions: h(Button, { href: "/order", small: true }, "Order") }),
+    h("main", { id: "konten" }, h(Container, null, h(Stack, { gap: "xl" },
+      h(Hero, { title: "Fresh cakes every morning", actions: h(Button, { href: "/menu" }, "See the menu"), image: { src: placeholder("Chocolate cake", 800, 600), alt: "Chocolate cake" } }),
+      h(FAQ, { title: "Frequently asked questions", items: [{ question: "How long is delivery?", answer: "Same day for orders before 10 am." }] }),
+      h(CTA, { title: "Having a party this week?", actions: h(Button, { href: "/order" }, "Order now") }),
+    ))),
+  );
+}
+```
+
+Prices in `Pricing`, `PriceTag`, `ProductCard`, and `CartSummary` are formatted with `money()`: rupiah without decimals in Indonesian. `QuantityInput` goes inside a `Form`, so the quantity is sent with the form.
+
+**Whole-page examples.** The catalog holds five complete pages as starting points: `landing` (bakery), `profile` (business and team profile), `store` (shop with a cart), `booking` (booking schedule), and `dashboard` (admin dashboard). `zentara ui --example` lists them, `zentara ui --example store` prints its complete route file, and during `zentara dev` the result opens at `/_zentara/ui/examples/store`. Zentara AI uses the same examples through `ui_catalog`.
+
 ## Error pages
 
 In production, 403, 404, 500, and other statuses are shown with the UI kit and the app theme (`ui` in `zentara.config.mjs`), with the app name (`appName`) and a button back to the home page. The message from `throw new HttpError(403, "Only admins can open this page")` is shown too; details of a 500 error never are. During development, 404 and 500 keep the richer developer pages.
@@ -188,8 +220,8 @@ For your own status page, use `h(StatusPage, { status: 404, text: "…", action:
 
 ## Component catalog and gallery
 
-- **`zentara ui`** prints every component by group. `zentara ui Select` shows what it is for, every prop with its type and allowed values, and an example. `--json` for other tools.
-- **The `/_zentara/ui` gallery** during `zentara dev`: every component with a live example in your app's theme. The gallery does not exist in production.
+- **`zentara ui`** prints every component by group. `zentara ui Select` shows what it is for, every prop with its type and allowed values, and an example. `--json` for other tools. `zentara ui --example` shows the whole-page examples.
+- **The `/_zentara/ui` gallery** during `zentara dev`: every component with a live example in your app's theme. At the bottom it links to the whole-page examples. The gallery does not exist in production.
 - **Zentara AI** reads the same catalog (the `ui_catalog` tool), arranges the page with the layout primitives, then checks it with `view_page` on desktop and mobile. When the kit cannot build what you asked for, the AI explains the limit and offers custom CSS, which it only writes after you agree.
 
 The catalog is generated from the JSDoc in the UI kit's code, so it always matches the installed zentara version.

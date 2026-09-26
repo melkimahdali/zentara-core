@@ -1,6 +1,6 @@
 // Dibuat otomatis oleh scripts/ui-catalog.mjs dari JSDoc di src/ui. Jangan diubah manual:
 // ubah JSDoc komponennya, lalu jalankan `node scripts/ui-catalog.mjs` di packages/zentara.
-import type { CatalogEntry } from "./catalog.js";
+import type { CatalogEntry, PageExample } from "./catalog.js";
 
 export const UI_CATALOG: CatalogEntry[] = [
   {
@@ -1757,6 +1757,532 @@ export const UI_CATALOG: CatalogEntry[] = [
     ]
   },
   {
+    "name": "placeholder",
+    "group": "public",
+    "kind": "function",
+    "id": "URL gambar contoh bawaan (/_zentara/placeholder.svg) berukuran tertentu dengan teks di tengahnya. Untuk purwarupa sebelum foto asli tersedia; tidak butuh internet.",
+    "en": "Built-in sample image URL (/_zentara/placeholder.svg) of a given size with text in the middle. For prototypes before real photos exist; needs no internet.",
+    "example": "h(MediaCard, { image: { src: placeholder(\"Kue cokelat\", 800, 600), alt: \"Kue cokelat\" }, title: \"Kue cokelat\" })",
+    "props": [],
+    "signature": "placeholder(text?: string, width?: number, height?: number): string"
+  },
+  {
+    "name": "Hero",
+    "group": "public",
+    "kind": "component",
+    "id": "Bagian pembuka halaman publik: judul besar, kalimat pendukung, tombol aksi, dan gambar opsional di samping (di bawah pada ponsel). `eyebrow` = label kecil di atas judul.",
+    "en": "Opening section of a public page: a large title, a supporting sentence, action buttons, and an optional image beside it (below on phones). `eyebrow` = small label above the title.",
+    "example": "h(Hero, { eyebrow: \"Toko kue rumahan\", title: \"Kue segar setiap pagi\", text: \"Dipanggang tanpa pengawet, diantar ke rumah Anda.\", actions: [h(Button, { href: \"/menu\" }, \"Lihat menu\"), h(Button, { href: \"/kontak\", variant: \"secondary\" }, \"Hubungi kami\")], image: { src: \"/img/kue.jpg\", alt: \"Kue cokelat\" } })",
+    "props": [
+      {
+        "name": "title",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "eyebrow",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "actions",
+        "type": "Child",
+        "required": false
+      },
+      {
+        "name": "image",
+        "type": "ImageRef",
+        "required": false
+      },
+      {
+        "name": "align",
+        "type": "\"start\" | \"center\"",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "FeatureGrid",
+    "group": "public",
+    "kind": "component",
+    "id": "Daftar keunggulan dalam grid (2 sampai 4 kolom, menumpuk di ponsel), dengan judul bagian opsional.",
+    "en": "Grid of features or benefits (2 to 4 columns, stacked on phones), with an optional section title.",
+    "example": "h(FeatureGrid, { title: \"Kenapa kami\", features: [{ icon: \"🌾\", title: \"Bahan lokal\", text: \"Tepung dan mentega dari petani sekitar.\" }, { icon: \"🚚\", title: \"Antar hari ini\", text: \"Pesan sebelum jam 10.\" }] })",
+    "props": [
+      {
+        "name": "title",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "features",
+        "type": "Feature[]",
+        "required": true
+      },
+      {
+        "name": "cols",
+        "type": "2 | 3 | 4",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "MediaCard",
+    "group": "public",
+    "kind": "component",
+    "id": "Kartu dengan gambar di atas: artikel, layanan, portofolio, atau acara. Seluruh kartu bisa diklik bila ada `href`.",
+    "en": "Card with an image on top: an article, service, portfolio item, or event. The whole card is clickable when `href` is set.",
+    "example": "h(MediaCard, { image: { src: post.cover, alt: \"\" }, title: post.title, text: post.excerpt, meta: formatDate(post.date), href: `/blog/${post.slug}` })",
+    "props": [
+      {
+        "name": "image",
+        "type": "ImageRef",
+        "required": true
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "meta",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "href",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "actions",
+        "type": "Child",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Gallery",
+    "group": "public",
+    "kind": "component",
+    "id": "Galeri foto berbentuk grid dengan rasio seragam dan keterangan opsional. Foto membuka ukuran penuh saat diklik.",
+    "en": "Photo gallery grid with a uniform ratio and optional captions. Clicking a photo opens it full size.",
+    "example": "h(Gallery, { images: photos.map((p) => ({ src: p.url, alt: p.title, caption: p.title })), ratio: \"square\" })",
+    "props": [
+      {
+        "name": "images",
+        "type": "GalleryImage[]",
+        "required": true
+      },
+      {
+        "name": "cols",
+        "type": "2 | 3 | 4",
+        "required": false
+      },
+      {
+        "name": "ratio",
+        "type": "\"square\" | \"landscape\" | \"portrait\"",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Pricing",
+    "group": "public",
+    "kind": "component",
+    "id": "Tabel harga paket berdampingan (menumpuk di ponsel). Satu paket bisa disorot dengan `featured`.",
+    "en": "Side-by-side plan prices (stacked on phones). One plan can be highlighted with `featured`.",
+    "example": "h(Pricing, { plans: [{ name: \"Dasar\", price: 49000, period: \"/bulan\", features: [\"1 toko\", \"100 produk\"], cta: { label: \"Mulai\", href: \"/daftar\" } }, { name: \"Pro\", price: 99000, period: \"/bulan\", features: [\"3 toko\", \"Produk tanpa batas\"], cta: { label: \"Coba Pro\", href: \"/daftar?paket=pro\" }, featured: true }] })",
+    "props": [
+      {
+        "name": "plans",
+        "type": "PricingPlan[]",
+        "required": true
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Testimonial",
+    "group": "public",
+    "kind": "component",
+    "id": "Kutipan pelanggan dengan nama, peran, foto atau inisial, dan rating opsional.",
+    "en": "Customer quote with name, role, photo or initials, and an optional rating.",
+    "example": "h(Testimonial, { quote: \"Kuenya lembut dan tidak terlalu manis.\", name: \"Rina\", role: \"Pelanggan sejak 2024\", rating: 5 })",
+    "props": [
+      {
+        "name": "quote",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "photo",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "rating",
+        "type": "number",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "FAQ",
+    "group": "public",
+    "kind": "component",
+    "id": "Pertanyaan yang sering diajukan: daftar buka-tutup, plus data terstruktur FAQPage (schema.org) agar mesin pencari bisa menampilkannya (`schema: false` untuk mematikan).",
+    "en": "Frequently asked questions: an open/close list, plus FAQPage structured data (schema.org) so search engines can show it (`schema: false` turns it off).",
+    "example": "h(FAQ, { title: \"Pertanyaan umum\", items: [{ question: \"Berapa lama pengiriman?\", answer: \"1 sampai 3 hari kerja.\" }] })",
+    "props": [
+      {
+        "name": "items",
+        "type": "FaqItem[]",
+        "required": true
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "schema",
+        "type": "boolean",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "CTA",
+    "group": "public",
+    "kind": "component",
+    "id": "Pita ajakan bertindak di akhir halaman: judul, kalimat pendek, dan tombol.",
+    "en": "Call-to-action band near the end of a page: a title, a short sentence, and buttons.",
+    "example": "h(CTA, { title: \"Siap pesan untuk acara Anda?\", text: \"Gratis ongkir di Bandung untuk pesanan pertama.\", actions: h(Button, { href: \"/pesan\" }, \"Pesan sekarang\") })",
+    "props": [
+      {
+        "name": "title",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "actions",
+        "type": "Child",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "LogoCloud",
+    "group": "public",
+    "kind": "component",
+    "id": "Deretan logo mitra atau klien, abu-abu dan seragam tingginya.",
+    "en": "Row of partner or client logos, grey and the same height.",
+    "example": "h(LogoCloud, { title: \"Dipercaya oleh\", logos: [{ src: \"/logo/bank.svg\", alt: \"Bank Sejahtera\" }, { src: \"/logo/kopi.svg\", alt: \"Kopi Nusantara\" }] })",
+    "props": [
+      {
+        "name": "title",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "logos",
+        "type": "LogoItem[]",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "TeamCard",
+    "group": "public",
+    "kind": "component",
+    "id": "Kartu anggota tim: foto (atau inisial), nama, peran, keterangan singkat, dan tautan.",
+    "en": "Team member card: photo (or initials), name, role, a short bio, and links.",
+    "example": "h(TeamCard, { name: \"Sari Dewi\", role: \"Kepala dapur\", photo: \"/tim/sari.jpg\", bio: \"12 tahun di dapur hotel.\", links: [{ href: \"https://instagram.com/sari\", label: \"Instagram\" }] })",
+    "props": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "role",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "photo",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "bio",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "links",
+        "type": "NavLink[]",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "ContactForm",
+    "group": "public",
+    "kind": "component",
+    "id": "Formulir kontak siap pakai (nama, email, pesan) dengan `values` dan `errors` untuk ditampilkan ulang setelah validasi, plus tautan WhatsApp opsional (`whatsapp: \"0812…\"`).",
+    "en": "Ready-made contact form (name, email, message) with `values` and `errors` to re-render after validation, plus an optional WhatsApp link (`whatsapp: \"0812…\"`).",
+    "example": "h(ContactForm, { action: \"/kontak\", values, errors, whatsapp: \"081234567890\" })",
+    "props": [
+      {
+        "name": "action",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "values",
+        "type": "Record<string, unknown>",
+        "required": false
+      },
+      {
+        "name": "errors",
+        "type": "Record<string, string>",
+        "required": false
+      },
+      {
+        "name": "whatsapp",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "submit",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "PriceTag",
+    "group": "commerce",
+    "kind": "component",
+    "id": "Harga dengan harga coret opsional (`original`) dan periode (mis. \"/bulan\"). Angka diformat sesuai bahasa aktif; rupiah tanpa desimal.",
+    "en": "Price with an optional struck-through original price (`original`) and period (e.g. \"/month\"). Numbers follow the active language; rupiah without decimals.",
+    "example": "h(PriceTag, { amount: 45000, original: 60000 })",
+    "props": [
+      {
+        "name": "amount",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "original",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "period",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "large",
+        "type": "boolean",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "ProductCard",
+    "group": "commerce",
+    "kind": "component",
+    "id": "Kartu produk untuk katalog toko: foto, nama, harga (dengan coret dan label diskon otomatis), rating, label stok habis, dan tombol aksi (mis. formulir \"Tambah ke keranjang\").",
+    "en": "Product card for a shop catalog: photo, name, price (with an automatic strike-through and discount label), rating, sold-out label, and an action (e.g. an \"Add to cart\" form).",
+    "example": "h(ProductCard, { name: p.name, href: `/produk/${p.slug}`, image: { src: p.photo, alt: p.name }, price: p.price, original: p.oldPrice, rating: 4.8, reviews: 120, action: h(PostButton, { action: `/keranjang/${p.id}`, variant: \"primary\" }, \"Tambah\") })",
+    "props": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "price",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "original",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "image",
+        "type": "ImageRef",
+        "required": true
+      },
+      {
+        "name": "href",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "rating",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "reviews",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "badge",
+        "type": "string",
+        "required": false,
+        "doc": "Label di atas nama produk, mis. \"Baru\". Default: persen diskon bila ada `original`."
+      },
+      {
+        "name": "soldOut",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "action",
+        "type": "Child",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "QuantityInput",
+    "group": "commerce",
+    "kind": "component",
+    "id": "Input jumlah barang dengan tombol − dan + (tampil bila JavaScript aktif; tanpa JavaScript tetap berupa input angka biasa). Dipakai di dalam Form.",
+    "en": "Quantity input with − and + buttons (shown when JavaScript runs; without JavaScript it is a plain number input). Use it inside a Form.",
+    "example": "h(QuantityInput, { name: \"qty\", value: 1, max: product.stock })",
+    "props": [
+      {
+        "name": "name",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "value",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "min",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "hideLabel",
+        "type": "boolean",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "CartSummary",
+    "group": "commerce",
+    "kind": "component",
+    "id": "Ringkasan keranjang atau pesanan: daftar barang (jumlah × harga), subtotal, ongkir, potongan, dan total, plus tombol lanjut (mis. \"Bayar\"). Ongkir 0 tertulis \"Gratis\"; keranjang kosong menampilkan `empty`.",
+    "en": "Cart or order summary: items (quantity × price), subtotal, shipping, discount, and total, plus a next-step button (e.g. \"Pay\"). Zero shipping reads \"Free\"; an empty cart shows `empty`.",
+    "example": "h(CartSummary, { items: cart.map((c) => ({ name: c.name, price: c.price, qty: c.qty })), shipping: 15000, action: h(Button, { href: \"/bayar\", block: true }, \"Lanjut bayar\") })",
+    "props": [
+      {
+        "name": "items",
+        "type": "CartLine[]",
+        "required": true
+      },
+      {
+        "name": "shipping",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "discount",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "currency",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "action",
+        "type": "Child",
+        "required": false
+      },
+      {
+        "name": "empty",
+        "type": "Child",
+        "required": false
+      }
+    ]
+  },
+  {
     "name": "Alert",
     "group": "feedback",
     "kind": "component",
@@ -1955,5 +2481,83 @@ export const UI_CATALOG: CatalogEntry[] = [
     "example": "formatDate(note.createdAt, \"long\")",
     "props": [],
     "signature": "formatDate(value: Date | string | number, style?: \"short\" | \"medium\" | \"long\" | \"full\"): string"
+  }
+];
+
+export const UI_EXAMPLES: PageExample[] = [
+  {
+    "name": "landing",
+    "title": {
+      "id": "Landing page toko kue",
+      "en": "Bakery landing page"
+    },
+    "text": {
+      "id": "Halaman depan usaha kecil: navigasi, hero dengan foto, keunggulan, produk unggulan, testimoni, FAQ, ajakan pesan, dan kaki halaman. Tanpa CSS sendiri.",
+      "en": "Front page for a small business: navigation, a hero with a photo, benefits, featured products, testimonials, FAQ, a call to order, and a footer. No custom CSS."
+    },
+    "source": {
+      "id": "import { h } from \"zentara\";\nimport { Button, Columns, Container, CTA, FAQ, FeatureGrid, Footer, Hero, Navbar, page, placeholder, ProductCard, Section, Stack, Testimonial } from \"zentara/ui\";\n\n// Di aplikasi nyata data ini dari database.\nconst products = [\n  { slug: \"bolu-pandan\", name: \"Bolu pandan\", price: 45000, original: 55000, rating: 4.9, reviews: 212 },\n  { slug: \"brownies-panggang\", name: \"Brownies panggang\", price: 38000, rating: 4.8, reviews: 180 },\n  { slug: \"kue-lapis-legit\", name: \"Kue lapis legit\", price: 120000, rating: 5, reviews: 64 },\n];\n\nexport function GET() {\n  return page(\n    { title: \"Dapur Senja · Kue rumahan di Bandung\", description: \"Kue segar tanpa pengawet, dipanggang setiap pagi dan diantar ke rumah Anda.\" },\n    h(Navbar, {\n      appName: \"Dapur Senja\",\n      links: [\n        { href: \"/\", label: \"Beranda\" },\n        { href: \"/menu\", label: \"Menu\" },\n        { href: \"/tentang\", label: \"Tentang\" },\n      ],\n      active: \"/\",\n      actions: h(Button, { href: \"/pesan\", small: true }, \"Pesan\"),\n    }),\n    h(\n      \"main\",\n      { id: \"konten\" },\n      h(\n        Container,\n        null,\n        h(\n          Stack,\n          { gap: \"xl\" },\n          h(Hero, {\n            eyebrow: \"Kue rumahan di Bandung\",\n            title: \"Kue segar, dipanggang setiap pagi\",\n            text: \"Tanpa pengawet dan pewarna buatan. Pesan sebelum jam 10, kue sampai di rumah Anda sore ini.\",\n            actions: [h(Button, { href: \"/menu\" }, \"Lihat menu\"), h(Button, { href: \"https://wa.me/6281234567890\", variant: \"secondary\" }, \"Tanya lewat WhatsApp\")],\n            image: { src: placeholder(\"Kue cokelat\", 800, 600), alt: \"Kue cokelat dengan taburan kacang di atas meja kayu\" },\n          }),\n          h(FeatureGrid, {\n            title: \"Kenapa Dapur Senja\",\n            features: [\n              { icon: \"🌾\", title: \"Bahan lokal\", text: \"Tepung, telur, dan mentega dari peternak di sekitar Lembang.\" },\n              { icon: \"🚚\", title: \"Antar hari ini\", text: \"Gratis ongkir se-Bandung untuk pesanan di atas Rp150.000.\" },\n              { icon: \"🎂\", title: \"Bisa pesan khusus\", text: \"Tulisan dan hiasan sesuai acara ulang tahun atau arisan.\" },\n            ],\n          }),\n          h(\n            Section,\n            { title: \"Paling dicari minggu ini\", actions: h(Button, { href: \"/menu\", variant: \"secondary\", small: true }, \"Semua menu\") },\n            h(\n              Columns,\n              { cols: 3 },\n              products.map((p) =>\n                h(ProductCard, {\n                  name: p.name,\n                  href: `/menu/${p.slug}`,\n                  image: { src: placeholder(p.name, 600, 600), alt: p.name },\n                  price: p.price,\n                  original: p.original,\n                  rating: p.rating,\n                  reviews: p.reviews,\n                }),\n              ),\n            ),\n          ),\n          h(\n            Section,\n            { title: \"Kata pelanggan\" },\n            h(\n              Columns,\n              { cols: 2 },\n              h(Testimonial, { quote: \"Bolunya lembut dan wangi pandan asli. Anak-anak minta pesan lagi.\", name: \"Rina Wulandari\", role: \"Pelanggan sejak 2024\", rating: 5 }),\n              h(Testimonial, { quote: \"Pesan jam 9, jam 3 sore sudah sampai. Kemasannya rapi untuk hantaran.\", name: \"Budi Santoso\", role: \"Pemesan arisan kantor\", rating: 5 }),\n            ),\n          ),\n          h(FAQ, {\n            title: \"Pertanyaan umum\",\n            items: [\n              { question: \"Berapa lama kue tahan?\", answer: \"Tiga hari di suhu ruang, satu minggu di kulkas.\" },\n              { question: \"Bisa kirim ke luar Bandung?\", answer: \"Untuk kue kering bisa lewat ekspedisi. Kue basah hanya se-Bandung Raya.\" },\n              { question: \"Bagaimana cara bayar?\", answer: \"Transfer bank, QRIS, atau bayar di tempat untuk wilayah Bandung.\" },\n            ],\n          }),\n          h(CTA, {\n            title: \"Ada acara minggu ini?\",\n            text: \"Pesan kue untuk 20 orang atau lebih dan dapatkan potongan 10%.\",\n            actions: h(Button, { href: \"/pesan\" }, \"Pesan sekarang\"),\n          }),\n        ),\n      ),\n    ),\n    h(Footer, {\n      appName: \"Dapur Senja\",\n      columns: [\n        {\n          title: \"Toko\",\n          links: [\n            { href: \"/menu\", label: \"Menu\" },\n            { href: \"/pesan\", label: \"Cara pesan\" },\n          ],\n        },\n        {\n          title: \"Tentang\",\n          links: [\n            { href: \"/tentang\", label: \"Cerita kami\" },\n            { href: \"/kontak\", label: \"Kontak\" },\n          ],\n        },\n      ],\n    }),\n  );\n}\n",
+      "en": "import { h } from \"zentara\";\nimport { Button, Columns, Container, CTA, FAQ, FeatureGrid, Footer, Hero, Navbar, page, placeholder, ProductCard, Section, Stack, Testimonial } from \"zentara/ui\";\n\n// In a real app this data comes from the database.\nconst products = [\n  { slug: \"pandan-sponge-cake\", name: \"Pandan sponge cake\", price: 12, original: 15, rating: 4.9, reviews: 212 },\n  { slug: \"baked-brownies\", name: \"Baked brownies\", price: 10, rating: 4.8, reviews: 180 },\n  { slug: \"layer-cake\", name: \"Spiced layer cake\", price: 28, rating: 5, reviews: 64 },\n];\n\nexport function GET() {\n  return page(\n    { title: \"Dusk Kitchen · Home bakery\", description: \"Fresh cakes without preservatives, baked every morning and delivered to your door.\" },\n    h(Navbar, {\n      appName: \"Dusk Kitchen\",\n      links: [\n        { href: \"/\", label: \"Home\" },\n        { href: \"/menu\", label: \"Menu\" },\n        { href: \"/about\", label: \"About\" },\n      ],\n      active: \"/\",\n      actions: h(Button, { href: \"/order\", small: true }, \"Order\"),\n    }),\n    h(\n      \"main\",\n      { id: \"konten\" },\n      h(\n        Container,\n        null,\n        h(\n          Stack,\n          { gap: \"xl\" },\n          h(Hero, {\n            eyebrow: \"Home bakery\",\n            title: \"Fresh cakes, baked every morning\",\n            text: \"No preservatives or artificial colouring. Order before 10 am and your cake arrives this afternoon.\",\n            actions: [h(Button, { href: \"/menu\" }, \"See the menu\"), h(Button, { href: \"https://wa.me/6281234567890\", variant: \"secondary\" }, \"Ask on WhatsApp\")],\n            image: { src: placeholder(\"Chocolate cake\", 800, 600), alt: \"Chocolate cake topped with nuts on a wooden table\" },\n          }),\n          h(FeatureGrid, {\n            title: \"Why Dusk Kitchen\",\n            features: [\n              { icon: \"🌾\", title: \"Local ingredients\", text: \"Flour, eggs, and butter from nearby farms.\" },\n              { icon: \"🚚\", title: \"Same-day delivery\", text: \"Free delivery in town for orders over $40.\" },\n              { icon: \"🎂\", title: \"Custom orders\", text: \"Lettering and decoration for birthdays and parties.\" },\n            ],\n          }),\n          h(\n            Section,\n            { title: \"Popular this week\", actions: h(Button, { href: \"/menu\", variant: \"secondary\", small: true }, \"Full menu\") },\n            h(\n              Columns,\n              { cols: 3 },\n              products.map((p) =>\n                h(ProductCard, {\n                  name: p.name,\n                  href: `/menu/${p.slug}`,\n                  image: { src: placeholder(p.name, 600, 600), alt: p.name },\n                  price: p.price,\n                  original: p.original,\n                  rating: p.rating,\n                  reviews: p.reviews,\n                }),\n              ),\n            ),\n          ),\n          h(\n            Section,\n            { title: \"What customers say\" },\n            h(\n              Columns,\n              { cols: 2 },\n              h(Testimonial, { quote: \"Soft sponge with real pandan. The kids keep asking for more.\", name: \"Rina Wulandari\", role: \"Customer since 2024\", rating: 5 }),\n              h(Testimonial, { quote: \"Ordered at 9, it arrived at 3 pm. Neatly packed for gifts.\", name: \"Budi Santoso\", role: \"Office party organiser\", rating: 5 }),\n            ),\n          ),\n          h(FAQ, {\n            title: \"Frequently asked questions\",\n            items: [\n              { question: \"How long do the cakes keep?\", answer: \"Three days at room temperature, one week in the fridge.\" },\n              { question: \"Do you ship out of town?\", answer: \"Cookies ship by courier. Fresh cakes are local delivery only.\" },\n              { question: \"How can I pay?\", answer: \"Bank transfer, QR payment, or cash on delivery in town.\" },\n            ],\n          }),\n          h(CTA, {\n            title: \"Having a party this week?\",\n            text: \"Order cake for 20 people or more and save 10%.\",\n            actions: h(Button, { href: \"/order\" }, \"Order now\"),\n          }),\n        ),\n      ),\n    ),\n    h(Footer, {\n      appName: \"Dusk Kitchen\",\n      columns: [\n        {\n          title: \"Shop\",\n          links: [\n            { href: \"/menu\", label: \"Menu\" },\n            { href: \"/order\", label: \"How to order\" },\n          ],\n        },\n        {\n          title: \"About\",\n          links: [\n            { href: \"/about\", label: \"Our story\" },\n            { href: \"/contact\", label: \"Contact\" },\n          ],\n        },\n      ],\n    }),\n  );\n}\n"
+    }
+  },
+  {
+    "name": "profile",
+    "title": {
+      "id": "Profil usaha dan tim",
+      "en": "Business and team profile"
+    },
+    "text": {
+      "id": "Halaman profil perusahaan: hero rata tengah, angka ringkas, tim dengan foto, galeri kantor, logo klien, dan formulir kontak.",
+      "en": "Company profile page: a centered hero, key numbers, the team with photos, an office gallery, client logos, and a contact form."
+    },
+    "source": {
+      "id": "import { h } from \"zentara\";\nimport { Columns, ContactForm, Container, DescriptionList, Footer, Gallery, Hero, LogoCloud, Navbar, page, placeholder, Section, Stack, Split, Stat, StatGroup, TeamCard } from \"zentara/ui\";\n\nconst team = [\n  { name: \"Sari Dewi\", role: \"Pendiri dan arsitek\", bio: \"15 tahun merancang rumah tropis hemat energi.\", photo: placeholder(\"SD\", 400, 400) },\n  { name: \"Andi Pratama\", role: \"Kepala proyek\", bio: \"Memastikan setiap proyek selesai tepat waktu.\", photo: placeholder(\"AP\", 400, 400) },\n  { name: \"Maya Lestari\", role: \"Desainer interior\", bio: \"Menyukai kayu lokal dan cahaya alami.\", photo: placeholder(\"ML\", 400, 400) },\n];\n\nexport function GET() {\n  return page(\n    { title: \"Studio Ruang · Arsitek rumah tropis\", description: \"Studio arsitektur di Yogyakarta untuk rumah dan kantor tropis hemat energi.\" },\n    h(Navbar, {\n      appName: \"Studio Ruang\",\n      links: [\n        { href: \"/\", label: \"Beranda\" },\n        { href: \"/proyek\", label: \"Proyek\" },\n        { href: \"/tentang\", label: \"Tentang\" },\n        { href: \"#kontak\", label: \"Kontak\" },\n      ],\n      active: \"/tentang\",\n    }),\n    h(\n      \"main\",\n      { id: \"konten\" },\n      h(\n        Container,\n        null,\n        h(\n          Stack,\n          { gap: \"xl\" },\n          h(Hero, {\n            eyebrow: \"Tentang kami\",\n            title: \"Rumah yang sejuk tanpa AC seharian\",\n            text: \"Sejak 2012 kami merancang rumah dan kantor tropis di Yogyakarta: ventilasi silang, atap lebar, dan bahan lokal.\",\n            align: \"center\",\n          }),\n          h(StatGroup, null, h(Stat, { label: \"Proyek selesai\", value: \"140+\" }), h(Stat, { label: \"Kota\", value: 12 }), h(Stat, { label: \"Tahun berdiri\", value: 2012 })),\n          h(\n            Section,\n            { title: \"Tim kami\", description: \"Orang-orang yang akan menemani proyek Anda dari sketsa pertama sampai serah terima.\" },\n            h(\n              Columns,\n              { cols: 3 },\n              team.map((p) => h(TeamCard, p)),\n            ),\n          ),\n          h(\n            Section,\n            { title: \"Studio kami\" },\n            h(Gallery, {\n              images: [\n                { src: placeholder(\"Ruang kerja\", 800, 600), alt: \"Ruang kerja studio dengan meja kayu panjang\", caption: \"Ruang kerja\" },\n                { src: placeholder(\"Maket\", 800, 600), alt: \"Maket rumah dari karton\", caption: \"Maket proyek\" },\n                { src: placeholder(\"Taman\", 800, 600), alt: \"Taman kecil di tengah studio\", caption: \"Taman dalam\" },\n              ],\n            }),\n          ),\n          h(LogoCloud, {\n            title: \"Dipercaya oleh\",\n            logos: [\"Kopi Nusantara\", \"Hotel Senja\", \"Sekolah Alam\"].map((name) => ({ src: placeholder(name, 200, 50), alt: name })),\n          }),\n          h(\n            Section,\n            { title: \"Hubungi kami\", id: \"kontak\", description: \"Ceritakan rencana Anda. Kami membalas dalam satu hari kerja.\" },\n            h(\n              Split,\n              null,\n              h(ContactForm, { action: \"/kontak\", whatsapp: \"081234567890\" }),\n              h(DescriptionList, {\n                items: [\n                  { label: \"Alamat\", value: \"Jl. Kaliurang km 5, Yogyakarta\" },\n                  { label: \"Jam kerja\", value: \"Senin sampai Jumat, 09.00 sampai 17.00\" },\n                  { label: \"Email\", value: h(\"a\", { href: \"mailto:halo@studioruang.id\" }, \"halo@studioruang.id\") },\n                ],\n              }),\n            ),\n          ),\n        ),\n      ),\n    ),\n    h(Footer, {\n      appName: \"Studio Ruang\",\n      links: [\n        { href: \"/proyek\", label: \"Proyek\" },\n        { href: \"#kontak\", label: \"Kontak\" },\n      ],\n    }),\n  );\n}\n",
+      "en": "import { h } from \"zentara\";\nimport { Columns, ContactForm, Container, DescriptionList, Footer, Gallery, Hero, LogoCloud, Navbar, page, placeholder, Section, Stack, Split, Stat, StatGroup, TeamCard } from \"zentara/ui\";\n\nconst team = [\n  { name: \"Sari Dewi\", role: \"Founder and architect\", bio: \"15 years designing energy-saving tropical homes.\", photo: placeholder(\"SD\", 400, 400) },\n  { name: \"Andi Pratama\", role: \"Project lead\", bio: \"Makes sure every project finishes on time.\", photo: placeholder(\"AP\", 400, 400) },\n  { name: \"Maya Lestari\", role: \"Interior designer\", bio: \"Loves local timber and natural light.\", photo: placeholder(\"ML\", 400, 400) },\n];\n\nexport function GET() {\n  return page(\n    { title: \"Room Studio · Tropical home architects\", description: \"An architecture studio designing energy-saving tropical homes and offices.\" },\n    h(Navbar, {\n      appName: \"Room Studio\",\n      links: [\n        { href: \"/\", label: \"Home\" },\n        { href: \"/projects\", label: \"Projects\" },\n        { href: \"/about\", label: \"About\" },\n        { href: \"#contact\", label: \"Contact\" },\n      ],\n      active: \"/about\",\n    }),\n    h(\n      \"main\",\n      { id: \"konten\" },\n      h(\n        Container,\n        null,\n        h(\n          Stack,\n          { gap: \"xl\" },\n          h(Hero, {\n            eyebrow: \"About us\",\n            title: \"Homes that stay cool without air conditioning\",\n            text: \"Since 2012 we have designed tropical homes and offices: cross ventilation, wide roofs, and local materials.\",\n            align: \"center\",\n          }),\n          h(StatGroup, null, h(Stat, { label: \"Projects finished\", value: \"140+\" }), h(Stat, { label: \"Cities\", value: 12 }), h(Stat, { label: \"Founded\", value: 2012 })),\n          h(\n            Section,\n            { title: \"Our team\", description: \"The people who will stay with your project from the first sketch to handover.\" },\n            h(\n              Columns,\n              { cols: 3 },\n              team.map((p) => h(TeamCard, p)),\n            ),\n          ),\n          h(\n            Section,\n            { title: \"Our studio\" },\n            h(Gallery, {\n              images: [\n                { src: placeholder(\"Workspace\", 800, 600), alt: \"Studio workspace with a long wooden table\", caption: \"Workspace\" },\n                { src: placeholder(\"Model\", 800, 600), alt: \"Cardboard model of a house\", caption: \"Project model\" },\n                { src: placeholder(\"Garden\", 800, 600), alt: \"Small garden in the middle of the studio\", caption: \"Inner garden\" },\n              ],\n            }),\n          ),\n          h(LogoCloud, {\n            title: \"Trusted by\",\n            logos: [\"Island Coffee\", \"Dusk Hotel\", \"Nature School\"].map((name) => ({ src: placeholder(name, 200, 50), alt: name })),\n          }),\n          h(\n            Section,\n            { title: \"Contact us\", id: \"contact\", description: \"Tell us about your plans. We reply within one working day.\" },\n            h(\n              Split,\n              null,\n              h(ContactForm, { action: \"/contact\", whatsapp: \"081234567890\" }),\n              h(DescriptionList, {\n                items: [\n                  { label: \"Address\", value: \"5 Kaliurang Road, Yogyakarta\" },\n                  { label: \"Hours\", value: \"Monday to Friday, 9 am to 5 pm\" },\n                  { label: \"Email\", value: h(\"a\", { href: \"mailto:hello@roomstudio.id\" }, \"hello@roomstudio.id\") },\n                ],\n              }),\n            ),\n          ),\n        ),\n      ),\n    ),\n    h(Footer, {\n      appName: \"Room Studio\",\n      links: [\n        { href: \"/projects\", label: \"Projects\" },\n        { href: \"#contact\", label: \"Contact\" },\n      ],\n    }),\n  );\n}\n"
+    }
+  },
+  {
+    "name": "store",
+    "title": {
+      "id": "Toko online dengan keranjang",
+      "en": "Online store with a cart"
+    },
+    "text": {
+      "id": "Katalog toko: kategori sebagai tab, kartu produk dengan tombol tambah, ringkasan keranjang di samping, dan nomor halaman. Harga dalam rupiah.",
+      "en": "Store catalog: categories as tabs, product cards with an add button, a cart summary beside them, and page numbers."
+    },
+    "source": {
+      "id": "import { h } from \"zentara\";\nimport { Button, CartSummary, Columns, Container, Footer, Form, Navbar, page, PageHeader, Pagination, placeholder, ProductCard, QuantityInput, Split, Stack, Tabs } from \"zentara/ui\";\n\n// Di aplikasi nyata: produk dari database, keranjang dari session, halaman dari ctx.query.\nconst products = [\n  { id: 1, slug: \"kopi-gayo\", name: \"Kopi Gayo 250 g\", price: 85000, original: 95000, rating: 4.9, reviews: 320 },\n  { id: 2, slug: \"kopi-toraja\", name: \"Kopi Toraja 250 g\", price: 90000, rating: 4.8, reviews: 210 },\n  { id: 3, slug: \"kopi-kintamani\", name: \"Kopi Kintamani 250 g\", price: 80000, rating: 4.7, reviews: 150, soldOut: true },\n  { id: 4, slug: \"drip-bag\", name: \"Drip bag isi 10\", price: 45000, rating: 4.6, reviews: 98 },\n];\nconst cart = [\n  { name: \"Kopi Gayo 250 g\", price: 85000, qty: 2, note: \"Giling kasar\" },\n  { name: \"Drip bag isi 10\", price: 45000, qty: 1 },\n];\n\nexport function GET() {\n  return page(\n    { title: \"Kopi · Toko Tanah Air\" },\n    h(Navbar, {\n      appName: \"Toko Tanah Air\",\n      links: [\n        { href: \"/produk\", label: \"Produk\" },\n        { href: \"/pesanan\", label: \"Pesanan saya\" },\n      ],\n      active: \"/produk\",\n      actions: h(Button, { href: \"/keranjang\", small: true, variant: \"secondary\" }, `Keranjang (${cart.length})`),\n    }),\n    h(\n      Container,\n      { pad: true },\n      h(\n        \"main\",\n        { id: \"konten\" },\n        h(\n          Stack,\n          { gap: \"lg\" },\n          h(PageHeader, { title: \"Kopi\", description: \"Biji kopi dari petani Nusantara, disangrai setiap Senin.\", breadcrumb: [{ label: \"Beranda\", href: \"/\" }, { label: \"Kopi\" }] }),\n          h(Tabs, {\n            items: [\n              { href: \"/produk?kategori=kopi\", label: \"Kopi\", count: 12 },\n              { href: \"/produk?kategori=teh\", label: \"Teh\", count: 8 },\n              { href: \"/produk?kategori=alat\", label: \"Alat seduh\", count: 5 },\n            ],\n            active: \"/produk?kategori=kopi\",\n          }),\n          h(\n            Split,\n            null,\n            h(\n              Stack,\n              { gap: \"lg\" },\n              h(\n                Columns,\n                { cols: 2 },\n                products.map((p) =>\n                  h(ProductCard, {\n                    name: p.name,\n                    href: `/produk/${p.slug}`,\n                    image: { src: placeholder(p.name, 600, 600), alt: p.name },\n                    price: p.price,\n                    original: p.original,\n                    rating: p.rating,\n                    reviews: p.reviews,\n                    soldOut: p.soldOut,\n                    action: h(\n                      Form,\n                      { action: `/keranjang/${p.id}` },\n                      h(QuantityInput, { name: \"qty\", value: 1, max: 20, hideLabel: true }),\n                      h(Button, { small: true, loading: \"Menambah…\" }, \"Tambah\"),\n                    ),\n                  }),\n                ),\n              ),\n              h(Pagination, { page: 1, pages: 3, href: \"/produk?kategori=kopi&halaman={page}\" }),\n            ),\n            h(CartSummary, { items: cart, shipping: 0, discount: 10000, action: h(Button, { href: \"/bayar\", block: true }, \"Lanjut bayar\") }),\n          ),\n        ),\n      ),\n    ),\n    h(Footer, { appName: \"Toko Tanah Air\" }),\n  );\n}\n",
+      "en": "import { h } from \"zentara\";\nimport { Button, CartSummary, Columns, Container, Footer, Form, Navbar, page, PageHeader, Pagination, placeholder, ProductCard, QuantityInput, Split, Stack, Tabs } from \"zentara/ui\";\n\n// In a real app: products from the database, the cart from the session, the page from ctx.query.\nconst products = [\n  { id: 1, slug: \"gayo-coffee\", name: \"Gayo coffee 250 g\", price: 18, original: 21, rating: 4.9, reviews: 320 },\n  { id: 2, slug: \"toraja-coffee\", name: \"Toraja coffee 250 g\", price: 19.5, rating: 4.8, reviews: 210 },\n  { id: 3, slug: \"kintamani-coffee\", name: \"Kintamani coffee 250 g\", price: 17, rating: 4.7, reviews: 150, soldOut: true },\n  { id: 4, slug: \"drip-bags\", name: \"Drip bags, pack of 10\", price: 9.5, rating: 4.6, reviews: 98 },\n];\nconst cart = [\n  { name: \"Gayo coffee 250 g\", price: 18, qty: 2, note: \"Coarse grind\" },\n  { name: \"Drip bags, pack of 10\", price: 9.5, qty: 1 },\n];\n\nexport function GET() {\n  return page(\n    { title: \"Coffee · Homeland Store\" },\n    h(Navbar, {\n      appName: \"Homeland Store\",\n      links: [\n        { href: \"/products\", label: \"Products\" },\n        { href: \"/orders\", label: \"My orders\" },\n      ],\n      active: \"/products\",\n      actions: h(Button, { href: \"/cart\", small: true, variant: \"secondary\" }, `Cart (${cart.length})`),\n    }),\n    h(\n      Container,\n      { pad: true },\n      h(\n        \"main\",\n        { id: \"konten\" },\n        h(\n          Stack,\n          { gap: \"lg\" },\n          h(PageHeader, { title: \"Coffee\", description: \"Beans from Indonesian farmers, roasted every Monday.\", breadcrumb: [{ label: \"Home\", href: \"/\" }, { label: \"Coffee\" }] }),\n          h(Tabs, {\n            items: [\n              { href: \"/products?category=coffee\", label: \"Coffee\", count: 12 },\n              { href: \"/products?category=tea\", label: \"Tea\", count: 8 },\n              { href: \"/products?category=gear\", label: \"Brewing gear\", count: 5 },\n            ],\n            active: \"/products?category=coffee\",\n          }),\n          h(\n            Split,\n            null,\n            h(\n              Stack,\n              { gap: \"lg\" },\n              h(\n                Columns,\n                { cols: 2 },\n                products.map((p) =>\n                  h(ProductCard, {\n                    name: p.name,\n                    href: `/products/${p.slug}`,\n                    image: { src: placeholder(p.name, 600, 600), alt: p.name },\n                    price: p.price,\n                    original: p.original,\n                    rating: p.rating,\n                    reviews: p.reviews,\n                    soldOut: p.soldOut,\n                    action: h(Form, { action: `/cart/${p.id}` }, h(QuantityInput, { name: \"qty\", value: 1, max: 20, hideLabel: true }), h(Button, { small: true, loading: \"Adding…\" }, \"Add\")),\n                  }),\n                ),\n              ),\n              h(Pagination, { page: 1, pages: 3, href: \"/products?category=coffee&page={page}\" }),\n            ),\n            h(CartSummary, { items: cart, shipping: 0, discount: 2, action: h(Button, { href: \"/checkout\", block: true }, \"Checkout\") }),\n          ),\n        ),\n      ),\n    ),\n    h(Footer, { appName: \"Homeland Store\" }),\n  );\n}\n"
+    }
+  },
+  {
+    "name": "booking",
+    "title": {
+      "id": "Jadwal booking",
+      "en": "Booking schedule"
+    },
+    "text": {
+      "id": "Halaman booking layanan: langkah pemesanan, kalender jadwal yang sudah terisi (daftar di ponsel), dan formulir pilih tanggal, jam, dan layanan.",
+      "en": "Service booking page: booking steps, a calendar of taken slots (a list on phones), and a form to pick the date, time, and service."
+    },
+    "source": {
+      "id": "import { h } from \"zentara\";\nimport { Alert, Button, Calendar, Card, Container, Field, Footer, Form, FormActions, FormRow, Navbar, page, PageHeader, Select, Split, Stack, Steps } from \"zentara/ui\";\n\n// Di aplikasi nyata: booking dari database untuk bulan yang diminta (ctx.query.bulan).\nconst month = \"2026-10\";\nconst bookings = [\n  { date: \"2026-10-05\", time: \"10.00\", title: \"Potong rambut\" },\n  { date: \"2026-10-05\", time: \"13.00\", title: \"Creambath\" },\n  { date: \"2026-10-12\", time: \"09.00\", title: \"Potong rambut\" },\n  { date: \"2026-10-19\", time: \"15.00\", title: \"Pewarnaan\" },\n];\n\nexport function GET() {\n  return page(\n    { title: \"Booking · Salon Melati\" },\n    h(Navbar, {\n      appName: \"Salon Melati\",\n      links: [\n        { href: \"/\", label: \"Beranda\" },\n        { href: \"/layanan\", label: \"Layanan\" },\n        { href: \"/booking\", label: \"Booking\" },\n      ],\n      active: \"/booking\",\n    }),\n    h(\n      Container,\n      { pad: true },\n      h(\n        \"main\",\n        { id: \"konten\" },\n        h(\n          Stack,\n          { gap: \"lg\" },\n          h(PageHeader, { title: \"Booking jadwal\", description: \"Pilih tanggal dan jam yang masih kosong. Kami konfirmasi lewat WhatsApp.\" }),\n          h(Steps, { steps: [\"Pilih jadwal\", \"Isi data\", \"Konfirmasi\"], current: 1 }),\n          h(\n            Split,\n            null,\n            h(Calendar, { month, events: bookings, href: \"/booking?bulan={month}\", today: \"2026-10-01\" }),\n            h(\n              Card,\n              { title: \"Jadwal baru\" },\n              h(\n                Form,\n                { action: \"/booking\" },\n                h(\n                  Stack,\n                  null,\n                  h(Alert, null, \"Jam yang sudah terisi tampil di kalender.\"),\n                  h(Select, {\n                    name: \"layanan\",\n                    label: \"Layanan\",\n                    placeholder: \"Pilih layanan\",\n                    options: [\n                      { value: \"potong\", label: \"Potong rambut (45 menit)\" },\n                      { value: \"creambath\", label: \"Creambath (60 menit)\" },\n                      { value: \"warna\", label: \"Pewarnaan (120 menit)\" },\n                    ],\n                    required: true,\n                  }),\n                  h(\n                    FormRow,\n                    null,\n                    h(Field, { name: \"tanggal\", label: \"Tanggal\", type: \"date\", min: \"2026-10-01\", required: true }),\n                    h(Field, { name: \"jam\", label: \"Jam\", type: \"time\", min: \"09:00\", max: \"17:00\", step: 1800, required: true }),\n                  ),\n                  h(Field, { name: \"nama\", label: \"Nama\", autocomplete: \"name\", required: true }),\n                  h(Field, { name: \"telepon\", label: \"Nomor WhatsApp\", type: \"tel\", autocomplete: \"tel\", inputmode: \"tel\", required: true }),\n                  h(FormActions, null, h(Button, { loading: \"Menyimpan…\" }, \"Lanjut\")),\n                ),\n              ),\n            ),\n          ),\n        ),\n      ),\n    ),\n    h(Footer, { appName: \"Salon Melati\" }),\n  );\n}\n",
+      "en": "import { h } from \"zentara\";\nimport { Alert, Button, Calendar, Card, Container, Field, Footer, Form, FormActions, FormRow, Navbar, page, PageHeader, Select, Split, Stack, Steps } from \"zentara/ui\";\n\n// In a real app: bookings from the database for the requested month (ctx.query.month).\nconst month = \"2026-10\";\nconst bookings = [\n  { date: \"2026-10-05\", time: \"10:00\", title: \"Haircut\" },\n  { date: \"2026-10-05\", time: \"13:00\", title: \"Hair spa\" },\n  { date: \"2026-10-12\", time: \"09:00\", title: \"Haircut\" },\n  { date: \"2026-10-19\", time: \"15:00\", title: \"Colouring\" },\n];\n\nexport function GET() {\n  return page(\n    { title: \"Booking · Jasmine Salon\" },\n    h(Navbar, {\n      appName: \"Jasmine Salon\",\n      links: [\n        { href: \"/\", label: \"Home\" },\n        { href: \"/services\", label: \"Services\" },\n        { href: \"/booking\", label: \"Booking\" },\n      ],\n      active: \"/booking\",\n    }),\n    h(\n      Container,\n      { pad: true },\n      h(\n        \"main\",\n        { id: \"konten\" },\n        h(\n          Stack,\n          { gap: \"lg\" },\n          h(PageHeader, { title: \"Book an appointment\", description: \"Pick a free date and time. We confirm on WhatsApp.\" }),\n          h(Steps, { steps: [\"Pick a time\", \"Your details\", \"Confirmation\"], current: 1 }),\n          h(\n            Split,\n            null,\n            h(Calendar, { month, events: bookings, href: \"/booking?month={month}\", today: \"2026-10-01\" }),\n            h(\n              Card,\n              { title: \"New booking\" },\n              h(\n                Form,\n                { action: \"/booking\" },\n                h(\n                  Stack,\n                  null,\n                  h(Alert, null, \"Taken slots are shown on the calendar.\"),\n                  h(Select, {\n                    name: \"service\",\n                    label: \"Service\",\n                    placeholder: \"Choose a service\",\n                    options: [\n                      { value: \"haircut\", label: \"Haircut (45 minutes)\" },\n                      { value: \"spa\", label: \"Hair spa (60 minutes)\" },\n                      { value: \"colour\", label: \"Colouring (120 minutes)\" },\n                    ],\n                    required: true,\n                  }),\n                  h(\n                    FormRow,\n                    null,\n                    h(Field, { name: \"date\", label: \"Date\", type: \"date\", min: \"2026-10-01\", required: true }),\n                    h(Field, { name: \"time\", label: \"Time\", type: \"time\", min: \"09:00\", max: \"17:00\", step: 1800, required: true }),\n                  ),\n                  h(Field, { name: \"name\", label: \"Name\", autocomplete: \"name\", required: true }),\n                  h(Field, { name: \"phone\", label: \"WhatsApp number\", type: \"tel\", autocomplete: \"tel\", inputmode: \"tel\", required: true }),\n                  h(FormActions, null, h(Button, { loading: \"Saving…\" }, \"Continue\")),\n                ),\n              ),\n            ),\n          ),\n        ),\n      ),\n    ),\n    h(Footer, { appName: \"Jasmine Salon\" }),\n  );\n}\n"
+    }
+  },
+  {
+    "name": "dashboard",
+    "title": {
+      "id": "Dasbor admin",
+      "en": "Admin dashboard"
+    },
+    "text": {
+      "id": "Halaman setelah login: kerangka AppShell, angka ringkas dengan tren, tabel pesanan terbaru dengan status, dan riwayat aktivitas.",
+      "en": "Signed-in page: the AppShell frame, key numbers with trends, a table of recent orders with their status, and an activity history."
+    },
+    "source": {
+      "id": "import { h } from \"zentara\";\nimport { AppShell, Badge, Button, Card, page, rupiah, Split, Stat, StatGroup, Table, Timeline } from \"zentara/ui\";\n\n// Di aplikasi nyata: angka dan pesanan dari database, user dari ctx.state.user.\nconst orders = [\n  { code: \"INV-1042\", customer: \"Rina Wulandari\", total: 128000, status: \"Lunas\" },\n  { code: \"INV-1041\", customer: \"Budi Santoso\", total: 90000, status: \"Menunggu\" },\n  { code: \"INV-1040\", customer: \"Maya Lestari\", total: 245000, status: \"Dikirim\" },\n];\nconst tone = { Lunas: \"ok\", Menunggu: \"warn\", Dikirim: \"accent\" } as const;\n\nexport function GET() {\n  return page(\n    { title: \"Dasbor · Toko Tanah Air\" },\n    h(\n      AppShell,\n      {\n        appName: \"Toko Tanah Air\",\n        nav: [\n          { href: \"/admin\", label: \"Dasbor\" },\n          { href: \"/admin/pesanan\", label: \"Pesanan\" },\n          { href: \"/admin/produk\", label: \"Produk\" },\n          { href: \"/admin/pengaturan\", label: \"Pengaturan\", section: \"Akun\" },\n        ],\n        active: \"/admin\",\n        user: { name: \"Sari Dewi\", email: \"sari@tanahair.id\" },\n        title: \"Dasbor\",\n        subtitle: \"Ringkasan toko hari ini\",\n        actions: h(Button, { href: \"/admin/produk/baru\", small: true }, \"Tambah produk\"),\n      },\n      h(\n        StatGroup,\n        null,\n        h(Stat, { label: \"Pendapatan bulan ini\", value: rupiah(12500000), trend: \"up\", change: \"12%\", hint: \"dari bulan lalu\" }),\n        h(Stat, { label: \"Pesanan baru\", value: 42, trend: \"up\", change: \"8\" }),\n        h(Stat, { label: \"Keluhan\", value: 3, trend: \"down\", change: \"2\", good: \"down\" }),\n      ),\n      h(\n        Split,\n        null,\n        h(\n          Card,\n          { title: \"Pesanan terbaru\", flush: true, actions: h(Button, { href: \"/admin/pesanan\", variant: \"secondary\", small: true }, \"Semua\") },\n          h(Table, {\n            columns: [{ label: \"Kode\" }, { label: \"Pelanggan\" }, { label: \"Total\", align: \"num\" }, { label: \"Status\" }],\n            rows: orders.map((o) => [h(\"a\", { href: `/admin/pesanan/${o.code}` }, o.code), o.customer, rupiah(o.total), h(Badge, { tone: tone[o.status as keyof typeof tone] }, o.status)]),\n          }),\n        ),\n        h(\n          Card,\n          { title: \"Aktivitas\" },\n          h(Timeline, {\n            items: [\n              { title: \"INV-1042 dibayar\", time: \"10.24\", tone: \"ok\" },\n              { title: \"Stok Kopi Kintamani habis\", time: \"09.10\", tone: \"warn\" },\n              { title: \"INV-1040 dikirim\", text: \"JNE 0123456789\", time: \"08.02\" },\n            ],\n          }),\n        ),\n      ),\n    ),\n  );\n}\n",
+      "en": "import { h } from \"zentara\";\nimport { AppShell, Badge, Button, Card, money, page, Split, Stat, StatGroup, Table, Timeline } from \"zentara/ui\";\n\n// In a real app: numbers and orders from the database, the user from ctx.state.user.\nconst orders = [\n  { code: \"INV-1042\", customer: \"Rina Wulandari\", total: 34, status: \"Paid\" },\n  { code: \"INV-1041\", customer: \"Budi Santoso\", total: 19.5, status: \"Pending\" },\n  { code: \"INV-1040\", customer: \"Maya Lestari\", total: 62, status: \"Shipped\" },\n];\nconst tone = { Paid: \"ok\", Pending: \"warn\", Shipped: \"accent\" } as const;\n\nexport function GET() {\n  return page(\n    { title: \"Dashboard · Homeland Store\" },\n    h(\n      AppShell,\n      {\n        appName: \"Homeland Store\",\n        nav: [\n          { href: \"/admin\", label: \"Dashboard\" },\n          { href: \"/admin/orders\", label: \"Orders\" },\n          { href: \"/admin/products\", label: \"Products\" },\n          { href: \"/admin/settings\", label: \"Settings\", section: \"Account\" },\n        ],\n        active: \"/admin\",\n        user: { name: \"Sari Dewi\", email: \"sari@homeland.id\" },\n        title: \"Dashboard\",\n        subtitle: \"Today's store summary\",\n        actions: h(Button, { href: \"/admin/products/new\", small: true }, \"Add product\"),\n      },\n      h(\n        StatGroup,\n        null,\n        h(Stat, { label: \"Revenue this month\", value: money(3250), trend: \"up\", change: \"12%\", hint: \"vs last month\" }),\n        h(Stat, { label: \"New orders\", value: 42, trend: \"up\", change: \"8\" }),\n        h(Stat, { label: \"Complaints\", value: 3, trend: \"down\", change: \"2\", good: \"down\" }),\n      ),\n      h(\n        Split,\n        null,\n        h(\n          Card,\n          { title: \"Latest orders\", flush: true, actions: h(Button, { href: \"/admin/orders\", variant: \"secondary\", small: true }, \"All\") },\n          h(Table, {\n            columns: [{ label: \"Code\" }, { label: \"Customer\" }, { label: \"Total\", align: \"num\" }, { label: \"Status\" }],\n            rows: orders.map((o) => [h(\"a\", { href: `/admin/orders/${o.code}` }, o.code), o.customer, money(o.total), h(Badge, { tone: tone[o.status as keyof typeof tone] }, o.status)]),\n          }),\n        ),\n        h(\n          Card,\n          { title: \"Activity\" },\n          h(Timeline, {\n            items: [\n              { title: \"INV-1042 paid\", time: \"10:24\", tone: \"ok\" },\n              { title: \"Kintamani coffee sold out\", time: \"09:10\", tone: \"warn\" },\n              { title: \"INV-1040 shipped\", text: \"Tracking 0123456789\", time: \"08:02\" },\n            ],\n          }),\n        ),\n      ),\n    ),\n  );\n}\n"
+    }
   }
 ];

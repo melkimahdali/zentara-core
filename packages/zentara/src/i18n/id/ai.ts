@@ -79,6 +79,7 @@ export const ai = {
     packageInvalid: (name: string) => `nama paket tidak valid: ${name}`,
     zentaraSummary: (command: string) => `Jalankan zentara ${command}`,
     jobRunReason: "menjalankan job bisa mengirim email atau mengubah data",
+    unknownExample: (name: string, names: string) => `Contoh halaman tidak ada: ${name}. Pilihan: ${names}.`,
     unknownComponent: (name: string, similar: string) => `Komponen kit UI tidak ada: ${name}.${similar ? ` Mungkin: ${similar}.` : ""} Panggil ui_catalog tanpa argumen untuk melihat semuanya.`,
     zentaraArgInvalid: (arg: string) => `Argumen tidak valid: ${arg}`,
     packageReason: "mengunduh dan memasang kode pihak ketiga",
