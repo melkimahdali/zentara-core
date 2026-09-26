@@ -112,9 +112,7 @@ Contoh satu baris hasil:
 Supaya runner tidak perlu mengurai teks terminal, PR ini juga menambah data ke hasil agen:
 
 - `AgentResult` (`src/ai/agent.ts`) sekarang memuat `usage` (token input dan output dijumlahkan dari semua langkah, plus `unreported` untuk langkah yang providernya tidak melaporkan usage), `models`, `fixAttempts`, `toolCalls` (nama tool dan berhasil atau tidak), `denied` (aksi yang ditolak, termasuk yang otomatis ditolak di `--auto`), dan `durationMs`.
-- `zentara "<tugas>" --auto --report=<file>` menulis hasil itu sebagai JSON. Tanpa nama file, laporan ditulis ke `.zentara/ai-report.json`.
-
-Untuk sementara nama file harus ditulis dengan `=`. Bentuk `--report <file>` baru didukung setelah PR Tahap 12 di-merge, karena PR itu juga mengubah daftar opsi bernilai di `parseArgs`.
+- `zentara "<tugas>" --auto --report <file>` menulis hasil itu sebagai JSON. Tanpa nama file, laporan ditulis ke `.zentara/ai-report.json`.
 
 Hal lain yang tetap berlaku untuk runner:
 

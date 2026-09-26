@@ -16,7 +16,7 @@ Talk to the AI (plain language):
   zentara --continue                               Continue the last conversation (or /resume inside the CLI)
   zentara --classic                                Classic interactive CLI (without the Ink interface)
   zentara "build a portfolio page with a list of projects"
-  zentara ai "<request>" [--auto] [--dry-run] [--report=<file>]
+  zentara ai "<request>" [--auto] [--dry-run] [--report <file>]
   zentara ai:status                                Check which AI providers are available
   zentara ai:setup [provider]                      Set up an AI provider (Claude, OpenAI, Gemini, Groq, DeepSeek,
                                                    OpenRouter, OmniRoute, Ollama): API key, model, connection test
@@ -24,7 +24,7 @@ Talk to the AI (plain language):
 
   --auto      Apply regular changes right away; only critical actions ask first
   --dry-run   Show what would happen without changing files
-  --report=<file>  Write the AI task result (status, steps, tokens, tools) as JSON; default .zentara/ai-report.json
+  --report <file>  Write the AI task result (status, steps, tokens, tools) as JSON; default .zentara/ai-report.json
 
 Manual commands:
   zentara routes [--json]                          List all routes

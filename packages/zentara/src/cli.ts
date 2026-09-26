@@ -58,7 +58,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     const [key, inline] = arg.slice(2).split("=", 2) as [string, string | undefined];
     const next = argv[i + 1];
     if (inline !== undefined) flags[key] = inline;
-    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule", "url", "text", "limit"].includes(key)) {
+    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule", "url", "text", "limit", "report"].includes(key)) {
       flags[key] = next;
       i++;
     } else flags[key] = true;
@@ -416,7 +416,7 @@ async function runAi(task: string | undefined, args: ParsedArgs, io: CliIO): Pro
 }
 
 /**
- * `--report=<file>`: hasil tugas AI dalam JSON (status, langkah, token, tool, aksi yang ditolak),
+ * `--report <file>`: hasil tugas AI dalam JSON (status, langkah, token, tool, aksi yang ditolak),
  * untuk eval dan CI. Tanpa nama file ditulis ke .zentara/ai-report.json.
  */
 function writeAiReport(target: string | true, task: string, mode: string, dryRun: boolean, result: AgentResult, io: CliIO): void {
