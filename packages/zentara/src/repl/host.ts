@@ -375,7 +375,10 @@ export async function createReplHost(options: HostOptions, ui: HostUI): Promise<
     creation = { child: undefined, cancelled: false };
     const code = await new Promise<number>((resolve) => {
       // npx --yes: tanpa pertanyaan "Ok to proceed?"; create-zentara --yes: tanpa pertanyaan lanjutan.
-      const cmd = platformCommand("npx", ["--yes", "create-zentara@latest", name, "--template", template, "--lang", lang, "--yes"]);
+      // ZENTARA_CREATE_PACKAGE / ZENTARA_CREATE_ARGS: untuk uji e2e (tarball lokal, --zentara-spec file:...).
+      const pkg = process.env.ZENTARA_CREATE_PACKAGE || "create-zentara@latest";
+      const extra = (process.env.ZENTARA_CREATE_ARGS ?? "").split(/\s+/).filter(Boolean);
+      const cmd = platformCommand("npx", ["--yes", `--package=${pkg}`, "--", "create-zentara", name, "--template", template, "--lang", lang, "--yes", ...extra]);
       // detached (selain Windows): Esc menghentikan seluruh grup proses (npx, npm install, ...).
       const child = spawn(cmd.command, cmd.args, { cwd, stdio: ["ignore", "pipe", "pipe"], shell: cmd.shell, detached: process.platform !== "win32", env: { ...process.env, FORCE_COLOR: "0" } });
       creation!.child = child;

@@ -2,6 +2,15 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.4]
+
+### Ditambahkan
+- **Uji e2e untuk pemakaian sungguhan**, supaya bug seperti di 0.12.2 ketahuan di CI (Ubuntu & Windows) sebelum rilis:
+  - **CLI global:** zentara dipasang dengan `npm install -g` tanpa drizzle-orm. Setelah tabel dan route baru ditambahkan, `db:generate`, `db:migrate`, `routes`, dan `jobs` dijalankan dari CLI global di proyek api.
+  - **Tool Zentara AI dari instalasi global:** `list_routes` langsung membaca route dan export schema baru di proses yang sama, `database generate/migrate` berjalan lewat zentara proyek, begitu juga tool `zentara jobs`.
+  - **Alur interaktif:** pertama kali dibuka, bahasa ditanyakan lebih dulu dan disimpan. "Buat proyek baru" dengan nama berspasi menghasilkan folder aman, dependency terpasang, dan template berbahasa yang dipilih.
+- `ZENTARA_CREATE_PACKAGE` dan `ZENTARA_CREATE_ARGS` untuk menguji "Buat proyek baru" dengan paket lokal.
+
 ## [0.12.3]
 
 ### Diperbaiki

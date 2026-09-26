@@ -48,7 +48,8 @@ Logo, favicon, versi terminal (ANSI/ASCII), dan pedoman warna ada di [`assets/br
 npm install          # memasang workspace
 npm run build        # build kedua paket
 npm test             # test kedua paket
-npm run e2e          # simulasi publish: npm pack, buat proyek dari tarball, install, test, jalankan server
+npm run e2e          # simulasi publish: npm pack, buat proyek dari tarball, install, test, jalankan server,
+                     # CLI global (npm install -g), tool Zentara AI, dan alur interaktif buat proyek
 ```
 
 - Spesifikasi kontrak inti: [`CORE_SPEC.md`](CORE_SPEC.md).
