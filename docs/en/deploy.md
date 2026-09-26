@@ -29,4 +29,4 @@ npx zentara db:migrate
 pm2 start npm --name my-app -- start
 ```
 
-Deploy adapters (Docker, Vercel, Cloudflare, and more) are planned in stage 15 of the [roadmap](peta-jalan.html).
+Deploy adapters (Docker, Vercel, Cloudflare, and more) are planned in stage 17 of the [roadmap](peta-jalan.html).
