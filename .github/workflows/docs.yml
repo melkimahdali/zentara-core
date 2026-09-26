@@ -1,10 +1,10 @@
 name: Docs
 
 # Terbitkan situs dokumentasi (docs/*.md + catatan rilis dari CHANGELOG.md) ke GitHub Pages di
-# https://zentara-core.morixa.id (domain kustom lewat Cloudflare; file CNAME ikut dibuat oleh docs:build).
+# https://zusantara.morixa.id (domain kustom lewat Cloudflare; file CNAME ikut dibuat oleh docs:build).
 # Diterbitkan ulang setiap ada perubahan di main, jadi versi, catatan rilis, dan dokumentasi selalu
 # mengikuti versi terbaru.
-# Sekali saja: Settings → Pages → Source: "GitHub Actions", Custom domain: zentara-core.morixa.id.
+# Sekali saja: Settings → Pages → Source: "GitHub Actions", Custom domain: zusantara.morixa.id.
 on:
   push:
     branches: [main]

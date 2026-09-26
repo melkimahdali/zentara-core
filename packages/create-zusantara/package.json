@@ -1,0 +1,48 @@
+{
+  "name": "create-zusantara",
+  "version": "0.12.10",
+  "description": "Buat proyek Zusantara baru: npm create zusantara@latest",
+  "keywords": [
+    "zusantara",
+    "create",
+    "scaffold",
+    "template"
+  ],
+  "license": "BUSL-1.1",
+  "author": "melkimahdali",
+  "homepage": "https://zusantara.morixa.id/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/melkimahdali/zusantara-core.git",
+    "directory": "packages/create-zusantara"
+  },
+  "bugs": {
+    "url": "https://github.com/melkimahdali/zusantara-core/issues"
+  },
+  "funding": "https://github.com/melkimahdali/zusantara-core/blob/main/COMMERCIAL.md",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "create-zusantara": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "locales",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"test/**/*.test.ts\"",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

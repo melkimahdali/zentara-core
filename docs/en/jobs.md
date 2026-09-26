@@ -14,13 +14,13 @@ A job is work the user shouldn't have to wait for: sending email, building a rep
 Every file in `src/app/jobs/` is one job. The job name is the file path without the extension, so `src/app/jobs/reports/daily.ts` is called `reports/daily`.
 
 ```bash
-npx zentara make:job send-report
-npx zentara make:job clean-sessions --schedule "0 3 * * *"
+npx zusantara make:job send-report
+npx zusantara make:job clean-sessions --schedule "0 3 * * *"
 ```
 
 ```ts
 // src/app/jobs/send-report.ts
-import { sendMail, type JobContext } from "zentara";
+import { sendMail, type JobContext } from "zusantara";
 
 export const retries = 3; // optional, 3 by default
 
@@ -35,7 +35,7 @@ export default async function (data: { email: string }, job: JobContext) {
 ## Adding to the queue
 
 ```ts
-import { enqueue } from "zentara";
+import { enqueue } from "zusantara";
 
 export async function POST(ctx: ZenContext) {
   const user = await registerUser(input);
@@ -80,22 +80,22 @@ The fields are: minute, hour, day of month, month, day of week (0 or 7 = Sunday;
 ## CLI commands
 
 ```bash
-npx zentara jobs                                  # list jobs, schedules, and next runs
-npx zentara jobs --json
-npx zentara jobs:run send-report --data '{"email":"sarah@mail.test"}'   # run now, without the queue
+npx zusantara jobs                                  # list jobs, schedules, and next runs
+npx zusantara jobs --json
+npx zusantara jobs:run send-report --data '{"email":"sarah@mail.test"}'   # run now, without the queue
 ```
 
 ## Storage & worker
 
-The queue is stored in SQLite (`data/jobs.db`), so unfinished jobs survive server restarts. The worker runs inside the server process (`zentara dev` and `zentara start`).
+The queue is stored in SQLite (`data/jobs.db`), so unfinished jobs survive server restarts. The worker runs inside the server process (`zusantara dev` and `zusantara start`).
 
 ```js
-// zentara.config.mjs
+// zusantara.config.mjs
 export default {
   jobs: {
     store: "sqlite",       // or "memory" (the default when NODE_ENV=test)
     path: "data/jobs.db",
-    worker: true,          // false or env ZENTARA_JOBS=off: this server only enqueues jobs, it doesn't run them
+    worker: true,          // false or env ZUSANTARA_JOBS=off: this server only enqueues jobs, it doesn't run them
     concurrency: 2,        // jobs running at the same time
     pollMs: 1000,
   },
@@ -107,7 +107,7 @@ export default {
 With `NODE_ENV=test` the queue lives in memory. Call `jobs.drain()` to run every job that is due:
 
 ```ts
-import { jobs, outbox } from "zentara";
+import { jobs, outbox } from "zusantara";
 
 await post("/api/auth/register", { name: "Sarah", email: "sarah@mail.test", password: "secret123" });
 await jobs.drain();

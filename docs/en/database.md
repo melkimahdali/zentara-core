@@ -7,7 +7,7 @@ description: "Drizzle ORM: zero-install SQLite or PostgreSQL."
 
 # Database
 
-Zentara uses [Drizzle ORM](https://orm.drizzle.team). The default is SQLite through Node's built-in `node:sqlite` module, so **you don't need to install any driver or database server**.
+Zusantara uses [Drizzle ORM](https://orm.drizzle.team). The default is SQLite through Node's built-in `node:sqlite` module, so **you don't need to install any driver or database server**.
 
 ```ts
 // src/app/db/schema.ts
@@ -23,7 +23,7 @@ import { db } from "../../db/index.js";
 import { events } from "../../db/schema.js";
 
 export const GET = () => db.select().from(events);
-const [created] = await db.insert(events).values({ title: "Zentara workshop", seats: 40 }).returning();
+const [created] = await db.insert(events).values({ title: "Zusantara workshop", seats: 40 }).returning();
 await db.update(events).set({ seats: 60 }).where(eq(events.id, 1));
 await db.transaction(async (tx) => { /* ... */ });
 ```
@@ -32,9 +32,9 @@ Workflow after changing the schema:
 
 | Command | What it does |
 |---|---|
-| `zentara db:generate [--name x]` | create a SQL migration in `drizzle/` from schema changes |
-| `zentara db:migrate` | apply pending migrations |
-| `zentara db:seed` | load initial data from `src/app/db/seed.ts` (safe to repeat) |
+| `zusantara db:generate [--name x]` | create a SQL migration in `drizzle/` from schema changes |
+| `zusantara db:migrate` | apply pending migrations |
+| `zusantara db:seed` | load initial data from `src/app/db/seed.ts` (safe to repeat) |
 
 **PostgreSQL for production:**
 1. Run `npm install postgres`.

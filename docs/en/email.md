@@ -8,7 +8,7 @@ description: Send email over SMTP with sendMail(); logged during development and
 # Email
 
 ```ts
-import { sendMail } from "zentara";
+import { sendMail } from "zusantara";
 
 await sendMail({
   to: "sarah@mail.test",
@@ -34,7 +34,7 @@ MAIL_FROM="My App <hello@example.com>"
 ```
 
 ```js
-// zentara.config.mjs
+// zusantara.config.mjs
 export default {
   mail: { from: "My App <hello@example.com>" }, // env MAIL_URL / MAIL_FROM override this
 };
@@ -45,14 +45,14 @@ Special characters in the user or password must be URL-encoded, e.g. `@` becomes
 | Situation | What happens |
 |---|---|
 | `MAIL_URL` is `smtp://` or `smtps://` | email is sent over SMTP |
-| development without `MAIL_URL` | email is printed to the log and saved in `.zentara/mail/*.eml` |
+| development without `MAIL_URL` | email is printed to the log and saved in `.zusantara/mail/*.eml` |
 | `NODE_ENV=test` | email is collected in `outbox` |
 | production without `MAIL_URL` | `sendMail()` throws, so email never disappears silently |
 
 ## Testing email
 
 ```ts
-import { outbox } from "zentara";
+import { outbox } from "zusantara";
 
 await jobs.drain();
 const mail = outbox.find((m) => m.to.includes("sarah@mail.test"));

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Set tugas standar eval Zentara AI (rancangan). Format dan cara menilai: evals/README.md. / Standard Zentara AI eval task set (draft). Format and scoring: evals/README.en.md.",
+  "description": "Set tugas standar eval Zusantara AI (rancangan). Format dan cara menilai: evals/README.md. / Standard Zusantara AI eval task set (draft). Format and scoring: evals/README.en.md.",
   "defaults": {
     "template": "api",
     "maxSteps": 40,
@@ -8,7 +8,7 @@
   },
   "actors": {
     "guest": "tanpa login / not logged in",
-    "admin": "akun seed: admin@zentara.test / admin12345",
+    "admin": "akun seed: admin@zusantara.test / admin12345",
     "userA": "didaftarkan runner lewat POST /api/auth/register sebelum penilaian",
     "userB": "didaftarkan runner; dipakai untuk cek data antar-pengguna"
   },
@@ -208,7 +208,7 @@
       "checks": {
         "http": [{ "as": "guest", "method": "GET", "path": "/profile", "expect": { "status": 302, "header": { "location": "/login" } } }],
         "view": [
-          { "as": "admin", "url": "/profile", "expect": { "id": ["admin@zentara.test", "Profil"], "en": ["admin@zentara.test", "Profile"] }, "form": ["name"], "noConsoleErrors": true },
+          { "as": "admin", "url": "/profile", "expect": { "id": ["admin@zusantara.test", "Profil"], "en": ["admin@zusantara.test", "Profile"] }, "form": ["name"], "noConsoleErrors": true },
           { "as": "admin", "url": "/dashboard", "link": "/profile" }
         ],
         "aiCalledViewPage": true
@@ -319,9 +319,9 @@
       "difficulty": "easy",
       "prompt": { "id": "Ubah warna utama aplikasi jadi biru.", "en": "Change the app's main color to blue." },
       "checks": {
-        "files": { "changedOnly": ["zentara.config.mjs"] },
+        "files": { "changedOnly": ["zusantara.config.mjs"] },
         "config": { "ui.accent": "blue" },
-        "view": [{ "as": "guest", "url": "/login", "selector": ["link[href^=\"/_zentara/theme.css\"]"], "viewports": ["desktop", "mobile"], "noLayoutIssues": true, "noCustomCss": true }]
+        "view": [{ "as": "guest", "url": "/login", "selector": ["link[href^=\"/_zusantara/theme.css\"]"], "viewports": ["desktop", "mobile"], "noLayoutIssues": true, "noCustomCss": true }]
       }
     },
     {
@@ -334,7 +334,7 @@
       },
       "checks": {
         "files": { "createdGlob": ["src/app/jobs/*.ts"] },
-        "hidden": "Job baru mengekspor schedule \"0 7 * * *\"; dijalankan dengan mail memory, outbox berisi satu email ke admin@zentara.test yang memuat kedua angka."
+        "hidden": "Job baru mengekspor schedule \"0 7 * * *\"; dijalankan dengan mail memory, outbox berisi satu email ke admin@zusantara.test yang memuat kedua angka."
       }
     },
     {
@@ -362,17 +362,17 @@
       "setup": [
         {
           "file": "src/app/routes/api/hello.ts",
-          "find": "const name = typeof ctx.query.name === \"string\" ? ctx.query.name : \"Zentara\";",
+          "find": "const name = typeof ctx.query.name === \"string\" ? ctx.query.name : \"Zusantara\";",
           "replace": "const name = (ctx.query.name as string).trim();"
         }
       ],
       "prompt": {
-        "id": "GET /api/hello tanpa parameter name mengembalikan error 500. Temukan penyebabnya dan perbaiki; tanpa name harus memakai \"Zentara\".",
-        "en": "GET /api/hello without a name parameter returns a 500 error. Find the cause and fix it; without name it must use \"Zentara\"."
+        "id": "GET /api/hello tanpa parameter name mengembalikan error 500. Temukan penyebabnya dan perbaiki; tanpa name harus memakai \"Zusantara\".",
+        "en": "GET /api/hello without a name parameter returns a 500 error. Find the cause and fix it; without name it must use \"Zusantara\"."
       },
       "checks": {
         "http": [
-          { "as": "guest", "method": "GET", "path": "/api/hello", "expect": { "status": 200, "json": { "message": "Hello from Zentara API" } } },
+          { "as": "guest", "method": "GET", "path": "/api/hello", "expect": { "status": 200, "json": { "message": "Hello from Zusantara API" } } },
           { "as": "guest", "method": "GET", "path": "/api/hello?name=Ani", "expect": { "status": 200, "json": { "message": "Hello from Ani API" } } }
         ]
       }

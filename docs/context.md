@@ -10,7 +10,7 @@ description: Objek request & respons yang diterima setiap handler.
 Setiap handler route dan middleware menerima `ctx` bertipe `ZenContext`.
 
 ```ts
-import type { ZenContext } from "zentara";
+import type { ZenContext } from "zusantara";
 
 export async function GET(ctx: ZenContext) {
   return { path: ctx.path, id: ctx.params.id, q: ctx.query.q };
@@ -42,7 +42,7 @@ export async function GET(ctx: ZenContext) {
 | `throw new HttpError(404, "Data tidak ditemukan")` | respons error (JSON untuk API, halaman error untuk browser) |
 
 ```ts
-import { html, HttpError, json, redirect, type ZenContext } from "zentara";
+import { html, HttpError, json, redirect, type ZenContext } from "zusantara";
 
 export async function POST(ctx: ZenContext) {
   const data = await ctx.json<{ nama?: string }>();

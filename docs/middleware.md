@@ -10,7 +10,7 @@ description: Rantai middleware global dan per route.
 Middleware bergaya "onion". Kerjakan sesuatu sebelum `await next()`, lalu kerjakan sesuatu lagi sesudahnya. Kalau middleware mengembalikan nilai tanpa memanggil `next()`, rantai berhenti di situ.
 
 ```ts
-import { defineMiddleware, HttpError } from "zentara";
+import { defineMiddleware, HttpError } from "zusantara";
 
 export const requireLogin = defineMiddleware(async (ctx, next) => {
   if (!ctx.session.get("userId")) throw new HttpError(401, "Silakan login");
@@ -22,7 +22,7 @@ Ada tiga tempat untuk memasang middleware, dan urutan eksekusinya dari atas ke b
 
 | Tempat | Cakupan |
 |---|---|
-| `middleware: [...]` di `zentara.config.mjs` | semua request |
+| `middleware: [...]` di `zusantara.config.mjs` | semua request |
 | `runtime.use(...)` di `setup()` plugin | semua request |
 | `src/app/middleware.ts` (`export default [...]`) | semua request |
 | `export const middleware = [...]` di file route | hanya route itu |
@@ -31,7 +31,7 @@ Middleware bawaan:
 
 ```ts
 // src/app/middleware.ts
-import { cors, csrf, requestLogger, session } from "zentara";
+import { cors, csrf, requestLogger, session } from "zusantara";
 
 export default [
   requestLogger(),                                        // GET /api/hello 200 1.2ms

@@ -1,7 +1,7 @@
-// Bangkitkan packages/zentara/src/ui/font.ts dari paket @fontsource-variable/plus-jakarta-sans (OFL 1.1).
+// Bangkitkan packages/zusantara/src/ui/font.ts dari paket @fontsource-variable/plus-jakarta-sans (OFL 1.1).
 //   node scripts/brand/font.mjs <folder hasil ekstrak paket fontsource>
 //   (npm pack @fontsource-variable/plus-jakarta-sans && tar xzf *.tgz → folder "package")
-// Font brand Zentara Core disajikan framework di /_zentara/fonts/*, tanpa permintaan ke Google Fonts.
+// Font brand Zusantara Core disajikan framework di /_zusantara/fonts/*, tanpa permintaan ke Google Fonts.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,6 +28,6 @@ export const FONT_LATIN_RANGE = ${JSON.stringify(range("latin"))};
 export const FONT_LATIN_EXT_RANGE = ${JSON.stringify(range("latin-ext"))};
 export const FONT_LICENSE = ${JSON.stringify(license)};
 `;
-const target = path.join(ROOT, "packages", "zentara", "src", "ui", "font.ts");
+const target = path.join(ROOT, "packages", "zusantara", "src", "ui", "font.ts");
 fs.writeFileSync(target, out);
 console.log(`${path.relative(ROOT, target)}: ${(out.length / 1024).toFixed(0)} KB`);

@@ -1,10 +1,23 @@
 # Panduan publish ke npm
 
-Panduan langkah demi langkah untuk merilis `zentara` dan `create-zentara`. Publish di npm **permanen**:
+Panduan langkah demi langkah untuk merilis `zusantara` dan `create-zusantara`. Publish di npm **permanen**:
 - nomor versi yang sudah dipakai tidak bisa dipakai ulang;
 - paket hanya bisa ditarik (unpublish) dalam 72 jam pertama.
 
 Karena itu, selalu jalankan pemeriksaan dulu.
+
+## Ganti nama dari `zentara` (sekali, di rilis 0.12.10)
+
+Paket `zusantara` dan `create-zusantara` sudah dipesan dengan placeholder 1.0.0 yang ditandai *deprecated*. Karena paketnya sudah ada, langkah B (publish manual pertama) tidak perlu:
+
+1. Atur **Trusted Publisher** untuk `zusantara` dan `create-zusantara` seperti langkah C, dengan Repository `zusantara-core`.
+2. Buat GitHub Release `v0.12.10`. Workflow menitipkan versi ini dengan `--tag latest`, jadi `latest` pindah dari placeholder ke 0.12.10.
+3. Setelah tayang, arahkan pengguna paket lama:
+   ```bash
+   npm deprecate zentara "Zentara kini bernama Zusantara: npm i zusantara, lalu npx zusantara migrate:zusantara"
+   npm deprecate create-zentara "Zentara kini bernama Zusantara: npm create zusantara@latest"
+   ```
+4. Karena 1.0.0 sudah terpakai oleh placeholder, rilis stabil pertama nanti diberi nomor **1.0.1**.
 
 ## A. Persiapan (sekali saja)
 
@@ -21,8 +34,8 @@ Karena itu, selalu jalankan pemeriksaan dulu.
 Trusted Publishing hanya bisa diatur untuk paket yang sudah ada, jadi rilis pertama dilakukan manual.
 
 ```bash
-git clone https://github.com/melkimahdali/zentara-core.git   # atau: git checkout main && git pull
-cd zentara-core
+git clone https://github.com/melkimahdali/zusantara-core.git   # atau: git checkout main && git pull
+cd zusantara-core
 npm ci
 npm test
 npm run e2e          # WAJIB lulus: simulasi publish lengkap
@@ -31,33 +44,33 @@ npm run e2e          # WAJIB lulus: simulasi publish lengkap
 Periksa isi paket. Pastikan tidak ada `.env`, `src/`, `test/`, atau file database:
 
 ```bash
-npm pack --dry-run -w zentara
-npm pack --dry-run -w create-zentara
+npm pack --dry-run -w zusantara
+npm pack --dry-run -w create-zusantara
 ```
 
 Publish (npm akan meminta kode 2FA):
 
 ```bash
-npm publish -w zentara --access public
-npm publish -w create-zentara --access public
+npm publish -w zusantara --access public
+npm publish -w create-zusantara --access public
 ```
 
 Lalu cek hasilnya:
-- Buka https://www.npmjs.com/package/zentara dan https://www.npmjs.com/package/create-zentara.
+- Buka https://www.npmjs.com/package/zusantara dan https://www.npmjs.com/package/create-zusantara.
 - Coba dari folder lain:
   ```bash
-  cd /tmp && npm create zentara@latest coba-zentara
-  cd coba-zentara && npm run dev
+  cd /tmp && npm create zusantara@latest coba-zusantara
+  cd coba-zusantara && npm run dev
   ```
 
 ## C. Hubungkan GitHub untuk rilis otomatis (Trusted Publishing + staging)
 
-Lakukan untuk **kedua** paket (`zentara` dan `create-zentara`):
+Lakukan untuk **kedua** paket (`zusantara` dan `create-zusantara`):
 
 1. Buka halaman paket di npmjs.com, lalu **Settings**.
 2. Di bagian **Trusted Publisher**, pilih **GitHub Actions** dan isi:
    - Organization or user: `melkimahdali`
-   - Repository: `zentara-core`
+   - Repository: `zusantara-core`
    - Workflow filename: `release.yml`
    - Environment: *(kosongkan)*
 3. **Kosongkan** centang **"Allow npm publish"** (disarankan npm). Dengan begitu workflow hanya bisa **menitipkan** (*stage*) versi baru, dan versi itu baru tayang setelah Anda setujui dengan 2FA.
@@ -107,5 +120,5 @@ Dengan cara ini:
 
 ## Jika terlanjur salah publish
 
-- **Dalam 72 jam:** `npm unpublish zentara@0.6.1`.
-- **Lewat 72 jam:** tandai sebagai usang dengan `npm deprecate zentara@0.6.1 "Ada bug, pakai 0.6.2"`, lalu rilis versi perbaikan.
+- **Dalam 72 jam:** `npm unpublish zusantara@0.6.1`.
+- **Lewat 72 jam:** tandai sebagai usang dengan `npm deprecate zusantara@0.6.1 "Ada bug, pakai 0.6.2"`, lalu rilis versi perbaikan.

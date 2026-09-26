@@ -1,4 +1,4 @@
-// Uji Zentara AI dengan provider SUNGGUHAN (memakai kredit API!):
+// Uji Zusantara AI dengan provider SUNGGUHAN (memakai kredit API!):
 // build & pack -> buat proyek minimal dari tarball -> minta AI membuat route lewat bahasa biasa
 // -> pastikan file dibuat, typecheck & test lulus, dan route-nya benar-benar merespons.
 //
@@ -6,7 +6,7 @@
 // dari widget, setujui di browser, dan pastikan AI memeriksa hasilnya dengan view_page.
 //
 // Butuh minimal satu API key di env (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, ...).
-// Pilih provider dengan ZENTARA_AI_ORDER, mis. ZENTARA_AI_ORDER=openai node scripts/ai-smoke.mjs
+// Pilih provider dengan ZUSANTARA_AI_ORDER, mis. ZUSANTARA_AI_ORDER=openai node scripts/ai-smoke.mjs
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -34,7 +34,7 @@ function run(cmd, args, cwd, opts = {}) {
   })?.toString();
 }
 
-const WORK = fs.mkdtempSync(path.join(os.tmpdir(), "zentara-ai-smoke-"));
+const WORK = fs.mkdtempSync(path.join(os.tmpdir(), "zusantara-ai-smoke-"));
 const pack = (dir) => {
   const out = JSON.parse(run("npm", ["pack", "--json", "--pack-destination", WORK], dir));
   const info = Array.isArray(out) ? out[0] : Object.values(out)[0];
@@ -51,7 +51,7 @@ async function widgetFlow(app) {
     return;
   }
   const route = path.join(app, "src", "app", "routes", "halo.ts");
-  fs.writeFileSync(route, 'import { h } from "zentara";\nimport { page } from "zentara/ui";\n\nexport const GET = () => page({ title: "Halo" }, h("main", null, h("h1", null, "Halo")));\n');
+  fs.writeFileSync(route, 'import { h } from "zusantara";\nimport { page } from "zusantara/ui";\n\nexport const GET = () => page({ title: "Halo" }, h("main", null, h("h1", null, "Halo")));\n');
   let ready = false;
   for (let i = 0; i < 60 && !ready; i++) {
     await new Promise((r) => setTimeout(r, 500));
@@ -62,8 +62,8 @@ async function widgetFlow(app) {
   try {
     const tab = await browser.newPage();
     await tab.goto("http://localhost:4499/halo");
-    await tab.waitForSelector("#zentara-dev-widget", { state: "attached" });
-    const inWidget = (fn, arg) => tab.evaluate(([code, a]) => new Function("root", "arg", code)(document.querySelector("#zentara-dev-widget").shadowRoot, a), [fn, arg]);
+    await tab.waitForSelector("#zusantara-dev-widget", { state: "attached" });
+    const inWidget = (fn, arg) => tab.evaluate(([code, a]) => new Function("root", "arg", code)(document.querySelector("#zusantara-dev-widget").shadowRoot, a), [fn, arg]);
     await inWidget('root.querySelector(".zw-launch").click()');
     await inWidget('root.querySelector("textarea").value = arg; root.querySelector("form").requestSubmit()', 'Tambah tombol bertuliskan "Ekspor" di halaman ini.');
     console.log("\n→ widget: tambah tombol Ekspor di /halo");
@@ -79,7 +79,7 @@ async function widgetFlow(app) {
     if (!done) throw new Error("AI tidak selesai dalam 5 menit");
     if (!/view page \/halo/.test(log)) throw new Error("AI tidak memeriksa halaman dengan view_page");
     // Journal lokal: tugas selesai dengan view_page yang lulus di desktop dan ponsel.
-    const journal = fs.readFileSync(path.join(app, ".zentara", "ai-tasks.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    const journal = fs.readFileSync(path.join(app, ".zusantara", "ai-tasks.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
     const last = journal.at(-1);
     const latest = new Map(last.checks.views.filter((v) => !v.unreachable).map((v) => [v.viewport, v]));
     if (!latest.get("desktop")?.ok || !latest.get("mobile")?.ok) throw new Error(`view_page tidak lulus di desktop dan ponsel: ${JSON.stringify(last.checks.views)}`);
@@ -97,13 +97,13 @@ async function widgetFlow(app) {
 
 try {
   run("npm", ["run", "build"], ROOT);
-  const zentara = pack(path.join(ROOT, "packages", "zentara"));
-  const create = pack(path.join(ROOT, "packages", "create-zentara"));
+  const zusantara = pack(path.join(ROOT, "packages", "zusantara"));
+  const create = pack(path.join(ROOT, "packages", "create-zusantara"));
   const app = path.join(WORK, "app");
-  run("npm", ["exec", "--yes", `--package=${create}`, "--", "create-zentara", app, "--template", "minimal", "--no-install", "--yes", "--zentara-spec", `file:${zentara}`], WORK);
+  run("npm", ["exec", "--yes", `--package=${create}`, "--", "create-zusantara", app, "--template", "minimal", "--no-install", "--yes", "--zusantara-spec", `file:${zusantara}`], WORK);
   run("npm", ["install", "--no-audit", "--no-fund"], app);
 
-  const cli = path.join(app, "node_modules", "zentara", "dist", "cli.js");
+  const cli = path.join(app, "node_modules", "zusantara", "dist", "cli.js");
   run(process.execPath, [cli, "ai:status"], app, { inherit: true });
   const task =
     'Buat route baru di src/app/routes/api/ping.ts: GET mengembalikan JSON { "ok": true, "pesan": "pong" }. Jangan ubah file lain selain yang perlu.';

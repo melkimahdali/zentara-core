@@ -7,12 +7,12 @@ description: Validasi body, query, dan params dengan Standard Schema.
 
 # Validasi input
 
-`validate()` menerima schema apa pun yang mengikuti [Standard Schema](https://standardschema.dev), misalnya zod, valibot, atau arktype. Core Zentara tetap tanpa dependency.
+`validate()` menerima schema apa pun yang mengikuti [Standard Schema](https://standardschema.dev), misalnya zod, valibot, atau arktype. Core Zusantara tetap tanpa dependency.
 
 ```ts
 // npm install zod
 import { z } from "zod";
-import { validate } from "zentara";
+import { validate } from "zusantara";
 
 export const POST = validate(
   {

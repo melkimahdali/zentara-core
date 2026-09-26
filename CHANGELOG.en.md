@@ -1,6 +1,22 @@
 # Changelog
 
-English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
+English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zusantara-core/blob/main/CHANGELOG.md). `zusantara` and `create-zusantara` (before 0.12.10: `zentara` and `create-zentara`) always share the same version.
+
+## [0.12.10]
+
+### Changed
+- **Zentara is now called Zusantara.** The name "Zentara" is already used by several other software companies and products, so the framework is renamed before 1.0. The npm packages are now `zusantara` and `create-zusantara`, the CLI command is `zusantara`, the config file is `zusantara.config.mjs`, environment variables are `ZUSANTARA_*`, the local data folder is `.zusantara/`, and internal URLs are `/_zusantara/*`. The repo moves to `melkimahdali/zusantara-core` and the docs to https://zusantara.morixa.id.
+- The Z logo stays the same.
+
+### Added
+- **`zusantara migrate:zusantara`** moves an existing project in one run: `zentara` and `zentara/...` imports, dependencies and scripts in `package.json`, `zentara.config.*`, `ZENTARA_*` in `.env`, and the `.zentara/` folder. Run `npm install` afterwards.
+
+### Compatibility (0.12.x only, removed in 0.13)
+- The `zentara` command still works as an alias of `zusantara`.
+- `zentara.config.mjs` / `.js` is still loaded when there is no `zusantara.config.*`.
+- `ZENTARA_*` variables are still read when the matching `ZUSANTARA_*` is not set.
+- The project's `.zentara/` folder and `~/.zentara` move to `.zusantara/` automatically the first time the CLI runs (`.gitignore` is updated too).
+- `/_zentara/*` URLs are still served, and the `zentara_jobs` queue table keeps working under the name `zusantara_jobs`.
 
 ## [0.12.9]
 

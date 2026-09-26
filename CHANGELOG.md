@@ -1,6 +1,22 @@
 # Changelog
 
-Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
+Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zusantara` dan `create-zusantara` (sebelum 0.12.10: `zentara` dan `create-zentara`) selalu dinaikkan bersamaan.
+
+## [0.12.10]
+
+### Diubah
+- **Zentara kini bernama Zusantara.** Nama "Zentara" sudah dipakai beberapa perusahaan dan produk software lain, sehingga framework ini berganti nama sebelum 1.0. Paket npm menjadi `zusantara` dan `create-zusantara`, perintah CLI menjadi `zusantara`, file config menjadi `zusantara.config.mjs`, variabel lingkungan menjadi `ZUSANTARA_*`, folder data lokal menjadi `.zusantara/`, dan URL internal menjadi `/_zusantara/*`. Repo pindah ke `melkimahdali/zusantara-core` dan dokumentasi ke https://zusantara.morixa.id.
+- Logo Z tetap sama.
+
+### Ditambahkan
+- **`zusantara migrate:zusantara`** memindahkan proyek lama sekali jalan: import `zentara` dan `zentara/...`, dependensi dan script di `package.json`, `zentara.config.*`, `ZENTARA_*` di `.env`, dan folder `.zentara/`. Setelah itu jalankan `npm install`.
+
+### Kompatibilitas (hanya di 0.12.x, dihapus di 0.13)
+- Perintah `zentara` tetap tersedia sebagai alias `zusantara`.
+- `zentara.config.mjs` / `.js` tetap dimuat bila `zusantara.config.*` belum ada.
+- Variabel `ZENTARA_*` tetap dibaca bila `ZUSANTARA_*` yang sama tidak diatur.
+- Folder `.zentara/` di proyek dan `~/.zentara` dipindah otomatis ke `.zusantara/` saat CLI pertama jalan (`.gitignore` ikut diperbarui).
+- URL `/_zentara/*` tetap dilayani, dan tabel antrean `zentara_jobs` dipakai terus dengan nama `zusantara_jobs`.
 
 ## [0.12.9]
 

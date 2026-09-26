@@ -43,7 +43,7 @@ jobs:
         env:
           TAG: ${{ github.event.release.tag_name }}
         run: |
-          for pkg in zentara create-zentara; do
+          for pkg in zusantara create-zusantara; do
             v=$(node -p "require('./packages/$pkg/package.json').version")
             if [ "v$v" != "$TAG" ]; then
               echo "::error::Tag $TAG tidak cocok dengan versi $pkg ($v). Jalankan: node scripts/version.mjs <versi>"
@@ -56,18 +56,21 @@ jobs:
           # npm hanya bisa membuat provenance untuk repo publik; repo private tetap bisa rilis tanpa provenance.
           PROVENANCE: ${{ github.event.repository.private && '--no-provenance' || '--provenance' }}
         run: |
-          for pkg in zentara create-zentara; do
+          for pkg in zusantara create-zusantara; do
             v=$(node -p "require('./packages/$pkg/package.json').version")
             if npm view "$pkg@$v" version >/dev/null 2>&1; then
               echo "$pkg@$v sudah tayang di npm, dilewati"
               continue
             fi
             # npm stage tidak mengenal workspace: jalankan dari folder paketnya.
-            out=$(cd "packages/$pkg" && npm stage publish --access public $PROVENANCE 2>&1 | tee /dev/stderr)
+            # Nama paket zusantara dipesan dengan placeholder 1.0.0 (deprecated): versi rilis sungguhan harus diberi
+            # tag latest secara eksplisit, karena npm menolak memindahkan latest ke versi yang lebih rendah.
+            case "$v" in *-*) TAG_ARG="" ;; *) TAG_ARG="--tag latest" ;; esac
+            out=$(cd "packages/$pkg" && npm stage publish --access public $TAG_ARG $PROVENANCE 2>&1 | tee /dev/stderr)
             id=$(echo "$out" | grep -oE 'staged with id [0-9a-f-]{36}' | head -1 | awk '{print $4}')
             if [ -z "$id" ]; then echo "::error::ID stage untuk $pkg@$v tidak ditemukan di output npm"; exit 1; fi
             # Anotasi bisa dibaca publik lewat API GitHub; dipakai oleh `npm run release:approve`.
-            echo "::notice title=zentara-stage::$pkg@$v stage-id=$id"
+            echo "::notice title=zusantara-stage::$pkg@$v stage-id=$id"
             {
               echo "### $pkg@$v menunggu persetujuan"
               echo '```'

@@ -1,0 +1,180 @@
+import fs from "node:fs";
+import { readSettings, resolveLocale, t, type Locale } from "../i18n/index.js";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { applyLegacyEnv, LEGACY_CONFIG_FILES } from "./legacy.js";
+import { isLogLevel, type LogLevel } from "./logger.js";
+import type { Middleware } from "./middleware.js";
+import type { ZenPlugin } from "./plugin.js";
+import { resolveUiTheme, type UiTheme, type UiThemeConfig } from "../ui/theme.js";
+
+export interface ZenConfig {
+  appName: string;
+  env: string;
+  /**
+   * Tampilkan halaman error lengkap (stack trace, potongan kode, detail request) di browser.
+   * Default: true hanya bila NODE_ENV=development (atau `env: "development"` di config) diisi eksplisit;
+   * `zusantara dev` selalu mengisinya. Env ZUSANTARA_DEBUG=true/false menang.
+   * Jangan aktifkan di produksi: halaman error membuka kode sumber.
+   */
+  debug: boolean;
+  host: string;
+  port: number;
+  /**
+   * Folder aplikasi (absolut) berisi routes/, middleware, db/, dll.
+   * Default: env ZUSANTARA_APP_DIR, lalu `src/app` bila ada (dev), selain itu `dist/app` (hasil build).
+   */
+  appDir: string;
+  /** Folder route (absolut). Default: `<appDir>/routes`. */
+  routesDir: string;
+  /** Folder file statis (absolut), atau `false` untuk mematikan. */
+  publicDir: string | false;
+  /** Batas ukuran body request dalam byte. */
+  bodyLimit: number;
+  logLevel: LogLevel;
+  plugins: ZenPlugin[];
+  /** Middleware global, dijalankan sebelum middleware plugin dan file middleware aplikasi. */
+  middleware: Middleware[];
+  /**
+   * File yang meng-export default array middleware aplikasi (tanpa ekstensi atau dengan).
+   * Default: `app/middleware` di samping folder route. `false` untuk mematikan.
+   */
+  middlewareFile: string | false;
+  /**
+   * Bahasa Zusantara untuk proyek ini: halaman bawaan, pesan error, kit UI, dan CLI ("id" atau "en").
+   * Env ZUSANTARA_LANG menang. Tanpa ini: preferensi global (`zusantara lang`, hanya di luar produksi),
+   * lalu Bahasa Indonesia.
+   */
+  locale: Locale;
+  /** Job latar belakang dan jadwal dari folder `jobs/` di samping `routes/`. */
+  jobs: JobsConfig;
+  /** Pengiriman email lewat sendMail(). Env MAIL_URL dan MAIL_FROM menang. */
+  mail: MailSettings;
+  /** Tema kit UI `zusantara/ui`: `{ accent, radius, font, mode }`. Atur juga dengan `zusantara theme`. */
+  ui: UiTheme;
+}
+
+export interface JobsConfig {
+  /** "sqlite" (bawaan; tahan restart) atau "memory" (bawaan saat NODE_ENV=test). */
+  store: "sqlite" | "memory";
+  /** File SQLite antrean. Default data/jobs.db. */
+  path: string;
+  /** Jalankan pekerja & penjadwal di proses server ini. Env ZUSANTARA_JOBS=off mematikan. Default true. */
+  worker: boolean;
+  /** Job yang berjalan bersamaan. Default 2. */
+  concurrency: number;
+  /** Selang pengecekan antrean (ms). Default 1000. */
+  pollMs: number;
+}
+
+export interface MailSettings {
+  /** smtp://user:pass@host:587, smtps://...:465, "log", atau "memory". */
+  url?: string;
+  /** Pengirim bawaan, mis. "Aplikasi <halo@contoh.id>". */
+  from?: string;
+}
+
+/** Pengaturan CLI interaktif `zusantara`. */
+export interface CliConfig {
+  /** Animasi logo saat CLI dibuka (default true; env ZUSANTARA_ANIMATION=off mematikan). */
+  animation?: boolean;
+  /**
+   * Layar penuh seperti ruang chat: header terkunci di atas, log bisa digulir, input di bawah
+   * (default true bila terminal interaktif; env ZUSANTARA_FULLSCREEN=off mematikan).
+   */
+  fullscreen?: boolean;
+}
+
+export type UserConfig = Omit<Partial<ZenConfig>, "jobs" | "mail" | "ui"> & { cli?: CliConfig; jobs?: Partial<JobsConfig>; mail?: MailSettings; ui?: UiThemeConfig };
+
+export function defineConfig(config: UserConfig): UserConfig {
+  return config;
+}
+
+/** Folder aplikasi default: sumber TypeScript saat pengembangan, hasil build bila sumbernya tidak ada. */
+export function defaultAppDir(cwd = process.cwd(), env: NodeJS.ProcessEnv = process.env): string {
+  if (env.ZUSANTARA_APP_DIR) return path.resolve(cwd, env.ZUSANTARA_APP_DIR);
+  const src = path.join(cwd, "src", "app");
+  return fs.existsSync(src) ? src : path.join(cwd, "dist", "app");
+}
+const CONFIG_FILES = ["zusantara.config.mjs", "zusantara.config.js", ...LEGACY_CONFIG_FILES];
+
+function parsePort(value: unknown): number {
+  const port = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+  if (typeof port !== "number" || !Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error(t().core.invalidPort(String(value)));
+  }
+  return port;
+}
+
+/** Gabungkan config pengguna, variabel lingkungan, dan default. Env (PORT, HOST, NODE_ENV, LOG_LEVEL) menang. */
+export function resolveConfig(user: UserConfig = {}, env: NodeJS.ProcessEnv = process.env, cwd = process.cwd()): ZenConfig {
+  applyLegacyEnv(env);
+  const envName = env.NODE_ENV || user.env || "development";
+  const logLevel = env.LOG_LEVEL ?? user.logLevel ?? (envName === "test" ? "warn" : "info");
+  if (!isLogLevel(logLevel)) throw new Error(`Invalid logLevel: ${logLevel}`);
+
+  const bodyLimit = user.bodyLimit ?? 1024 * 1024;
+  if (!Number.isInteger(bodyLimit) || bodyLimit < 0) throw new Error(`Invalid bodyLimit: ${bodyLimit}`);
+
+  const appDir = user.appDir ? path.resolve(cwd, user.appDir) : defaultAppDir(cwd, env);
+  const routesDir = user.routesDir ? path.resolve(cwd, user.routesDir) : path.join(appDir, "routes");
+  const publicDir = user.publicDir === false ? false : path.resolve(cwd, user.publicDir ?? "public");
+
+  const debugEnv = env.ZUSANTARA_DEBUG?.trim().toLowerCase();
+  // Tanpa NODE_ENV/env yang diisi eksplisit, anggap bukan pengembangan: halaman error lengkap tidak boleh
+  // muncul di server produksi yang lupa mengatur NODE_ENV. `zusantara dev` selalu mengisi NODE_ENV=development.
+  const explicitDev = env.NODE_ENV ? env.NODE_ENV === "development" : user.env === "development";
+  const debug = debugEnv ? ["1", "true", "yes", "on"].includes(debugEnv) : (user.debug ?? explicitDev);
+
+  // Server produksi tidak bergantung pada preferensi di folder home developer.
+  const locale = resolveLocale({ env, config: user.locale, settings: envName === "production" ? {} : readSettings(env) });
+  const jobsFlag = env.ZUSANTARA_JOBS?.trim().toLowerCase();
+  const jobs: JobsConfig = {
+    store: user.jobs?.store ?? (envName === "test" ? "memory" : "sqlite"),
+    path: path.resolve(cwd, user.jobs?.path ?? path.join("data", "jobs.db")),
+    worker: jobsFlag ? !["0", "off", "false", "no"].includes(jobsFlag) : (user.jobs?.worker ?? true),
+    concurrency: user.jobs?.concurrency ?? 2,
+    pollMs: user.jobs?.pollMs ?? 1000,
+  };
+  if (jobs.store !== "sqlite" && jobs.store !== "memory") throw new Error(`Invalid jobs.store: ${String(jobs.store)}`);
+  if (!Number.isInteger(jobs.concurrency) || jobs.concurrency < 1) throw new Error(`Invalid jobs.concurrency: ${jobs.concurrency}`);
+  return {
+    locale,
+    jobs,
+    ui: resolveUiTheme(user.ui),
+    mail: { url: env.MAIL_URL || user.mail?.url, from: env.MAIL_FROM || user.mail?.from },
+    appName: user.appName ?? "Zusantara App",
+    env: envName,
+    debug,
+    host: env.HOST || user.host || "0.0.0.0",
+    port: parsePort(env.PORT ?? user.port ?? 3000),
+    appDir,
+    routesDir,
+    publicDir,
+    bodyLimit,
+    logLevel,
+    plugins: user.plugins ?? [],
+    middleware: user.middleware ?? [],
+    middlewareFile:
+      user.middlewareFile === false
+        ? false
+        : user.middlewareFile
+          ? path.resolve(cwd, user.middlewareFile)
+          : path.join(path.dirname(routesDir), "middleware"),
+  };
+}
+
+/** Muat `zusantara.config.mjs` / `.js` dari folder proyek bila ada (nama lama `zentara.config.*` masih dibaca). */
+export async function loadConfigFile(cwd = process.cwd()): Promise<UserConfig> {
+  for (const name of CONFIG_FILES) {
+    const file = path.join(cwd, name);
+    if (!fs.existsSync(file)) continue;
+    const mod = (await import(pathToFileURL(file).href)) as { default?: unknown };
+    if (mod.default === undefined || typeof mod.default !== "object" || mod.default === null) {
+      throw new Error(t().core.configExport(name));
+    }
+    return mod.default as UserConfig;
+  }
+  return {};
+}

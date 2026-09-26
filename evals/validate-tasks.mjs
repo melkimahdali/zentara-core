@@ -8,7 +8,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const CREATE = path.join(ROOT, "packages", "create-zentara");
+const CREATE = path.join(ROOT, "packages", "create-zusantara");
 const CATEGORIES = new Set(["api", "database", "auth", "page", "jobs", "bugfix", "safety"]);
 const DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 const LANGS = ["id", "en"];
@@ -17,7 +17,7 @@ const spec = JSON.parse(fs.readFileSync(path.join(ROOT, "evals", "tasks.json"), 
 const errors = [];
 const fail = (id, msg) => errors.push(`${id}: ${msg}`);
 
-/** Isi file seperti hasil create-zentara: overlay bahasa (bila ada) menimpa template Bahasa Indonesia. */
+/** Isi file seperti hasil create-zusantara: overlay bahasa (bila ada) menimpa template Bahasa Indonesia. */
 function templateFile(template, lang, file) {
   const overlay = path.join(CREATE, "locales", lang, template, file);
   if (lang !== "id" && fs.existsSync(overlay)) return fs.readFileSync(overlay, "utf8");

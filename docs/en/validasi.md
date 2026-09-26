@@ -7,12 +7,12 @@ description: Validate body, query, and params with Standard Schema.
 
 # Input validation
 
-`validate()` accepts any schema that follows [Standard Schema](https://standardschema.dev), such as zod, valibot, or arktype. The Zentara core stays dependency-free.
+`validate()` accepts any schema that follows [Standard Schema](https://standardschema.dev), such as zod, valibot, or arktype. The Zusantara core stays dependency-free.
 
 ```ts
 // npm install zod
 import { z } from "zod";
-import { validate } from "zentara";
+import { validate } from "zusantara";
 
 export const POST = validate(
   {

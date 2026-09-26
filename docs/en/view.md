@@ -8,13 +8,13 @@ description: Render safe HTML with h() and renderToString().
 # Views & HTML
 
 ```ts
-import { h, raw, renderToString } from "zentara";
+import { h, raw, renderToString } from "zusantara";
 
 renderToString(h("p", { class: "note" }, userInput)); // text & attributes are escaped automatically
 renderToString(h("style", null, raw(css)));            // raw() is for trusted HTML only
 ```
 
-For complete Zentara-styled pages (sign-in, dashboard, admin), use the [`zentara/ui` kit](ui.html).
+For complete Zusantara-styled pages (sign-in, dashboard, admin), use the [`zusantara/ui` kit](ui.html).
 
 ## Static files
 

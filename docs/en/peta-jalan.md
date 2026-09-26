@@ -2,14 +2,14 @@
 title: Roadmap
 order: 5
 group: Reference
-description: How Zentara Core is being developed toward 1.0.
+description: How Zusantara Core is being developed toward 1.0.
 ---
 
 # Roadmap
 
-Zentara Core is developed in stages. Each stage ships as a new minor version and is listed in the [release notes](rilis.html). The order of unfinished stages may still change.
+Zusantara Core is developed in stages. Each stage ships as a new minor version and is listed in the [release notes](rilis.html). The order of unfinished stages may still change.
 
-Zentara is a general-purpose web framework, not a framework for one kind of app. The default template only gives you a neutral starting point (sign-in, dashboard, users, and a Notes CRUD example), and you are free to build anything on top of it: a blog, a booking system, an internal dashboard, an API, a portfolio, or a shop.
+Zusantara is a general-purpose web framework, not a framework for one kind of app. The default template only gives you a neutral starting point (sign-in, dashboard, users, and a Notes CRUD example), and you are free to build anything on top of it: a blog, a booking system, an internal dashboard, an API, a portfolio, or a shop.
 
 ## Released
 
@@ -17,14 +17,14 @@ Zentara is a general-purpose web framework, not a framework for one kind of app.
 |---|---|---|
 | 1 | before 0.6 | Core foundation: file-based routing, responses and error handling, escaped HTML rendering, static files, config |
 | 2 | before 0.6 | Middleware, cookies, encrypted sessions, CSRF, CORS, validation, basic CLI |
-| 3 | before 0.6 | Zentara AI: build apps in plain language, approvals, undo, provider fallback |
+| 3 | before 0.6 | Zusantara AI: build apps in plain language, approvals, undo, provider fallback |
 | 4 | before 0.6 | Drizzle database (SQLite and PostgreSQL), auth, database-aware AI |
-| 5 | 0.6 | The `zentara` and `create-zentara` npm packages, automated releases with 2FA approval |
+| 5 | 0.6 | The `zusantara` and `create-zusantara` npm packages, automated releases with 2FA approval |
 | 6 | 0.7 | Claude Code–style interactive CLI, background dev server, error and welcome pages |
-| 7 | 0.8 | The Zentara Core brand and documentation site |
-| 8 | 0.9 | Zentara AI architecture and safety: streaming, saved sessions, safe `run_command`, diffs |
-| 9 | 0.10 | Front-end: the `zentara/ui` kit, built-in pages, and the Ink-based CLI |
-| 10 | 0.12 | [English support](bahasa.html): CLI, Zentara AI, built-in pages, UI kit, templates, and docs in `id` and `en` |
+| 7 | 0.8 | The Zusantara Core brand and documentation site |
+| 8 | 0.9 | Zusantara AI architecture and safety: streaming, saved sessions, safe `run_command`, diffs |
+| 9 | 0.10 | Front-end: the `zusantara/ui` kit, built-in pages, and the Ink-based CLI |
+| 10 | 0.12 | [English support](bahasa.html): CLI, Zusantara AI, built-in pages, UI kit, templates, and docs in `id` and `en` |
 | 11 | 0.12 | Back-end: [jobs & schedules](jobs.html), [email](email.html), [file uploads](upload.html), [cache](cache.html) |
 
 Stages 10 and 11 shipped together in 0.12.
@@ -33,21 +33,21 @@ Stages 10 and 11 shipped together in 0.12.
 
 | Stage | Version | Contents |
 |---|---|---|
-| 12 | 0.12.5 | Zentara AI chat on every page during development, and an AI that can see the page and check its layout on desktop and mobile (`view_page`) |
+| 12 | 0.12.5 | Zusantara AI chat on every page during development, and an AI that can see the page and check its layout on desktop and mobile (`view_page`) |
 | 12b | 0.12.6 | Layout foundations and complete forms: layout, Select, Checkbox, Radio, Switch, file upload, theme config, and a component catalog |
 | 12c | 0.12.7 | Navigation, dialogs, notifications, and data display: Navbar, Tabs, Pagination, Dialog, Toast, Accordion, Timeline, Calendar, 403/404/500 pages |
 | 12d | 0.12.8 | Public pages and ready-made patterns: Hero, Pricing, Gallery, FAQ, Testimonial, ProductCard, cart, and full example pages |
 | 12e | 0.12.9 | Developer tools: per-request toolbar (queries, N+1), inspect mode, page score, tablet/dark/en variants, screenshots, recorded steps, voice input |
-| 13 | 0.13 | Admin panel foundations with [htmx](https://htmx.org): re-runnable CRUD from the schema, sort/search/filter, permissions, admin dashboard, and `zentara describe --json` |
+| 13 | 0.13 | Admin panel foundations with [htmx](https://htmx.org): re-runnable CRUD from the schema, sort/search/filter, permissions, admin dashboard, and `zusantara describe --json` |
 | 13b | 0.13.1 | Relations, content, and workflows: many-to-many, CSV/Excel, audit log, revisions, draft and publish, SEO, media, approvals, automations, schema editor |
 | 13c | 0.13.2 | Calendar/kanban/spreadsheet views, saved views, per-column and per-row permissions, user management, multi-tenant, API and webhooks, UU PDP |
 | 13d | 0.13.3 | Content and business templates: business, portfolio, blog, news, government, service provider, static, public |
 | 13e | 0.13.4 | Application and transaction templates: online shop, e-learning, file sharing, search engine, dynamic |
 | 13f | 0.13.5 | Community and access templates: social media, intranet, extranet, PWA, SPA |
-| 14 | 0.14 | Zentara for every AI agent: `zentara mcp`, `search_docs`, runtime tools, MCP client, code index, OpenAPI, AI rules and costs, `AGENTS.md`, `llms.txt` |
+| 14 | 0.14 | Zusantara for every AI agent: `zusantara mcp`, `search_docs`, runtime tools, MCP client, code index, OpenAPI, AI rules and costs, `AGENTS.md`, `llms.txt` |
 | 14b | 0.14.1 | An AI that plans and sees: plan mode, checkpoints per task, visual editing, image or design to page |
 | 15 | 0.15 | Testing and AI evals: test helpers, factories, fakes, a database per test, `--watch`, bug-to-test workflow, published evals |
-| 15b | 0.15.1 | Browser tests and performance: `--browser`, accessibility, recorded tests, visual regression, `zentara ci github`, benchmarks |
+| 15b | 0.15.1 | Browser tests and performance: `--browser`, accessibility, recorded tests, visual regression, `zusantara ci github`, benchmarks |
 | 15c | 0.15.2 | Security tests and test quality: schema fuzzing, automatic security tests, mutation testing |
 | 16 | 0.16 | Portable runtime: a standard `app.fetch()` core and a lean production package without the CLI/AI |
 | 17 | 0.17 | One-command deploy: Docker, PM2, Vercel, and Cloudflare (experimental) |
@@ -58,10 +58,10 @@ Items marked **[pending decision]** below follow the current recommendation and 
 
 ### Stage 12 · 0.12.5: chat on every page and `view_page`
 
-The goal: Zentara AI can be called from any page during development, and can **see for itself** the pages it builds, including whether the layout looks right. This stage also lays the groundwork for the UI kit in stage 12b and the AI evals in stage 15, so those stages do not have to rework stage 12.
+The goal: Zusantara AI can be called from any page during development, and can **see for itself** the pages it builds, including whether the layout looks right. This stage also lays the groundwork for the UI kit in stage 12b and the AI evals in stage 15, so those stages do not have to rework stage 12.
 
 **Chat widget**
-- Injected into every HTML response only when three conditions hold: `config.debug`, devtools is running, and the server was started by `zentara dev` or the interactive CLI. `zentara start` and production never load it, and the `/_zentara/dev/*` assets return 404 in production.
+- Injected into every HTML response only when three conditions hold: `config.debug`, devtools is running, and the server was started by `zusantara dev` or the interactive CLI. `zusantara start` and production never load it, and the `/_zusantara/dev/*` assets return 404 in production.
 - Loaded as an external script (not inline), so it keeps working when the built-in CSP arrives in stage 19.
 - Uses the same chat flow as the error page: diff with Approve/Reject, Undo, Stop, and Reset. Pages that already have their own chat (welcome, error) do not get a second widget.
 - Every message automatically carries the page context and the route file that serves the URL, so "change this page" points at the right file.
@@ -81,31 +81,31 @@ The goal: Zentara AI can be called from any page during development, and can **s
 - Every AI task records a short result in the local journal: success/failure, number of steps, and the typecheck, test, and `view_page` results. The evals in stage 15 use this data, and it never leaves your computer.
 
 **CLI and both languages**
-- `zentara view <url> [--mobile]` prints the same result in the terminal, and the interactive CLI shows `view_page` results like any other tool.
+- `zusantara view <url> [--mobile]` prints the same result in the terminal, and the interactive CLI shows `view_page` results like any other tool.
 - All widget, tool, and layout-check text is available in Indonesian and English.
 
 **Done when**
 - Unit: widget injection conditions, filtering of private data, every kind of layout check on a deliberately broken sample page, and `expect`.
-- e2e: in a scaffolded project, `zentara dev` injects the widget and `zentara start` does not; `zentara view /login` and `zentara view /login --mobile` pass with no findings; the broken sample page produces the right findings.
+- e2e: in a scaffolded project, `zusantara dev` injects the widget and `zusantara start` does not; `zusantara view /login` and `zusantara view /login --mobile` pass with no findings; the broken sample page produces the right findings.
 - AI smoke (manual/scheduled): a request such as "add page X" ends with a `view_page` that passes on desktop and mobile.
 
 ### A complete UI kit: stages 12b, 12c, and 12d
 
-The `zentara/ui` kit currently has about 25 components, almost all of them for dashboards and simple forms. `Field` does not even have a dropdown (`select`), checkboxes, radio buttons, switches, or file upload yet. Because Zentara AI may not write its own CSS, every missing component is a layout the AI cannot build. The three stages below complete the UI kit before the admin panel, done in order with one PR per stage.
+The `zusantara/ui` kit currently has about 25 components, almost all of them for dashboards and simple forms. `Field` does not even have a dropdown (`select`), checkboxes, radio buttons, switches, or file upload yet. Because Zusantara AI may not write its own CSS, every missing component is a layout the AI cannot build. The three stages below complete the UI kit before the admin panel, done in order with one PR per stage.
 
 **Rules for every new component** (in 12b, 12c, 12d, and later stages):
 - Rendered on the server and fully working without JavaScript. A small built-in script only adds convenience (e.g. closing a dialog with Esc).
-- Built-in text in Indonesian and English, light and dark mode, and following the theme from `zentara.config.mjs`.
+- Built-in text in Indonesian and English, light and dark mode, and following the theme from `zusantara.config.mjs`.
 - Accessible: the right HTML elements, labels, keyboard focus, and enough contrast.
-- Listed in the component catalog (examples and purpose for the AI) and the `/_zentara/ui` gallery.
+- Listed in the component catalog (examples and purpose for the AI) and the `/_zusantara/ui` gallery.
 - Covered by unit tests (id/en rendering, escaping, no JS) and passing the `view_page` layout checks on desktop and mobile.
 
 #### Stage 12b · 0.12.6: layout foundations and complete forms
 
 - **Layout:** `Container`, `Stack`, `Row`/`Cluster`, `Columns`, `Section`, `Divider`, and `PageHeader` (title, description, breadcrumb, and action buttons). Spacing and alignment through props with a fixed set of values.
 - **Complete forms:** `Select`, `Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `FileInput` (with image preview, wired to `saveUpload`), `Fieldset`, inputs with a prefix/suffix (e.g. "Rp"), show/hide password, and the `time`, `datetime-local`, `month`, `range`, and `color` types in `Field`. Validation and error messages still go through `tryParse` as today.
-- **Theme** in `zentara.config.mjs` (`ui: { accent, radius, font, mode }`), so colors and fonts can change without CSS. The default stays the Zentara brand.
-- **Component catalog** for the AI (id/en, generated from source) and the `/_zentara/ui` gallery during development. `zentara ui` prints the catalog and `zentara theme` sets the theme.
+- **Theme** in `zusantara.config.mjs` (`ui: { accent, radius, font, mode }`), so colors and fonts can change without CSS. The default stays the Zusantara brand.
+- **Component catalog** for the AI (id/en, generated from source) and the `/_zusantara/ui` gallery during development. `zusantara ui` prints the catalog and `zusantara theme` sets the theme.
 - **New AI workflow:** pick components from the catalog, arrange them with the layout primitives, then check with `view_page`. When the kit is not enough, the AI explains the limit and offers custom CSS with your approval.
 
 #### Stage 12c · 0.12.7: navigation, overlays, feedback, and data display
@@ -127,7 +127,7 @@ The `zentara/ui` kit currently has about 25 components, almost all of them for d
 
 ### Stage 12e · 0.12.9: developer tools
 
-Compared with Django Debug Toolbar, Laravel Telescope, Lighthouse, Sentry, and the Vite/Svelte inspectors. All of these tools exist only during development, and Zentara AI can read all of their data.
+Compared with Django Debug Toolbar, Laravel Telescope, Lighthouse, Sentry, and the Vite/Svelte inspectors. All of these tools exist only during development, and Zusantara AI can read all of their data.
 
 - **Per-request dev toolbar:** processing time, database queries with their timings, N+1 query detection, session contents, and logs.
 - **Inspect mode:** hover over an element on the page to see the file and line of code that renders it.
@@ -145,13 +145,13 @@ Compared with Django Admin, Laravel Filament/Nova, Rails Avo, Airtable/NocoDB, D
 #### Stage 13 · 0.13: data and admin panel foundations
 
 - htmx joins the core, with an `hx` prop in the UI kit and badged menu items. The admin panel uses the components from stages 12b to 12d, plus components that need the server: a searchable `Combobox` and sortable tables with inline editing.
-- `zentara make:admin` builds admin pages from the database schema, and **can be run again** after the schema changes without overwriting code you edited (only marked blocks are updated).
+- `zusantara make:admin` builds admin pages from the database schema, and **can be run again** after the schema changes without overwriting code you edited (only marked blocks are updated).
 - Record lists with column sorting, search across several columns, and filters per data type (date range, enum, boolean).
 - Image and file columns automatically use `FileInput` with a preview.
 - Permissions per table and per action (view, create, update, delete) based on role.
 - An automatic admin dashboard: record counts per table and the latest records.
 - One AI request is carried out end to end, e.g. "add a status column to products": schema, migration, admin, tests, then a check with `view_page`.
-- `zentara describe --json` prints the app manifest (routes, tables and columns, admin pages, jobs, plugins) without secret columns. Zentara AI uses this manifest as its starting context, and it becomes the main tool of `zentara mcp`.
+- `zusantara describe --json` prints the app manifest (routes, tables and columns, admin pages, jobs, plugins) without secret columns. Zusantara AI uses this manifest as its starting context, and it becomes the main tool of `zusantara mcp`.
 
 #### Stage 13b · 0.13.1: relations, content, and workflows
 
@@ -162,7 +162,7 @@ Compared with Django Admin, Laravel Filament/Nova, Rails Avo, Airtable/NocoDB, D
 - **Workflows:** statuses with transition rules and approvals, internal notes per record, custom actions that run jobs, and per-record printing and PDF export.
 - **Automations** in the style of Airtable/Zapier: "when record X is created or changed, send an email, a webhook, or run a job". Can be created through the AI.
 - **Plain-language filters**, e.g. "orders this month over 1 million", which the AI turns into a regular filter.
-- **Schema editor in the admin panel:** create tables and columns through the UI, and Zentara writes the Drizzle schema and its migration with your approval.
+- **Schema editor in the admin panel:** create tables and columns through the UI, and Zusantara writes the Drizzle schema and its migration with your approval.
 
 #### Stage 13c · 0.13.2: views, users, and integrations
 
@@ -177,7 +177,7 @@ Compared with Django Admin, Laravel Filament/Nova, Rails Avo, Airtable/NocoDB, D
 
 ### Templates per kind of website: stages 13d, 13e, and 13f
 
-Today `npm create zentara` only has the general `api` and `minimal` templates (both stay). These three stages add 18 templates per kind of website, used through `npm create zentara -- --template <name>` or picked from the interactive CLI and Zentara AI.
+Today `npm create zusantara` only has the general `api` and `minimal` templates (both stay). These three stages add 18 templates per kind of website, used through `npm create zusantara -- --template <name>` or picked from the interactive CLI and Zusantara AI.
 
 Every template includes: full example pages built with the UI kit, sample data (seed), the admin panel from stages 13–13c, tests, a scaffold e2e, `AGENTS.md`, and text in Indonesian and English. Its example pages also become eval tasks in stage 15.
 
@@ -189,7 +189,7 @@ Every template includes: full example pages built with the UI kit, sample data (
 - `berita` (news): sections, headlines, authors, archive, and most-read stories.
 - `pemerintah` (government): agency profile, public services, announcements, public documents, and complaints.
 - `layanan` (service provider): service list, prices, schedule booking, and order status.
-- `statis` (static): a site with no database, exported to HTML files. Adds **`zentara build --static`** to the core.
+- `statis` (static): a site with no database, exported to HTML files. Adds **`zusantara build --static`** to the core.
 - `publik` (public): an organization or community portal with events, announcements, forms, and donations.
 
 #### Stage 13e · 0.13.4: applications and transactions
@@ -212,19 +212,19 @@ Every template includes: full example pages built with the UI kit, sample data (
 
 Compared with Laravel Boost, the Next.js devtools MCP, Cursor, Devin, Replit Agent, Lovable, v0, ASP.NET, and Spring.
 
-#### Stage 14 · 0.14: Zentara for every AI agent
+#### Stage 14 · 0.14: Zusantara for every AI agent
 
-Developers who use Claude Code, Cursor, or other agents still get the best experience in a Zentara project, with the same safety rules as Zentara AI. **[pending decision: MCP moved up to this stage]**
+Developers who use Claude Code, Cursor, or other agents still get the best experience in a Zusantara project, with the same safety rules as Zusantara AI. **[pending decision: MCP moved up to this stage]**
 
-- `zentara mcp`: an MCP server with read tools (`describe`, `list_routes`, `view_page`, reading and searching files, dev server logs) and write tools (`make:*`, `db:generate`, `db:migrate`, writing and editing files). Path limits, the ban on `.env` and database files, and the critical actions are the same as in Zentara AI, and every change can be undone with `zentara undo`.
-- `search_docs`: searches the Zentara documentation for the installed version, so agents do not use outdated APIs.
+- `zusantara mcp`: an MCP server with read tools (`describe`, `list_routes`, `view_page`, reading and searching files, dev server logs) and write tools (`make:*`, `db:generate`, `db:migrate`, writing and editing files). Path limits, the ban on `.env` and database files, and the critical actions are the same as in Zusantara AI, and every change can be undone with `zusantara undo`.
+- `search_docs`: searches the Zusantara documentation for the installed version, so agents do not use outdated APIs.
 - Runtime tools: the latest errors with stack traces, the request log, job status, emails sent during development, and read-only database queries with secret columns masked.
 - Running a code snippet in the app's context (like Laravel's `tinker`), always with approval.
-- Zentara AI can use other MCP servers (e.g. GitHub, Figma).
+- Zusantara AI can use other MCP servers (e.g. GitHub, Figma).
 - A project code index so the AI stays accurate in large projects.
-- OpenAPI and typed clients generated automatically from routes, plus an architecture diagram from `zentara describe`.
+- OpenAPI and typed clients generated automatically from routes, plus an architecture diagram from `zusantara describe`.
 - A per-project AI rules file (what the AI may and may not do), a cost limit per task, an audit log of every agent action, and token cost shown per task.
-- `AGENTS.md` (and a short `CLAUDE.md`) in every template in both languages. `zentara agents` adds them to existing projects.
+- `AGENTS.md` (and a short `CLAUDE.md`) in every template in both languages. `zusantara agents` adds them to existing projects.
 - `llms.txt` and `llms-full.txt` generated automatically for the documentation site.
 
 #### Stage 14b · 0.14.1: an AI that plans and sees
@@ -240,21 +240,21 @@ Compared with Laravel (Pest, Dusk, fakes), Rails (system tests), AdonisJS (Japa)
 
 #### Stage 15 · 0.15: testing and AI evals
 
-- `zentara/testing`: `testApp()`, `loginAs`, test data factories, and `zentara test --coverage`. Zentara AI and the generators also write tests.
+- `zusantara/testing`: `testApp()`, `loginAs`, test data factories, and `zusantara test --coverage`. Zusantara AI and the generators also write tests.
 - Fakes for email, jobs, uploads, outgoing HTTP requests, and time (jump to a given date).
 - An isolated database per test, parallel tests, PostgreSQL support, and real databases through Docker (like Testcontainers).
-- `zentara test --watch` and running only the tests affected by a change.
+- `zusantara test --watch` and running only the tests affected by a change.
 - **"Bug to test" workflow:** every bug report is first written as a failing test, then fixed.
 - AI evals: standard tasks on the `api` template and the per-website templates, graded automatically (typecheck, tests, `view_page`, forbidden actions, number of steps, tokens). Model responses can be recorded so evals run in CI without an API key. Results are published per version on the documentation site.
 
 #### Stage 15b · 0.15.1: browser tests and performance
 
-- `zentara test --browser` (optional Playwright): fill in forms, click, automatic screenshots on failure, and `view_page` layout checks as assertions.
+- `zusantara test --browser` (optional Playwright): fill in forms, click, automatic screenshots on failure, and `view_page` layout checks as assertions.
 - Basic accessibility checks as assertions.
 - **Record tests from the browser:** click through a page with the widget, and it becomes a test file.
 - Visual regression: screenshots compared with the previous version.
-- `zentara ci github` writes a GitHub Actions workflow for the user's project.
-- `zentara bench` for the performance of the user's app, and a framework benchmark against Express and Fastify in CI so later stages do not make Zentara slower.
+- `zusantara ci github` writes a GitHub Actions workflow for the user's project.
+- `zusantara bench` for the performance of the user's app, and a framework benchmark against Express and Fastify in CI so later stages do not make Zusantara slower.
 
 #### Stage 15c · 0.15.2: security tests and test quality
 
@@ -264,62 +264,62 @@ Compared with Laravel (Pest, Dusk, fakes), Rails (system tests), AdonisJS (Japa)
 
 ### Stage 16 · 0.16: portable runtime and lean production package
 
-Zentara runs on Node, Bun, Deno, Vercel, and Cloudflare from one codebase.
+Zusantara runs on Node, Bun, Deno, Vercel, and Cloudflare from one codebase.
 
 - `app.fetch(request)` with standard `Request`/`Response` becomes the runtime core, and the Node server becomes a thin adapter on top of it. **[pending decision: fetch layer]**
-- `zentara build` writes a route manifest, so platforms without folder access can still serve routes.
-- The `zentara` package holds only the runtime, UI, database, and testing; the CLI and AI move to `@zentara/cli`, which still installs with `npm install -g zentara`. **[pending decision: package split]**
+- `zusantara build` writes a route manifest, so platforms without folder access can still serve routes.
+- The `zusantara` package holds only the runtime, UI, database, and testing; the CLI and AI move to `@zusantara/cli`, which still installs with `npm install -g zusantara`. **[pending decision: package split]**
 - Default security headers (`X-Content-Type-Options`, `Referrer-Policy`, `X-Frame-Options`, HSTS in production).
 - Existing apps keep working without code changes.
 
 ### Stage 17 · 0.17: one-command deploy
 
-- `zentara deploy:check` and `zentara deploy <target>`. Docker and PM2 are required, Vercel is fully supported, and Cloudflare is experimental.
+- `zusantara deploy:check` and `zusantara deploy <target>`. Docker and PM2 are required, Vercel is fully supported, and Cloudflare is experimental.
 - Vercel and Cloudflare use `app.fetch()` from stage 16, and the Docker image uses only the runtime package, so it is smaller.
-- Zentara AI may only use `--dry-run`; shipping to a server always asks for your approval. After a deploy, the health URL is checked and the result shown.
+- Zusantara AI may only use `--dry-run`; shipping to a server always asks for your approval. After a deploy, the health URL is checked and the result shown.
 
 ### Stage 18 · 0.18: plugin catalog
 
-- `zentara add <plugin>` with the first five plugins: Tailwind, charts (Chart.js), PostgreSQL, GitHub/Google sign-in, and Midtrans/Xendit payments.
+- `zusantara add <plugin>` with the first five plugins: Tailwind, charts (Chart.js), PostgreSQL, GitHub/Google sign-in, and Midtrans/Xendit payments.
 - Coming in 0.18.x: rich text editor, maps, React/Preact islands, WhatsApp, and local formats (Rupiah, NPWP, e-Faktur). Subagents and a language server follow in 0.18.x or after 1.0.
-- The license is settled before this stage, because plugin authors weigh the license before building on Zentara. **[pending decision: license]**
+- The license is settled before this stage, because plugin authors weigh the license before building on Zusantara. **[pending decision: license]**
 
 ### Stage 19 · 1.0: stable
 
-- A frozen, documented API, a security audit (including `zentara mcp` and the payment plugin), and a built-in CSP.
+- A frozen, documented API, a security audit (including `zusantara mcp` and the payment plugin), and a built-in CSP.
 - Complete bilingual documentation with tutorials tested by e2e, a release and LTS policy, `CONTRIBUTING.md`, and architecture docs.
 - Migration guides from Express and from Laravel.
 - AI evals and benchmarks for 1.0 are published, and the final license is stated in the README and `package.json`. **[pending decision: license]**
 
 ## Integrating other frameworks
 
-Zentara keeps a single UI system, the `zentara/ui` kit, so every page (including the ones Zentara AI builds) looks consistent and needs no build step.
+Zusantara keeps a single UI system, the `zusantara/ui` kit, so every page (including the ones Zusantara AI builds) looks consistent and needs no build step.
 
-- **Stages 12b to 12d:** a complete UI kit, themes, and public page components mean apps no longer have to look like the Zentara brand, still with no build step.
+- **Stages 12b to 12d:** a complete UI kit, themes, and public page components mean apps no longer have to look like the Zusantara brand, still with no build step.
 - **Stage 13:** [htmx](https://htmx.org) joins the core for pagination, filters, and form saves without full page reloads. The server still sends HTML.
-- **Stage 14:** other AI agents (Claude Code, Cursor, and other MCP clients) can work in a Zentara project through `zentara mcp` and `AGENTS.md`.
-- **Stage 18:** Tailwind, charts, rich text editors, maps, payments, Google/GitHub sign-in, and React/Preact "islands" become optional plugins from an official catalog (`zentara add <plugin>`). Zentara AI only offers them as options when a request actually needs one, with "no plugin" as the default, and installing always asks for approval.
+- **Stage 14:** other AI agents (Claude Code, Cursor, and other MCP clients) can work in a Zusantara project through `zusantara mcp` and `AGENTS.md`.
+- **Stage 18:** Tailwind, charts, rich text editors, maps, payments, Google/GitHub sign-in, and React/Preact "islands" become optional plugins from an official catalog (`zusantara add <plugin>`). Zusantara AI only offers them as options when a request actually needs one, with "no plugin" as the default, and installing always asks for approval.
 
 ## Stage 10: English (done)
 
-The goal: Zentara can be used fully in Indonesian **or** English, without changing behavior for existing users. Indonesian stays the default.
+The goal: Zusantara can be used fully in Indonesian **or** English, without changing behavior for existing users. Indonesian stays the default.
 
 This stage came before the back-end work, so stages 11 to 19 are written in both languages from the start.
 
 1. **i18n foundation in the core**
    - `id` and `en` message catalogs and a typed `t()` (a wrong key is a TypeScript error).
-   - The language comes from `zentara.config.mjs` (`locale: "en"`), the `ZENTARA_LANG` env, or `zentara lang en`.
-2. **CLI and Zentara AI**
+   - The language comes from `zusantara.config.mjs` (`locale: "en"`), the `ZUSANTARA_LANG` env, or `zusantara lang en`.
+2. **CLI and Zusantara AI**
    - Every text in the classic CLI, the Ink CLI, `ai:setup`, and error messages comes from the catalogs.
-   - Zentara AI replies in the user's language, and its system instructions are in English.
+   - Zusantara AI replies in the user's language, and its system instructions are in English.
 3. **Built-in framework pages**
    - The welcome page, development error and 404 pages, and the production status page.
    - Default `HttpError` and validation messages.
-4. **The `zentara/ui` kit**
+4. **The `zusantara/ui` kit**
    - Built-in texts such as "Skip to content", "Sign out", "Search…", and "No data yet" follow `page({ lang })`.
    - Numbers, currency, and dates are formatted with `Intl` for the language.
 5. **Project creator and templates**
-   - `npm create zentara` asks for the language (or `--lang en`).
+   - `npm create zusantara` asks for the language (or `--lang en`).
    - The `api` and `minimal` templates come in both languages: page texts, validation messages, README, and tests.
 6. **Documentation**
    - An English documentation site under `/en/` with a language switcher.

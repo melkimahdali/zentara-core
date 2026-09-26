@@ -1,0 +1,13 @@
+# Kategori catatan rilis otomatis GitHub. / Categories for GitHub's generated release notes.
+changelog:
+  exclude:
+    labels: [skip-changelog]
+  categories:
+    - title: Fitur baru / New features
+      labels: [enhancement, feature]
+    - title: Perbaikan / Fixes
+      labels: [bug, fix]
+    - title: Dokumentasi / Documentation
+      labels: [documentation]
+    - title: Lainnya / Other changes
+      labels: ["*"]

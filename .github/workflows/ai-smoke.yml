@@ -1,6 +1,6 @@
 name: AI smoke test
 
-# Uji Zentara AI dengan provider sungguhan. MEMAKAI KREDIT API, jadi hanya dijalankan manual:
+# Uji Zusantara AI dengan provider sungguhan. MEMAKAI KREDIT API, jadi hanya dijalankan manual:
 # Actions -> AI smoke test -> Run workflow. Simpan API key sebagai secret repo
 # (Settings -> Secrets and variables -> Actions), mis. OPENAI_API_KEY atau ANTHROPIC_API_KEY.
 on:
@@ -35,12 +35,12 @@ jobs:
         if: inputs.model != ''
         run: |
           case "${{ inputs.provider }}" in
-            claude) echo "ZENTARA_CLAUDE_MODEL=${{ inputs.model }}" >> "$GITHUB_ENV" ;;
+            claude) echo "ZUSANTARA_CLAUDE_MODEL=${{ inputs.model }}" >> "$GITHUB_ENV" ;;
             *) echo "$(echo '${{ inputs.provider }}' | tr a-z A-Z)_MODEL=${{ inputs.model }}" >> "$GITHUB_ENV" ;;
           esac
       - name: Jalankan uji AI
         env:
-          ZENTARA_AI_ORDER: ${{ inputs.provider }}
+          ZUSANTARA_AI_ORDER: ${{ inputs.provider }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

@@ -10,7 +10,7 @@ description: Sign-in, roles, and safe passwords.
 Auth is built into the core. Passwords are hashed with scrypt (OWASP parameters), and sign-ins use encrypted sessions.
 
 ```ts
-import { hashPassword, verifyPassword, fakeVerify, login, logout, currentUser, requireAuth, rateLimit, withMiddleware } from "zentara";
+import { hashPassword, verifyPassword, fakeVerify, login, logout, currentUser, requireAuth, rateLimit, withMiddleware } from "zusantara";
 
 login(ctx, { id: user.id, role: user.role });   // after the password matches
 logout(ctx);

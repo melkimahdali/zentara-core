@@ -1,17 +1,17 @@
 ---
-title: Kit UI (zentara/ui)
+title: Kit UI (zusantara/ui)
 order: 1
 group: Front-End
-description: Komponen HTML bergaya brand Zentara untuk halaman login, dasbor, dan admin.
+description: Komponen HTML bergaya brand Zusantara untuk halaman login, dasbor, dan admin.
 ---
 
-# Kit UI (zentara/ui)
+# Kit UI (zusantara/ui)
 
-`zentara/ui` berisi komponen HTML server-side yang siap pakai. Tampilannya mengikuti brand Zentara Core: font Plus Jakarta Sans, satu warna aksen teal (emas hanya di logo), mode gelap/terang mengikuti sistem, dan responsif di layar ponsel. Tanpa build step, dan semua teks di-escape otomatis.
+`zusantara/ui` berisi komponen HTML server-side yang siap pakai. Tampilannya mengikuti brand Zusantara Core: font Plus Jakarta Sans, satu warna aksen teal (emas hanya di logo), mode gelap/terang mengikuti sistem, dan responsif di layar ponsel. Tanpa build step, dan semua teks di-escape otomatis.
 
 ```ts
-import { h, type ZenContext } from "zentara";
-import { AuthCard, Button, Field, Form, page } from "zentara/ui";
+import { h, type ZenContext } from "zusantara";
+import { AuthCard, Button, Field, Form, page } from "zusantara/ui";
 
 export function GET(ctx: ZenContext) {
   return page(
@@ -27,11 +27,11 @@ export function GET(ctx: ZenContext) {
 }
 ```
 
-`page()` menghasilkan dokumen HTML lengkap yang memuat stylesheet `/_zentara/ui.css`. Stylesheet itu, beserta logo (`/_zentara/logo.webp`), favicon, dan font, disajikan langsung oleh framework, jadi tidak perlu disalin ke `public/`.
+`page()` menghasilkan dokumen HTML lengkap yang memuat stylesheet `/_zusantara/ui.css`. Stylesheet itu, beserta logo (`/_zusantara/logo.webp`), favicon, dan font, disajikan langsung oleh framework, jadi tidak perlu disalin ke `public/`.
 
 Setiap halaman dari `page()` juga sudah punya:
 
-- **Font Plus Jakarta Sans yang di-host sendiri** di `/_zentara/fonts/` (subset latin dan latin-ext, lisensi SIL OFL di `/_zentara/fonts/LICENSE.txt`). Tidak ada permintaan ke Google Fonts atau CDN lain.
+- **Font Plus Jakarta Sans yang di-host sendiri** di `/_zusantara/fonts/` (subset latin dan latin-ext, lisensi SIL OFL di `/_zusantara/fonts/LICENSE.txt`). Tidak ada permintaan ke Google Fonts atau CDN lain.
 - **Teks bawaan mengikuti bahasa aktif** (`id` atau `en`), atau `page({ lang })` untuk satu halaman. Lihat [Bahasa](bahasa.html).
 - **Tautan "Lewati ke konten"** untuk pengguna keyboard, menuju elemen `#konten`.
 - **Status memuat pada formulir.** Saat formulir dikirim, tombolnya dinonaktifkan dan diberi `aria-busy`, sehingga tidak terkirim dua kali. Jika tombol punya `loading`, teksnya berganti, mis. `h(Button, { loading: "Menyimpan…" }, "Simpan")`. Skrip kecil ini bisa dimatikan dengan `page({ title, script: false })`; halaman tetap berfungsi tanpanya.
@@ -72,7 +72,7 @@ Setiap halaman dari `page()` juga sudah punya:
 | `TeamCard` · `ContactForm` | kartu anggota tim (foto atau inisial), dan formulir kontak siap pakai dengan `values`, `errors`, dan tautan WhatsApp (`whatsapp: "0812…"`) |
 | `PriceTag` · `ProductCard` | harga dengan harga coret dan periode, dan kartu produk (foto, harga, label hemat otomatis, rating, stok habis, tombol aksi) |
 | `QuantityInput` · `CartSummary` | input jumlah dengan tombol − dan + (tanpa JavaScript tetap input angka), dan ringkasan keranjang (jumlah × harga, subtotal, ongkir, potongan, total) |
-| `placeholder()` | URL gambar contoh bawaan `/_zentara/placeholder.svg` untuk purwarupa sebelum foto asli ada |
+| `placeholder()` | URL gambar contoh bawaan `/_zusantara/placeholder.svg` untuk purwarupa sebelum foto asli ada |
 | `StatusPage` · `statusPage()` | halaman status (403, 404, 500, …) bertema aplikasi. Framework memakainya sendiri untuk error di produksi |
 | `money()` · `formatNumber()` · `formatDate()` · `rupiah()` | format uang, angka, dan tanggal sesuai [bahasa](bahasa.html) aktif; `rupiah(45000)` selalu `Rp45.000` |
 
@@ -122,7 +122,7 @@ h(Form, { action: "/produk", upload: true },
 
 ## Tema
 
-Warna aksen, sudut, font, dan mode gelap/terang diatur di `zentara.config.mjs`, tanpa CSS:
+Warna aksen, sudut, font, dan mode gelap/terang diatur di `zusantara.config.mjs`, tanpa CSS:
 
 ```js
 export default {
@@ -140,12 +140,12 @@ export default {
 Warna aksen disesuaikan otomatis untuk mode terang dan gelap, sehingga teks di tombol dan tautan tetap memenuhi kontras WCAG AA apa pun warna yang dipilih. Atur juga dari terminal:
 
 ```bash
-npx zentara theme                                  # lihat tema saat ini
-npx zentara theme --accent biru --radius lg        # ubah (ditulis ke zentara.config.mjs)
-npx zentara theme --reset                          # kembali ke bawaan
+npx zusantara theme                                  # lihat tema saat ini
+npx zusantara theme --accent biru --radius lg        # ubah (ditulis ke zusantara.config.mjs)
+npx zusantara theme --reset                          # kembali ke bawaan
 ```
 
-Server dev memuat ulang config sendiri. Zentara AI memakai perintah yang sama saat Anda meminta, misalnya, *"ubah warna utama jadi biru"*.
+Server dev memuat ulang config sendiri. Zusantara AI memakai perintah yang sama saat Anda meminta, misalnya, *"ubah warna utama jadi biru"*.
 
 ## Navigasi dan dialog
 
@@ -172,8 +172,8 @@ h(Drawer, { id: "filter", title: "Filter" }, ...),
 `flash(ctx, pesan)` menyimpan pesan untuk ditampilkan satu kali di halaman berikutnya, dan `takeFlash(ctx)` mengambilnya. Pesan disimpan di session bila middleware `session()` terpasang, bila tidak di cookie pendek `zen_flash`:
 
 ```ts
-import { flash, redirect, takeFlash } from "zentara";
-import { Toast } from "zentara/ui";
+import { flash, redirect, takeFlash } from "zusantara";
+import { Toast } from "zusantara/ui";
 
 export async function POST(ctx: ZenContext) {
   // … simpan data
@@ -192,8 +192,8 @@ Tone bawaan `success`; pakai `flash(ctx, "Gagal mengirim email", "error")` untuk
 Halaman depan, profil usaha, toko, dan booking disusun dari komponen di atas tanpa CSS sendiri:
 
 ```ts
-import { h } from "zentara";
-import { Button, Container, CTA, FAQ, Hero, Navbar, page, placeholder, Stack } from "zentara/ui";
+import { h } from "zusantara";
+import { Button, Container, CTA, FAQ, Hero, Navbar, page, placeholder, Stack } from "zusantara/ui";
 
 export function GET() {
   return page(
@@ -210,28 +210,28 @@ export function GET() {
 
 Harga di `Pricing`, `PriceTag`, `ProductCard`, dan `CartSummary` diformat dengan `money()`: rupiah tanpa desimal untuk Bahasa Indonesia. `QuantityInput` dipakai di dalam `Form`, jadi jumlah terkirim bersama formulirnya.
 
-**Contoh halaman utuh.** Katalog memuat lima halaman lengkap sebagai titik awal: `landing` (toko kue), `profile` (profil usaha dan tim), `store` (toko dengan keranjang), `booking` (jadwal booking), dan `dashboard` (dasbor admin). `zentara ui --example` menampilkan daftarnya, `zentara ui --example store` mencetak kode route lengkapnya, dan saat `zentara dev` hasilnya bisa dibuka di `/_zentara/ui/examples/store`. Zentara AI memakai contoh yang sama lewat `ui_catalog`.
+**Contoh halaman utuh.** Katalog memuat lima halaman lengkap sebagai titik awal: `landing` (toko kue), `profile` (profil usaha dan tim), `store` (toko dengan keranjang), `booking` (jadwal booking), dan `dashboard` (dasbor admin). `zusantara ui --example` menampilkan daftarnya, `zusantara ui --example store` mencetak kode route lengkapnya, dan saat `zusantara dev` hasilnya bisa dibuka di `/_zusantara/ui/examples/store`. Zusantara AI memakai contoh yang sama lewat `ui_catalog`.
 
 ## Halaman error
 
-Di produksi, error 403, 404, 500, dan status lainnya ditampilkan dengan kit UI dan tema aplikasi (`ui` di `zentara.config.mjs`), lengkap dengan nama aplikasi (`appName`) dan tombol kembali ke beranda. Pesan dari `throw new HttpError(403, "Hanya admin yang bisa membuka halaman ini")` ikut ditampilkan; detail error 500 tidak pernah ditampilkan. Saat pengembangan, 404 dan 500 tetap memakai halaman pengembang yang lebih lengkap.
+Di produksi, error 403, 404, 500, dan status lainnya ditampilkan dengan kit UI dan tema aplikasi (`ui` di `zusantara.config.mjs`), lengkap dengan nama aplikasi (`appName`) dan tombol kembali ke beranda. Pesan dari `throw new HttpError(403, "Hanya admin yang bisa membuka halaman ini")` ikut ditampilkan; detail error 500 tidak pernah ditampilkan. Saat pengembangan, 404 dan 500 tetap memakai halaman pengembang yang lebih lengkap.
 
 Untuk halaman status buatan sendiri, pakai `h(StatusPage, { status: 404, text: "…", action: … })` di dalam `page()`, atau `statusPage(404)` untuk dokumen lengkap.
 
 ## Katalog komponen dan galeri
 
-- **`zentara ui`** mencetak semua komponen per kelompok. `zentara ui Select` menampilkan kegunaan, setiap prop beserta tipe dan pilihannya, dan contoh. `--json` untuk dipakai alat lain. `zentara ui --example` menampilkan contoh halaman utuh.
-- **Galeri `/_zentara/ui`** saat `zentara dev`: setiap komponen dengan contoh hidup dan tema aplikasi Anda. Di bagian bawahnya ada tautan ke contoh halaman utuh. Galeri tidak ada di produksi.
-- **Zentara AI** membaca katalog yang sama (tool `ui_catalog`), menyusun halaman dengan primitif tata letak, lalu memeriksanya dengan `view_page` di desktop dan ponsel. Bila kit belum bisa membuat yang diminta, AI menjelaskan batasnya dan menawarkan CSS khusus, yang baru ditulis setelah Anda setuju.
+- **`zusantara ui`** mencetak semua komponen per kelompok. `zusantara ui Select` menampilkan kegunaan, setiap prop beserta tipe dan pilihannya, dan contoh. `--json` untuk dipakai alat lain. `zusantara ui --example` menampilkan contoh halaman utuh.
+- **Galeri `/_zusantara/ui`** saat `zusantara dev`: setiap komponen dengan contoh hidup dan tema aplikasi Anda. Di bagian bawahnya ada tautan ke contoh halaman utuh. Galeri tidak ada di produksi.
+- **Zusantara AI** membaca katalog yang sama (tool `ui_catalog`), menyusun halaman dengan primitif tata letak, lalu memeriksanya dengan `view_page` di desktop dan ponsel. Bila kit belum bisa membuat yang diminta, AI menjelaskan batasnya dan menawarkan CSS khusus, yang baru ditulis setelah Anda setuju.
 
-Katalog dibuat otomatis dari JSDoc di kode kit UI, jadi selalu sesuai dengan versi zentara yang terpasang.
+Katalog dibuat otomatis dari JSDoc di kode kit UI, jadi selalu sesuai dengan versi zusantara yang terpasang.
 
 ## Formulir dengan pesan error per field
 
 `tryParse()` memvalidasi tanpa melempar error, sehingga formulir bisa ditampilkan ulang lengkap dengan pesannya:
 
 ```ts
-import { flash, html, readInput, redirect, tryParse } from "zentara";
+import { flash, html, readInput, redirect, tryParse } from "zusantara";
 
 export async function POST(ctx: ZenContext) {
   const raw = await readInput(ctx); // form HTML maupun JSON
@@ -258,7 +258,7 @@ Setelah login, arahkan hanya ke path lokal. Template `api` menyediakan `safeNext
 
 ## Halaman bawaan template api
 
-Proyek baru dari `npm create zentara` (template **api**) langsung punya:
+Proyek baru dari `npm create zusantara` (template **api**) langsung punya:
 
 | Halaman | Isi |
 |---|---|
@@ -268,4 +268,4 @@ Proyek baru dari `npm create zentara` (template **api**) langsung punya:
 | `/notes/:id` | ubah dan hapus catatan |
 | `/admin/users` | daftar pengguna dan perannya (khusus admin) |
 
-Semua halaman ini ada di `src/app/routes/` dan boleh diubah sesuka Anda. `src/app/lib/ui.ts` berisi `appPage()` (kerangka dengan navigasi atas) dan `APP_NAME`. Zentara AI juga memakai kit ini saat Anda meminta halaman baru, mis. *"buatkan halaman jadwal booking untuk user yang login"*.
+Semua halaman ini ada di `src/app/routes/` dan boleh diubah sesuka Anda. `src/app/lib/ui.ts` berisi `appPage()` (kerangka dengan navigasi atas) dan `APP_NAME`. Zusantara AI juga memakai kit ini saat Anda meminta halaman baru, mis. *"buatkan halaman jadwal booking untuk user yang login"*.

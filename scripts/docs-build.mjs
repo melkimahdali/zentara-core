@@ -1,5 +1,5 @@
-// Bangun situs dokumentasi Zentara Core dari docs/*.md (id) dan docs/en/*.md (en) menjadi HTML statis di site-dist/.
-//   npm run docs:build      (butuh `npm run build` lebih dulu: memakai brand & highlighter dari paket zentara)
+// Bangun situs dokumentasi Zusantara Core dari docs/*.md (id) dan docs/en/*.md (en) menjadi HTML statis di site-dist/.
+//   npm run docs:build      (butuh `npm run build` lebih dulu: memakai brand & highlighter dari paket zusantara)
 //   npm run docs:serve      pratinjau lokal di http://localhost:4173
 // Diterbitkan ke GitHub Pages oleh .github/workflows/docs.yml.
 import fs from "node:fs";
@@ -10,8 +10,8 @@ import { Marked } from "marked";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DOCS = path.join(ROOT, "docs");
 const OUT = path.join(ROOT, "site-dist");
-const DIST = path.join(ROOT, "packages", "zentara", "dist");
-const REPO = "https://github.com/melkimahdali/zentara-core";
+const DIST = path.join(ROOT, "packages", "zusantara", "dist");
+const REPO = "https://github.com/melkimahdali/zusantara-core";
 
 /**
  * Dua bahasa: Indonesia di akar situs (docs/*.md) dan Inggris di /en/ (docs/en/*.md, slug yang sama).
@@ -23,13 +23,13 @@ const LANGS = {
     dir: DOCS,
     prefix: "",
     changelog: "CHANGELOG.md",
-    groups: ["Memulai", "Zentara AI", "Dasar", "Front-End", "Back-End", "Data & Keamanan", "Referensi"],
+    groups: ["Memulai", "Zusantara AI", "Dasar", "Front-End", "Back-End", "Data & Keamanan", "Referensi"],
     s: {
       copy: "Salin", copied: "✓ Tersalin", search: "Cari dokumentasi", noResults: "Tidak ada hasil", menu: "Menu", nav: "Navigasi dokumentasi",
       anchor: "Tautan ke bagian ini", prev: "← Sebelumnya", next: "Berikutnya →", edit: "Perbaiki halaman ini di GitHub", onPage: "Di halaman ini",
       releases: "Catatan rilis", license: "Lisensi BSL 1.1", switchLabel: "English", switchTitle: "Read the docs in English",
-      releasesDescription: (v) => `Perubahan di setiap versi Zentara Core. Versi terbaru: v${v}.`,
-      releasesIntro: (v) => `Versi terbaru: **v${v}**. Perbarui dengan \`npm install -g zentara@latest\` (CLI) dan \`npm install zentara@latest\` (proyek).`,
+      releasesDescription: (v) => `Perubahan di setiap versi Zusantara Core. Versi terbaru: v${v}.`,
+      releasesIntro: (v) => `Versi terbaru: **v${v}**. Perbarui dengan \`npm install -g zusantara@latest\` (CLI) dan \`npm install zusantara@latest\` (proyek).`,
     },
   },
   en: {
@@ -37,27 +37,27 @@ const LANGS = {
     dir: path.join(DOCS, "en"),
     prefix: "en/",
     changelog: "CHANGELOG.en.md",
-    groups: ["Getting started", "Zentara AI", "Basics", "Front-End", "Back-End", "Data & security", "Reference"],
+    groups: ["Getting started", "Zusantara AI", "Basics", "Front-End", "Back-End", "Data & security", "Reference"],
     s: {
       copy: "Copy", copied: "✓ Copied", search: "Search the docs", noResults: "No results", menu: "Menu", nav: "Documentation",
       anchor: "Link to this section", prev: "← Previous", next: "Next →", edit: "Edit this page on GitHub", onPage: "On this page",
       releases: "Release notes", license: "BSL 1.1 license", switchLabel: "Bahasa Indonesia", switchTitle: "Baca dokumentasi dalam Bahasa Indonesia",
-      releasesDescription: (v) => `What changed in each Zentara Core version. Latest: v${v}.`,
-      releasesIntro: (v) => `Latest version: **v${v}**. Update with \`npm install -g zentara@latest\` (CLI) and \`npm install zentara@latest\` (projects).`,
+      releasesDescription: (v) => `What changed in each Zusantara Core version. Latest: v${v}.`,
+      releasesIntro: (v) => `Latest version: **v${v}**. Update with \`npm install -g zusantara@latest\` (CLI) and \`npm install zusantara@latest\` (projects).`,
     },
   },
 };
 
 const load = (rel) => import(pathToFileURL(path.join(DIST, rel)).href);
 if (!fs.existsSync(path.join(DIST, "brand", "assets.js"))) {
-  console.error("Paket zentara belum di-build. Jalankan dulu: npm run build");
+  console.error("Paket zusantara belum di-build. Jalankan dulu: npm run build");
   process.exit(1);
 }
 const { LOGO_WEBP, FAVICON_PNG } = await load("brand/assets.js");
 const { BRAND, TAGLINE, DESCRIPTION, DOCS_URL } = await load("brand/index.js");
 /** Domain kustom GitHub Pages (Cloudflare → GitHub Pages). */
 const SITE = new URL(DOCS_URL);
-const { BASE_CSS, highlight, ZENTARA_VERSION } = await load("core/devpage/theme.js");
+const { BASE_CSS, highlight, ZUSANTARA_VERSION } = await load("core/devpage/theme.js");
 const { escapeHtml } = await load("core/view.js");
 
 // ── Baca halaman ─────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ function releaseNotes(L) {
     .replace(/^# Changelog\s*\n/, "")
     .replace(/^## \[([^\]]+)\]/gm, "## $1");
   const title = L.s.releases;
-  return [{ slug: "rilis", title, order: 99, group: L.groups.at(-1), description: L.s.releasesDescription(ZENTARA_VERSION), body: `# ${title}\n\n${L.s.releasesIntro(ZENTARA_VERSION)}\n\n${body}`, source: L.changelog }];
+  return [{ slug: "rilis", title, order: 99, group: L.groups.at(-1), description: L.s.releasesDescription(ZUSANTARA_VERSION), body: `# ${title}\n\n${L.s.releasesIntro(ZUSANTARA_VERSION)}\n\n${body}`, source: L.changelog }];
 }
 
 function loadPages(L) {
@@ -244,7 +244,7 @@ const JS = (L) => `
 })();
 `;
 
-const LOGO = `<span class="zx-logo" role="img" aria-label="Zentara Core"></span>`;
+const LOGO = `<span class="zx-logo" role="img" aria-label="Zusantara Core"></span>`;
 const other = (L) => (L.code === "id" ? LANGS.en : LANGS.id);
 /** Path halaman `file` dalam bahasa `to`, dilihat dari folder bahasa `from`. */
 function hrefFor(file, from, to) {
@@ -263,14 +263,14 @@ function shell({ L, title, description, body, file, alternate }) {
   return `<!doctype html><html lang="${L.code}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title><meta name="description" content="${escapeHtml(description)}">
 <link rel="canonical" href="${url}">${hreflang}<meta property="og:url" content="${url}"><meta property="og:type" content="website"><meta property="og:locale" content="${L.code === "en" ? "en_US" : "id_ID"}">
-<meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:image" content="https://raw.githubusercontent.com/melkimahdali/zentara-core/main/assets/brand/social/social-preview.jpg"><meta name="theme-color" content="${BRAND.obsidian}">
+<meta property="og:title" content="${escapeHtml(title)}"><meta property="og:description" content="${escapeHtml(description)}"><meta property="og:image" content="https://raw.githubusercontent.com/melkimahdali/zusantara-core/main/assets/brand/social/social-preview.jpg"><meta name="theme-color" content="${BRAND.obsidian}">
 <link rel="icon" type="image/png" href="${FAVICON_PNG}"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="style.css"></head><body>
-<header class="doc-top"><button class="zx-btn small menu-btn" type="button" aria-label="${s.menu}">☰</button><a class="brand" href="index.html">${LOGO}<span class="zx-word">Zentara <b>Core</b></span></a><a class="ver" href="rilis.html" title="${s.releases}">v${escapeHtml(ZENTARA_VERSION)}</a>
+<header class="doc-top"><button class="zx-btn small menu-btn" type="button" aria-label="${s.menu}">☰</button><a class="brand" href="index.html">${LOGO}<span class="zx-word">Zusantara <b>Core</b></span></a><a class="ver" href="rilis.html" title="${s.releases}">v${escapeHtml(ZUSANTARA_VERSION)}</a>
 <div class="search"><input type="search" placeholder="${s.search}…  ( / )" aria-label="${s.search}"><div class="results"></div></div>
-<a class="lang" href="${hrefFor(altFile, L, O)}" hreflang="${O.code}" lang="${O.code}" title="${s.switchTitle}"><span class="long">${s.switchLabel}</span><span class="short">${O.code.toUpperCase()}</span></a><a class="gh" href="${REPO}" target="_blank" rel="noopener">GitHub</a><a class="gh" href="https://www.npmjs.com/package/zentara" target="_blank" rel="noopener">npm</a></header>
+<a class="lang" href="${hrefFor(altFile, L, O)}" hreflang="${O.code}" lang="${O.code}" title="${s.switchTitle}"><span class="long">${s.switchLabel}</span><span class="short">${O.code.toUpperCase()}</span></a><a class="gh" href="${REPO}" target="_blank" rel="noopener">GitHub</a><a class="gh" href="https://www.npmjs.com/package/zusantara" target="_blank" rel="noopener">npm</a></header>
 ${body}
-<footer class="foot">Zentara Core · ${escapeHtml(TAGLINE)} · ${s.license} · <a href="${REPO}">GitHub</a></footer>
+<footer class="foot">Zusantara Core · ${escapeHtml(TAGLINE)} · ${s.license} · <a href="${REPO}">GitHub</a></footer>
 <script src="app.js"></script></body></html>`;
 }
 
@@ -286,11 +286,11 @@ function sidebar(L, pages, active) {
 const feature = (ic, title, text) => `<div class="zx-card feature"><div class="ic">${ic}</div><h3>${title}</h3><p>${text}</p></div>`;
 const HOME = {
   id: {
-    lead: "Ceritakan apa yang ingin dibangun dalam bahasa sehari-hari; Zentara AI menyusun rencana, meminta persetujuan, menulis kode, lalu mengeceknya.",
+    lead: "Ceritakan apa yang ingin dibangun dalam bahasa sehari-hari; Zusantara AI menyusun rencana, meminta persetujuan, menulis kode, lalu mengeceknya.",
     start: "Mulai cepat →",
     term: { cwd: "~/aplikasi $", mode: "OmniRoute (gratis) · minta persetujuan", ask: "buatkan halaman portofolio dengan daftar proyek", plan: "Rencana: buat src/app/routes/portofolio.ts\n  pakai kit UI, lalu cek typecheck &amp; test.", write: "Tulis", created: "Dibuat", check: "Cek", passed: "BERHASIL", done: "✓ Selesai", summary: "· 4 langkah · 1 file berubah", file: "portofolio" },
     features: [
-      ["✦", "Zentara AI", "CLI interaktif gaya Claude Code dan chat di browser. Setiap perubahan ditampilkan sebagai diff dan bisa di-undo."],
+      ["✦", "Zusantara AI", "CLI interaktif gaya Claude Code dan chat di browser. Setiap perubahan ditampilkan sebagai diff dan bisa di-undo."],
       ["◎", "AI gratis siap pakai", "OmniRoute sebagai default tanpa API key, dengan fallback otomatis ke Claude, OpenAI, Gemini, Groq, dan lainnya."],
       ["⌁", "Routing berbasis file", "File di src/app/routes menjadi URL. Validasi input dengan zod, valibot, atau arktype."],
       ["⛁", "Database & auth", "Drizzle ORM (SQLite tanpa instalasi atau PostgreSQL), login dengan scrypt, role, dan rate limit."],
@@ -299,11 +299,11 @@ const HOME = {
     ],
   },
   en: {
-    lead: "Describe what you want to build in plain language; Zentara AI plans it, asks for approval, writes the code, then checks it.",
+    lead: "Describe what you want to build in plain language; Zusantara AI plans it, asks for approval, writes the code, then checks it.",
     start: "Quick start →",
     term: { cwd: "~/my-app $", mode: "OmniRoute (free) · ask before changes", ask: "build a portfolio page with a list of projects", plan: "Plan: create src/app/routes/portfolio.ts\n  with the UI kit, then run typecheck &amp; tests.", write: "Write", created: "Created", check: "Check", passed: "PASSED", done: "✓ Done", summary: "· 4 steps · 1 file changed", file: "portfolio" },
     features: [
-      ["✦", "Zentara AI", "A Claude Code–style interactive CLI and an in-browser chat. Every change is shown as a diff and can be undone."],
+      ["✦", "Zusantara AI", "A Claude Code–style interactive CLI and an in-browser chat. Every change is shown as a diff and can be undone."],
       ["◎", "Free AI out of the box", "OmniRoute by default with no API key, with automatic fallback to Claude, OpenAI, Gemini, Groq, and more."],
       ["⌁", "File-based routing", "Files in src/app/routes become URLs. Validate input with zod, valibot, or arktype."],
       ["⛁", "Database & auth", "Drizzle ORM (zero-install SQLite or PostgreSQL), scrypt login, roles, and rate limiting."],
@@ -316,12 +316,12 @@ function home(L) {
   const h = HOME[L.code];
   const t = h.term;
   return `<section class="hero"><div>${LOGO.replace('class="zx-logo"', 'class="zx-logo big"')}
-<h1>Zentara <b>Core</b></h1><p class="tag">${escapeHtml(TAGLINE)}</p>
+<h1>Zusantara <b>Core</b></h1><p class="tag">${escapeHtml(TAGLINE)}</p>
 <p class="lead">${escapeHtml(DESCRIPTION)}. ${escapeHtml(h.lead)}</p>
 <div class="cta"><a class="zx-btn primary" href="mulai-cepat.html">${h.start}</a><a class="zx-btn" href="${REPO}" target="_blank" rel="noopener">GitHub</a></div>
-<div class="zx-cmd install"><span>npm install -g zentara</span><button type="button" class="zx-copy" onclick="navigator.clipboard.writeText('npm install -g zentara');this.textContent='✓'">${L.s.copy}</button></div></div>
-<div class="term"><div class="bar"><i></i><i></i><i></i></div><pre><span class="t-dim">${t.cwd}</span> zentara
-<span class="t-teal">◆ Zentara Core</span> <span class="t-dim">v${escapeHtml(ZENTARA_VERSION)}</span>
+<div class="zx-cmd install"><span>npm install -g zusantara</span><button type="button" class="zx-copy" onclick="navigator.clipboard.writeText('npm install -g zusantara');this.textContent='✓'">${L.s.copy}</button></div></div>
+<div class="term"><div class="bar"><i></i><i></i><i></i></div><pre><span class="t-dim">${t.cwd}</span> zusantara
+<span class="t-teal">◆ Zusantara Core</span> <span class="t-dim">v${escapeHtml(ZUSANTARA_VERSION)}</span>
 <span class="t-dim">${t.mode}</span>
 
 <span class="t-teal">❯</span> ${t.ask}
@@ -365,7 +365,7 @@ for (const L of Object.values(LANGS)) {
 <p class="edit"><a href="${REPO}/edit/main/${page.source}" target="_blank" rel="noopener">${s.edit}</a></p></main>
 <aside class="toc">${toc.length ? `<h4>${s.onPage}</h4>${toc.map((t) => `<a href="#${t.id}">${escapeHtml(t.text)}</a>`).join("")}` : ""}</aside></div>`;
     const file = `${page.slug}.html`;
-    fs.writeFileSync(path.join(out, file), shell({ L, title: `${page.title} · Zentara Core`, description: page.description, body, file, alternate: translated.has(page.slug) }));
+    fs.writeFileSync(path.join(out, file), shell({ L, title: `${page.title} · Zusantara Core`, description: page.description, body, file, alternate: translated.has(page.slug) }));
     sitemap.push(L.prefix + file);
     index.push({
       url: file,
@@ -376,7 +376,7 @@ for (const L of Object.values(LANGS)) {
     });
   });
   fs.writeFileSync(path.join(out, "search-index.json"), JSON.stringify(index));
-  fs.writeFileSync(path.join(out, "index.html"), shell({ L, title: `Zentara Core · ${DESCRIPTION}`, description: `${DESCRIPTION}. ${TAGLINE}`, body: home(L), file: "index.html", alternate: true }));
+  fs.writeFileSync(path.join(out, "index.html"), shell({ L, title: `Zusantara Core · ${DESCRIPTION}`, description: `${DESCRIPTION}. ${TAGLINE}`, body: home(L), file: "index.html", alternate: true }));
   sitemap.push(L.prefix);
   console.log(`Dokumentasi (${L.code}): ${pages.length} halaman + beranda → ${path.relative(ROOT, out) || "."}/`);
 }

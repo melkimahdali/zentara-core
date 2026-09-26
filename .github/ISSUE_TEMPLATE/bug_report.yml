@@ -1,0 +1,42 @@
+name: Laporan bug / Bug report
+description: Sesuatu tidak bekerja seperti seharusnya. / Something does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Terima kasih sudah melapor. Untuk celah keamanan, **jangan** buka issue publik: lihat [SECURITY.md](https://github.com/melkimahdali/zusantara-core/blob/main/SECURITY.md).
+        Thanks for reporting. For security issues, **do not** open a public issue: see [SECURITY.md](https://github.com/melkimahdali/zusantara-core/blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: Apa yang terjadi? / What happened?
+      description: Apa yang Anda harapkan, dan apa yang terjadi. / What you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Langkah untuk mengulang / Steps to reproduce
+      placeholder: |
+        1. npm create zusantara@latest app
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log atau pesan error / Logs or error output
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: Versi zusantara / zusantara version
+      description: "`npx zusantara --version`"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Sistem / Environment
+      placeholder: "Node 22, Windows 11, provider AI: Claude"

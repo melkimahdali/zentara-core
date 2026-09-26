@@ -1,0 +1,99 @@
+{
+  "name": "zusantara",
+  "version": "0.12.10",
+  "description": "Framework web TypeScript AI-driven asal Nusantara: routing berbasis file, auth, database, dan AI yang membangun aplikasi dari bahasa sehari-hari.",
+  "keywords": [
+    "framework",
+    "web",
+    "typescript",
+    "ai",
+    "indonesia",
+    "file-based-routing",
+    "drizzle",
+    "claude"
+  ],
+  "license": "BUSL-1.1",
+  "author": "melkimahdali",
+  "homepage": "https://zusantara.morixa.id/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/melkimahdali/zusantara-core.git",
+    "directory": "packages/zusantara"
+  },
+  "bugs": {
+    "url": "https://github.com/melkimahdali/zusantara-core/issues"
+  },
+  "funding": "https://github.com/melkimahdali/zusantara-core/blob/main/COMMERCIAL.md",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "zusantara": "dist/cli.js",
+    "zentara": "dist/cli.js"
+  },
+  "main": "./dist/core/index.js",
+  "types": "./dist/core/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/core/index.d.ts",
+      "default": "./dist/core/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "default": "./dist/ui/index.js"
+    },
+    "./host": {
+      "types": "./dist/repl/host.d.ts",
+      "default": "./dist/repl/host.js"
+    },
+    "./db": {
+      "types": "./dist/db/index.d.ts",
+      "default": "./dist/db/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --import ./test/setup.mjs --test \"test/**/*.test.ts\" \"test/**/*.test.tsx\"",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.128.0",
+    "ink": "^7.1.1",
+    "react": "^19.2.0",
+    "tsx": "^4.23.15"
+  },
+  "peerDependencies": {
+    "drizzle-kit": "^0.31.0",
+    "drizzle-orm": "^0.45.0",
+    "postgres": "^3.4.0"
+  },
+  "peerDependenciesMeta": {
+    "drizzle-kit": {
+      "optional": true
+    },
+    "drizzle-orm": {
+      "optional": true
+    },
+    "postgres": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@types/react": "^19.2.0",
+    "drizzle-kit": "^0.31.11",
+    "drizzle-orm": "^0.45.3",
+    "ink-testing-library": "^4.0.0",
+    "postgres": "^3.4.9",
+    "typescript": "^5.9.3",
+    "zod": "^4.6.5"
+  }
+}
