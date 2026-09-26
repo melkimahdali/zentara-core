@@ -29,7 +29,7 @@ Fitur utama:
 
 ## Peta jalan
 
-Zentara dikembangkan per tahap. Tahap 10 (Bahasa Inggris) dan 11 (Back-End) dirilis di 0.12; berikutnya **Tahap 12: data dan panel admin**. Rincian semua tahap ada di [docs/peta-jalan.md](docs/peta-jalan.md) dan https://zentara-core.morixa.id/peta-jalan.html.
+Zentara dikembangkan per tahap. Tahap 10 (Bahasa Inggris) dan 11 (Back-End) dirilis di 0.12; berikutnya **Tahap 12: chat Zentara AI di semua halaman** (0.12.5), lalu panel admin (0.13) sampai 1.0 di Tahap 19. Rincian semua tahap ada di [docs/peta-jalan.md](docs/peta-jalan.md) dan https://zentara-core.morixa.id/peta-jalan.html.
 
 ## Brand
 
