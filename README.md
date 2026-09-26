@@ -67,7 +67,7 @@ npm run e2e          # simulasi publish: npm pack, buat proyek dari tarball, ins
 - Cara merilis ke npm: [`PUBLISHING.md`](PUBLISHING.md).
 - Riwayat perubahan: [`CHANGELOG.md`](CHANGELOG.md).
 
-Lisensi [Business Source License 1.1](LICENSE) (BSL). Boleh dipakai gratis untuk membangun dan menjalankan aplikasi Anda sendiri, termasuk untuk produksi dan komersial; yang dilarang adalah menawarkan Zusantara Core (atau turunannya) sebagai framework, generator proyek, atau layanan pesaing. Setiap versi otomatis menjadi Apache 2.0 empat tahun setelah terbit. Versi 0.8.6 ke bawah tetap MIT.
+Lisensi [MIT](LICENSE) mulai 0.12.10: bebas dipakai, diubah, dan didistribusikan, termasuk untuk produksi dan komersial. Versi 0.9.0 sampai 0.12.9 tetap memakai Business Source License 1.1 seperti saat diterbitkan. Nama dan logo diatur di [TRADEMARKS.md](TRADEMARKS.md); dukungan dan layanan berbayar ada di [COMMERCIAL.md](COMMERCIAL.md).
 
 ## English
 

@@ -282,14 +282,14 @@ Zusantara berjalan di Node, Bun, Deno, Vercel, dan Cloudflare dari satu kode.
 
 - `zusantara add <plugin>` dengan lima plugin pertama: Tailwind, grafik (Chart.js), PostgreSQL, login GitHub/Google, dan pembayaran Midtrans/Xendit.
 - Menyusul di 0.18.x: editor teks, peta, island React/Preact, WhatsApp, dan format lokal (Rupiah, NPWP, e-Faktur). Subagent dan language server menyusul di 0.18.x atau setelah 1.0.
-- Lisensi ditetapkan sebelum tahap ini, karena penulis plugin menilai lisensi sebelum membangun di atas Zusantara. **[menunggu keputusan: lisensi]**
+- Lisensi sudah ditetapkan: MIT mulai 0.12.10, dengan nama dan logo diatur terpisah di TRADEMARKS.md.
 
 ### Tahap 19 · 1.0: stabil
 
 - API dibekukan dan dicatat, audit keamanan (termasuk `zusantara mcp` dan plugin pembayaran), dan CSP bawaan.
 - Dokumentasi lengkap dua bahasa dengan tutorial yang diuji e2e, kebijakan rilis dan LTS, `CONTRIBUTING.md`, dan dokumentasi arsitektur.
 - Panduan migrasi dari Express dan dari Laravel.
-- Eval AI dan benchmark versi 1.0 diterbitkan, dan lisensi final tercantum di README dan `package.json`. **[menunggu keputusan: lisensi]**
+- Eval AI dan benchmark versi 1.0 diterbitkan, dan lisensi MIT tercantum di README dan `package.json`.
 
 ## Integrasi framework lain
 

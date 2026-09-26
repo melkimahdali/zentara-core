@@ -6,6 +6,6 @@ contact_links:
   - name: Laporan keamanan / Security report
     url: https://github.com/melkimahdali/zusantara-core/security/advisories/new
     about: Laporkan celah keamanan secara privat. / Report vulnerabilities privately.
-  - name: Lisensi komersial & dukungan / Commercial licensing & support
+  - name: Dukungan & layanan komersial / Commercial support & services
     url: https://github.com/melkimahdali/zusantara-core/blob/main/COMMERCIAL.md
-    about: Lisensi, dukungan prioritas, dan kerja sama. / Licensing, priority support, and partnerships.
+    about: Dukungan prioritas, konsultasi, izin merek, dan kerja sama. / Priority support, consulting, trademark permission, and partnerships.

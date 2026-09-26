@@ -51,7 +51,7 @@ export const POST = validate({ body: z.object({ title: z.string().min(1) }) }, a
 });
 ```
 
-License: [Business Source License 1.1](https://github.com/melkimahdali/zusantara-core/blob/main/LICENSE). Free to build and run your own apps, including in production and commercially; offering Zusantara Core (or a derivative) as a competing framework, project generator, or service is not allowed. Each version becomes Apache 2.0 four years after release.
+License: [MIT](https://github.com/melkimahdali/zusantara-core/blob/main/LICENSE) from 0.12.10. Versions 0.9.0 to 0.12.9 remain under the Business Source License 1.1 they were published with. The name and logo are covered by [TRADEMARKS.md](https://github.com/melkimahdali/zusantara-core/blob/main/TRADEMARKS.md).
 
 ---
 
@@ -77,4 +77,4 @@ Fitur utama:
 - **Provider AI:** OmniRoute (default, gratis), Claude, OpenAI, Gemini, Groq, DeepSeek, OpenRouter, Ollama, dengan fallback otomatis.
 - **Dua bahasa:** Bahasa Indonesia (default) dan Bahasa Inggris.
 
-Lisensi [Business Source License 1.1](https://github.com/melkimahdali/zusantara-core/blob/main/LICENSE): gratis untuk membangun dan menjalankan aplikasi Anda sendiri, termasuk produksi dan komersial. Setiap versi otomatis menjadi Apache 2.0 empat tahun setelah terbit. Versi 0.8.6 ke bawah tetap MIT.
+Lisensi [MIT](https://github.com/melkimahdali/zusantara-core/blob/main/LICENSE) mulai 0.12.10. Versi 0.9.0 sampai 0.12.9 tetap memakai Business Source License 1.1 seperti saat diterbitkan. Nama dan logo diatur di [TRADEMARKS.md](https://github.com/melkimahdali/zusantara-core/blob/main/TRADEMARKS.md).

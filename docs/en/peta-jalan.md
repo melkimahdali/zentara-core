@@ -282,14 +282,14 @@ Zusantara runs on Node, Bun, Deno, Vercel, and Cloudflare from one codebase.
 
 - `zusantara add <plugin>` with the first five plugins: Tailwind, charts (Chart.js), PostgreSQL, GitHub/Google sign-in, and Midtrans/Xendit payments.
 - Coming in 0.18.x: rich text editor, maps, React/Preact islands, WhatsApp, and local formats (Rupiah, NPWP, e-Faktur). Subagents and a language server follow in 0.18.x or after 1.0.
-- The license is settled before this stage, because plugin authors weigh the license before building on Zusantara. **[pending decision: license]**
+- The license is settled: MIT from 0.12.10, with the name and logo covered separately in TRADEMARKS.md.
 
 ### Stage 19 · 1.0: stable
 
 - A frozen, documented API, a security audit (including `zusantara mcp` and the payment plugin), and a built-in CSP.
 - Complete bilingual documentation with tutorials tested by e2e, a release and LTS policy, `CONTRIBUTING.md`, and architecture docs.
 - Migration guides from Express and from Laravel.
-- AI evals and benchmarks for 1.0 are published, and the final license is stated in the README and `package.json`. **[pending decision: license]**
+- AI evals and benchmarks for 1.0 are published, and the MIT license is stated in the README and `package.json`.
 
 ## Integrating other frameworks
 

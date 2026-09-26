@@ -6,6 +6,7 @@ English release notes start at 0.12.0. Earlier versions are described in Indones
 
 ### Changed
 - **Zentara is now called Zusantara.** The name "Zentara" is already used by several other software companies and products, so the framework is renamed before 1.0. The npm packages are now `zusantara` and `create-zusantara`, the CLI command is `zusantara`, the config file is `zusantara.config.mjs`, environment variables are `ZUSANTARA_*`, the local data folder is `.zusantara/`, and internal URLs are `/_zusantara/*`. The repo moves to `melkimahdali/zusantara-core` and the docs to https://zusantara.morixa.id.
+- **The license is now MIT** from this version (previously Business Source License 1.1). Versions 0.9.0 through 0.12.9 remain under BSL 1.1 as published. The name and logo are not covered by the code license, see `TRADEMARKS.md`.
 - The Z logo stays the same.
 
 ### Added

@@ -27,7 +27,7 @@ const LANGS = {
     s: {
       copy: "Salin", copied: "✓ Tersalin", search: "Cari dokumentasi", noResults: "Tidak ada hasil", menu: "Menu", nav: "Navigasi dokumentasi",
       anchor: "Tautan ke bagian ini", prev: "← Sebelumnya", next: "Berikutnya →", edit: "Perbaiki halaman ini di GitHub", onPage: "Di halaman ini",
-      releases: "Catatan rilis", license: "Lisensi BSL 1.1", switchLabel: "English", switchTitle: "Read the docs in English",
+      releases: "Catatan rilis", license: "Lisensi MIT", switchLabel: "English", switchTitle: "Read the docs in English",
       releasesDescription: (v) => `Perubahan di setiap versi Zusantara Core. Versi terbaru: v${v}.`,
       releasesIntro: (v) => `Versi terbaru: **v${v}**. Perbarui dengan \`npm install -g zusantara@latest\` (CLI) dan \`npm install zusantara@latest\` (proyek).`,
     },
@@ -41,7 +41,7 @@ const LANGS = {
     s: {
       copy: "Copy", copied: "✓ Copied", search: "Search the docs", noResults: "No results", menu: "Menu", nav: "Documentation",
       anchor: "Link to this section", prev: "← Previous", next: "Next →", edit: "Edit this page on GitHub", onPage: "On this page",
-      releases: "Release notes", license: "BSL 1.1 license", switchLabel: "Bahasa Indonesia", switchTitle: "Baca dokumentasi dalam Bahasa Indonesia",
+      releases: "Release notes", license: "MIT license", switchLabel: "Bahasa Indonesia", switchTitle: "Baca dokumentasi dalam Bahasa Indonesia",
       releasesDescription: (v) => `What changed in each Zusantara Core version. Latest: v${v}.`,
       releasesIntro: (v) => `Latest version: **v${v}**. Update with \`npm install -g zusantara@latest\` (CLI) and \`npm install zusantara@latest\` (projects).`,
     },

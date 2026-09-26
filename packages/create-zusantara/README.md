@@ -17,7 +17,7 @@ Options: `--lang id|en`, `--template api|minimal`, `--no-install`, `--yes` (no q
 
 `create-zusantara` writes a `.env` with a random `SESSION_SECRET`, installs dependencies, and (for the `api` template) runs the migrations and seed right away. The project is then ready for `npm run dev`. Documentation: https://zusantara.morixa.id/en/
 
-License: Business Source License 1.1 (BSL), see [LICENSE](https://github.com/melkimahdali/zusantara-core/blob/main/LICENSE). Projects created with `create-zusantara` are entirely yours.
+License: MIT, see [LICENSE](https://github.com/melkimahdali/zusantara-core/blob/main/LICENSE). Projects created with `create-zusantara` are entirely yours.
 
 ## Bahasa Indonesia
 
@@ -34,4 +34,4 @@ Opsi: `--lang id|en`, `--template api|minimal`, `--no-install`, `--yes` (tanpa p
 
 `create-zusantara` membuat `.env` dengan `SESSION_SECRET` acak, memasang dependency, dan (untuk template `api`) langsung menjalankan migrasi dan seed. Setelah itu proyek siap dijalankan dengan `npm run dev`. Dokumentasi: https://zusantara.morixa.id/
 
-Lisensi Business Source License 1.1 (BSL). Proyek yang dibuat dengan `create-zusantara` adalah milik Anda sepenuhnya.
+Lisensi MIT. Proyek yang dibuat dengan `create-zusantara` adalah milik Anda sepenuhnya.

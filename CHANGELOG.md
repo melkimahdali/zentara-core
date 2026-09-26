@@ -7,6 +7,7 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi
 ### Diubah
 - **Zentara kini bernama Zusantara.** Nama "Zentara" sudah dipakai beberapa perusahaan dan produk software lain, sehingga framework ini berganti nama sebelum 1.0. Paket npm menjadi `zusantara` dan `create-zusantara`, perintah CLI menjadi `zusantara`, file config menjadi `zusantara.config.mjs`, variabel lingkungan menjadi `ZUSANTARA_*`, folder data lokal menjadi `.zusantara/`, dan URL internal menjadi `/_zusantara/*`. Repo pindah ke `melkimahdali/zusantara-core` dan dokumentasi ke https://zusantara.morixa.id.
 - Logo Z tetap sama.
+- **Lisensi menjadi MIT** mulai versi ini (sebelumnya Business Source License 1.1). Versi 0.9.0 sampai 0.12.9 tetap memakai BSL 1.1 seperti saat diterbitkan. Nama dan logo tidak termasuk lisensi kode, lihat `TRADEMARKS.md`.
 
 ### Ditambahkan
 - **`zusantara migrate:zusantara`** memindahkan proyek lama sekali jalan: import `zentara` dan `zentara/...`, dependensi dan script di `package.json`, `zentara.config.*`, `ZENTARA_*` di `.env`, dan folder `.zentara/`. Setelah itu jalankan `npm install`.

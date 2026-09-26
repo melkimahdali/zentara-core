@@ -4,19 +4,17 @@
 
 ## Lisensi
 
-Zusantara Core memakai [Business Source License 1.1](LICENSE):
+Zusantara Core memakai [lisensi MIT](LICENSE) mulai 0.12.10: gratis dipakai, diubah, dan didistribusikan, termasuk untuk aplikasi dan layanan komersial. Tidak ada biaya lisensi.
 
-- **Gratis** untuk membangun, menjalankan, dan menjual aplikasi, situs, dan layanan Anda sendiri, termasuk di produksi.
-- **Perlu lisensi komersial** bila Anda menawarkan Zusantara Core atau turunannya sebagai framework, generator proyek, alat pengembangan berbasis AI, atau layanan hosting yang bersaing dengannya.
-- Setiap versi otomatis menjadi Apache 2.0 empat tahun setelah terbit. Versi 0.8.6 ke bawah tetap MIT.
-
-Nama dan logo diatur terpisah di [TRADEMARKS.md](TRADEMARKS.md).
+Nama dan logo diatur terpisah di [TRADEMARKS.md](TRADEMARKS.md). Versi 0.9.0 sampai 0.12.9 tetap memakai Business Source License 1.1 seperti saat diterbitkan.
 
 ## Yang tersedia
 
 | Layanan | Untuk siapa |
 |---|---|
-| **Lisensi komersial** | Perusahaan yang ingin memakai Zusantara di luar batas lisensi di atas, atau butuh ketentuan lisensi khusus |
+| **Plugin & template premium** | Tim yang ingin modul siap pakai (mis. pembayaran, admin lanjutan, template situs) dengan dukungan resmi |
+| **Hosting terkelola** | Tim yang ingin menjalankan aplikasi Zusantara tanpa mengurus server sendiri |
+| **Izin merek** | Perusahaan yang ingin memakai nama atau logo Zusantara untuk produk, layanan, atau pelatihan |
 | **Dukungan prioritas** | Tim yang menjalankan Zusantara di produksi dan butuh respons cepat untuk bug dan keamanan |
 | **Pengembangan & konsultasi** | Pembuatan aplikasi, migrasi dari framework lain, pelatihan tim, dan integrasi (mis. pembayaran Midtrans/Xendit) |
 | **Sponsor** | Individu dan perusahaan yang ingin mendukung pengembangan dan tampil sebagai sponsor |
@@ -29,19 +27,17 @@ Buka [issue baru](https://github.com/melkimahdali/zusantara-core/issues/new/choo
 
 ### License
 
-Zusantara Core uses the [Business Source License 1.1](LICENSE):
+Zusantara Core is [MIT licensed](LICENSE) from 0.12.10: free to use, modify, and distribute, including in commercial apps and services. There is no license fee.
 
-- **Free** to build, run, and sell your own apps, sites, and services, including in production.
-- **A commercial license is required** to offer Zusantara Core or a derivative as a competing framework, project generator, AI-assisted development tool, or hosted service.
-- Each version becomes Apache 2.0 four years after release. Versions 0.8.6 and earlier remain MIT.
-
-The name and logo are covered separately in [TRADEMARKS.md](TRADEMARKS.md).
+The name and logo are covered separately in [TRADEMARKS.md](TRADEMARKS.md). Versions 0.9.0 through 0.12.9 remain under the Business Source License 1.1 they were published with.
 
 ### What is available
 
 | Offering | For |
 |---|---|
-| **Commercial license** | Companies that want to use Zusantara beyond the license limits above, or need custom license terms |
+| **Premium plugins & templates** | Teams that want ready-made modules (e.g. payments, advanced admin, site templates) with official support |
+| **Managed hosting** | Teams that want to run Zusantara apps without managing their own servers |
+| **Trademark permission** | Companies that want to use the Zusantara name or logo for a product, service, or training |
 | **Priority support** | Teams running Zusantara in production that need fast responses on bugs and security |
 | **Development & consulting** | Building apps, migrating from other frameworks, team training, and integrations (e.g. Midtrans/Xendit payments) |
 | **Sponsorship** | Individuals and companies that want to fund development and be listed as sponsors |
