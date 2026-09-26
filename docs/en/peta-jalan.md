@@ -34,6 +34,7 @@ Stages 10 and 11 shipped together in 0.12.
 | Stage | Version | Contents |
 |---|---|---|
 | 12 | 0.12.5 | Zentara AI chat on every page during development, and an AI that can see the page (`view_page`) |
+| 12b | 0.12.6 | A UI kit rich enough for the AI: layout primitives, public page components, theme config, and a component catalog |
 | 13 | 0.13 | Data and admin panel: automatic CRUD from the schema, relations, pagination, filters, interactions without full page reloads using [htmx](https://htmx.org), and the `zentara describe --json` app manifest |
 | 14 | 0.14 | Zentara for every AI agent: `zentara mcp`, `AGENTS.md` in the templates, and `llms.txt` for the docs |
 | 15 | 0.15 | Testing and AI evals: test helpers, factories, coverage reports, published AI eval results, and baseline benchmarks |
@@ -50,9 +51,20 @@ Items marked **[pending decision]** below follow the current recommendation and 
 - The `view_page` tool lets the AI open a page of your app and check the result itself.
 - Every AI task records a short result (success/failure, number of steps, which checks passed) in the local journal for the evals in stage 15. Nothing leaves your computer.
 
+### Stage 12b · 0.12.6: a UI kit rich enough for the AI
+
+Zentara AI can build the look a request asks for, not just dashboards and forms, without writing its own CSS.
+
+- Layout primitives: `Container`, `Stack`, `Row`/`Cluster`, `Columns`, and `Section`, with spacing and alignment set through props with a fixed set of values.
+- Public page components: a public `Navbar`, `Hero`, `FeatureGrid`, `MediaCard`, `Gallery`, `Pricing`, `Testimonial`, `CTA`, `Footer`, `Steps`/`Timeline`, plus `Tabs` and `Dialog`.
+- A theme in `zentara.config.mjs` (`ui: { accent, radius, font, mode }`), so colors and fonts can change without CSS. The Zentara brand stays the default.
+- A component catalog with examples and use cases (id/en) for the AI, and a `/_zentara/ui` gallery during development.
+- A new AI flow: pick components from the catalog, arrange them with layout primitives, then check with `view_page`. When the kit is not enough, the AI explains the limit and offers custom CSS with your approval.
+- `zentara ui` prints the catalog and `zentara theme` sets the theme, from the terminal or through the AI.
+
 ### Stage 13 · 0.13: data and admin panel
 
-- htmx joins the core, with an `hx` prop in the UI kit, new components for tables, filters, and forms, and badged menu items.
+- htmx joins the core, with an `hx` prop in the UI kit, new components for tables, filters, and forms, and badged menu items. The admin panel uses the components from stage 12b.
 - `zentara make:admin` builds admin pages from the database schema.
 - `zentara describe --json` prints an app manifest (routes, tables and columns, admin pages, jobs, plugins) without secret columns. Zentara AI uses it as starting context, and it becomes the main tool of `zentara mcp`.
 
@@ -103,6 +115,7 @@ Zentara runs on Node, Bun, Deno, Vercel, and Cloudflare from one codebase.
 
 Zentara keeps a single UI system, the `zentara/ui` kit, so every page (including the ones Zentara AI builds) looks consistent and needs no build step.
 
+- **Stage 12b:** themes and public page components mean apps no longer have to look like the Zentara brand, still with no build step.
 - **Stage 13:** [htmx](https://htmx.org) joins the core for pagination, filters, and form saves without full page reloads. The server still sends HTML.
 - **Stage 14:** other AI agents (Claude Code, Cursor, and other MCP clients) can work in a Zentara project through `zentara mcp` and `AGENTS.md`.
 - **Stage 18:** Tailwind, charts, rich text editors, maps, payments, Google/GitHub sign-in, and React/Preact "islands" become optional plugins from an official catalog (`zentara add <plugin>`). Zentara AI only offers them as options when a request actually needs one, with "no plugin" as the default, and installing always asks for approval.

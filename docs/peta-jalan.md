@@ -34,6 +34,7 @@ Tahap 10 dan 11 dirilis bersama di 0.12.
 | Tahap | Versi | Isi |
 |---|---|---|
 | 12 | 0.12.5 | Chat Zentara AI di semua halaman saat pengembangan, dan AI bisa melihat halaman (`view_page`) |
+| 12b | 0.12.6 | Kit UI yang cukup untuk AI: primitif tata letak, komponen halaman publik, tema di config, dan katalog komponen |
 | 13 | 0.13 | Data dan panel admin: CRUD otomatis dari schema, relasi, paginasi, filter, interaksi tanpa muat ulang dengan [htmx](https://htmx.org), dan manifest aplikasi `zentara describe --json` |
 | 14 | 0.14 | Zentara untuk semua agen AI: `zentara mcp`, `AGENTS.md` di template, dan `llms.txt` untuk dokumentasi |
 | 15 | 0.15 | Testing dan eval AI: helper uji, factory, laporan cakupan, eval AI yang hasilnya diterbitkan, dan benchmark dasar |
@@ -50,9 +51,20 @@ Item bertanda **[menunggu keputusan]** di bawah memakai rekomendasi saat ini dan
 - Tool `view_page` membuat AI bisa membuka halaman aplikasi dan memeriksa hasilnya sendiri.
 - Setiap tugas AI mencatat hasil ringkas (berhasil/gagal, jumlah langkah, cek yang lulus) ke journal lokal untuk eval di Tahap 15. Tidak ada data yang dikirim keluar dari komputer Anda.
 
+### Tahap 12b · 0.12.6: kit UI yang cukup untuk AI
+
+Zentara AI bisa membangun tampilan yang sesuai permintaan, bukan hanya dasbor dan formulir, tanpa menulis CSS sendiri.
+
+- Primitif tata letak: `Container`, `Stack`, `Row`/`Cluster`, `Columns`, dan `Section`, dengan jarak dan perataan lewat prop bernilai terbatas.
+- Komponen halaman publik: `Navbar` publik, `Hero`, `FeatureGrid`, `MediaCard`, `Gallery`, `Pricing`, `Testimonial`, `CTA`, `Footer`, `Steps`/`Timeline`, plus `Tabs` dan `Dialog`.
+- Tema di `zentara.config.mjs` (`ui: { accent, radius, font, mode }`), sehingga warna dan font bisa diganti tanpa CSS. Default tetap brand Zentara.
+- Katalog komponen dengan contoh dan kegunaan (id/en) untuk AI, dan galeri `/_zentara/ui` saat pengembangan.
+- Alur AI baru: pilih komponen dari katalog, susun dengan primitif tata letak, lalu periksa dengan `view_page`. Bila kit belum cukup, AI menjelaskan batasnya dan menawarkan CSS khusus dengan persetujuan.
+- `zentara ui` mencetak katalog dan `zentara theme` mengatur tema, dari terminal maupun lewat AI.
+
 ### Tahap 13 · 0.13: data dan panel admin
 
-- htmx masuk inti, prop `hx` di kit UI, komponen baru untuk tabel, filter, dan formulir, serta menu bertanda.
+- htmx masuk inti, prop `hx` di kit UI, komponen baru untuk tabel, filter, dan formulir, serta menu bertanda. Panel admin memakai komponen dari Tahap 12b.
 - `zentara make:admin` membuat halaman admin dari schema database.
 - `zentara describe --json` mencetak manifest aplikasi (route, tabel dan kolom, halaman admin, job, plugin) tanpa kolom rahasia. Manifest ini dipakai Zentara AI sebagai konteks awal dan menjadi tool utama `zentara mcp`.
 
@@ -103,6 +115,7 @@ Zentara berjalan di Node, Bun, Deno, Vercel, dan Cloudflare dari satu kode.
 
 Zentara tetap memakai satu sistem tampilan, yaitu kit UI `zentara/ui`, supaya semua halaman (termasuk yang dibuat Zentara AI) seragam dan tanpa build step.
 
+- **Tahap 12b:** tema dan komponen halaman publik membuat aplikasi tidak lagi harus terlihat seperti brand Zentara, tetap tanpa build step.
 - **Tahap 13:** [htmx](https://htmx.org) masuk inti untuk paginasi, filter, dan simpan formulir tanpa memuat ulang halaman. Server tetap mengirim HTML.
 - **Tahap 14:** agen AI lain (Claude Code, Cursor, dan klien MCP lainnya) bisa bekerja di proyek Zentara lewat `zentara mcp` dan `AGENTS.md`.
 - **Tahap 18:** Tailwind, grafik, editor teks, peta, pembayaran, login Google/GitHub, dan "island" React/Preact menjadi plugin opsional dari katalog resmi (`zentara add <plugin>`). Zentara AI hanya menawarkannya sebagai pilihan saat permintaan memang membutuhkannya, dengan opsi "tanpa plugin" sebagai default, dan pemasangannya selalu meminta persetujuan.
