@@ -34,7 +34,9 @@ Stages 10 and 11 shipped together in 0.12.
 | Stage | Version | Contents |
 |---|---|---|
 | 12 | 0.12.5 | Zentara AI chat on every page during development, and an AI that can see the page and check its layout on desktop and mobile (`view_page`) |
-| 12b | 0.12.6 | A UI kit rich enough for the AI: layout primitives, public page components, theme config, and a component catalog |
+| 12b | 0.12.6 | Layout foundations and complete forms: layout, Select, Checkbox, Radio, Switch, file upload, theme config, and a component catalog |
+| 12c | 0.12.7 | Navigation, dialogs, notifications, and data display: Navbar, Tabs, Pagination, Dialog, Toast, Accordion, Timeline, Calendar, 403/404/500 pages |
+| 12d | 0.12.8 | Public pages and ready-made patterns: Hero, Pricing, Gallery, FAQ, Testimonial, ProductCard, cart, and full example pages |
 | 13 | 0.13 | Data and admin panel: automatic CRUD from the schema, relations, pagination, filters, interactions without full page reloads using [htmx](https://htmx.org), and the `zentara describe --json` app manifest |
 | 14 | 0.14 | Zentara for every AI agent: `zentara mcp`, `AGENTS.md` in the templates, and `llms.txt` for the docs |
 | 15 | 0.15 | Testing and AI evals: test helpers, factories, coverage reports, published AI eval results, and baseline benchmarks |
@@ -78,20 +80,45 @@ The goal: Zentara AI can be called from any page during development, and can **s
 - e2e: in a scaffolded project, `zentara dev` injects the widget and `zentara start` does not; `zentara view /login` and `zentara view /login --mobile` pass with no findings; the broken sample page produces the right findings.
 - AI smoke (manual/scheduled): a request such as "add page X" ends with a `view_page` that passes on desktop and mobile.
 
-### Stage 12b · 0.12.6: a UI kit rich enough for the AI
+### A complete UI kit: stages 12b, 12c, and 12d
 
-Zentara AI can build the look a request asks for, not just dashboards and forms, without writing its own CSS.
+The `zentara/ui` kit currently has about 25 components, almost all of them for dashboards and simple forms. `Field` does not even have a dropdown (`select`), checkboxes, radio buttons, switches, or file upload yet. Because Zentara AI may not write its own CSS, every missing component is a layout the AI cannot build. The three stages below complete the UI kit before the admin panel, done in order with one PR per stage.
 
-- Layout primitives: `Container`, `Stack`, `Row`/`Cluster`, `Columns`, and `Section`, with spacing and alignment set through props with a fixed set of values.
-- Public page components: a public `Navbar`, `Hero`, `FeatureGrid`, `MediaCard`, `Gallery`, `Pricing`, `Testimonial`, `CTA`, `Footer`, `Steps`/`Timeline`, plus `Tabs` and `Dialog`.
-- A theme in `zentara.config.mjs` (`ui: { accent, radius, font, mode }`), so colors and fonts can change without CSS. The Zentara brand stays the default.
-- A component catalog with examples and use cases (id/en) for the AI, and a `/_zentara/ui` gallery during development.
-- A new AI flow: pick components from the catalog, arrange them with layout primitives, then check with `view_page`. When the kit is not enough, the AI explains the limit and offers custom CSS with your approval.
-- `zentara ui` prints the catalog and `zentara theme` sets the theme, from the terminal or through the AI.
+**Rules for every new component** (in 12b, 12c, 12d, and later stages):
+- Rendered on the server and fully working without JavaScript. A small built-in script only adds convenience (e.g. closing a dialog with Esc).
+- Built-in text in Indonesian and English, light and dark mode, and following the theme from `zentara.config.mjs`.
+- Accessible: the right HTML elements, labels, keyboard focus, and enough contrast.
+- Listed in the component catalog (examples and purpose for the AI) and the `/_zentara/ui` gallery.
+- Covered by unit tests (id/en rendering, escaping, no JS) and passing the `view_page` layout checks on desktop and mobile.
+
+#### Stage 12b · 0.12.6: layout foundations and complete forms
+
+- **Layout:** `Container`, `Stack`, `Row`/`Cluster`, `Columns`, `Section`, `Divider`, and `PageHeader` (title, description, breadcrumb, and action buttons). Spacing and alignment through props with a fixed set of values.
+- **Complete forms:** `Select`, `Checkbox`, `CheckboxGroup`, `RadioGroup`, `Switch`, `FileInput` (with image preview, wired to `saveUpload`), `Fieldset`, inputs with a prefix/suffix (e.g. "Rp"), show/hide password, and the `time`, `datetime-local`, `month`, `range`, and `color` types in `Field`. Validation and error messages still go through `tryParse` as today.
+- **Theme** in `zentara.config.mjs` (`ui: { accent, radius, font, mode }`), so colors and fonts can change without CSS. The default stays the Zentara brand.
+- **Component catalog** for the AI (id/en, generated from source) and the `/_zentara/ui` gallery during development. `zentara ui` prints the catalog and `zentara theme` sets the theme.
+- **New AI workflow:** pick components from the catalog, arrange them with the layout primitives, then check with `view_page`. When the kit is not enough, the AI explains the limit and offers custom CSS with your approval.
+
+#### Stage 12c · 0.12.7: navigation, overlays, feedback, and data display
+
+- **Navigation:** public `Navbar` (with a mobile menu), `Breadcrumb`, `Tabs`, `Pagination` (plain links; the htmx version comes in stage 13), `Steps`/`Stepper`, `DropdownMenu`, `BottomNav` for phones, and `Footer`.
+- **Overlays:** `Dialog`, `ConfirmDialog`, `Drawer`/`Sheet`, `Popover`, and `Tooltip`, built on the browser's own `<dialog>` and `popover`.
+- **Feedback:** `Toast` and session flash messages (e.g. "Saved" after a redirect), `Progress`, `Spinner`, and `Skeleton`.
+- **Data display:** `DescriptionList` (details of one record), `Accordion`, `Timeline`, `Tag`, `AvatarGroup`, `Stat` with an up/down trend, `Rating`, `CodeBlock`, and `Calendar` (month view and event list, for bookings and schedules).
+- **Built-in app pages:** production 403, 404, and 500 pages that use the app's theme.
+
+#### Stage 12d · 0.12.8: public pages and ready-made patterns
+
+- **Public pages:** `Hero`, `FeatureGrid`, `MediaCard`, `Gallery`, `Pricing`, `Testimonial`, `FAQ`, `CTA`, `LogoCloud`, `TeamCard`, and `ContactForm`.
+- **Business patterns:** `ProductCard`, `QuantityInput`, a cart summary, and price cards with Rupiah formatting, as a starting point for shops and orders. Payments stay a plugin in stage 18.
+- **Full example pages** in the catalog (landing, business profile, shop, booking schedule, dashboard) that the AI follows, and that also become eval tasks in stage 15.
+- **Done when:** AI smoke runs for "a landing page for a cake shop", "a team profile page with photos", "a booking schedule page", and "change the main color to blue" finish with no AI-written CSS or `style`, and `view_page` passes on desktop and mobile.
+
+**After 12d:** components that need server interaction (tables with filtering, sorting, and inline editing; `Combobox` search; bulk actions) come in stage 13 with htmx. Heavy components that need outside libraries (rich text editor, charts, maps, date range picker) stay plugins in stage 18.
 
 ### Stage 13 · 0.13: data and admin panel
 
-- htmx joins the core, with an `hx` prop in the UI kit, new components for tables, filters, and forms, and badged menu items. The admin panel uses the components from stage 12b.
+- htmx joins the core, with an `hx` prop in the UI kit, new components for tables, filters, and forms, and badged menu items. The admin panel uses the components from stages 12b to 12d, plus components that need the server: a searchable `Combobox`, sortable tables with inline editing, and bulk actions.
 - `zentara make:admin` builds admin pages from the database schema.
 - `zentara describe --json` prints an app manifest (routes, tables and columns, admin pages, jobs, plugins) without secret columns. Zentara AI uses it as starting context, and it becomes the main tool of `zentara mcp`.
 
@@ -142,7 +169,7 @@ Zentara runs on Node, Bun, Deno, Vercel, and Cloudflare from one codebase.
 
 Zentara keeps a single UI system, the `zentara/ui` kit, so every page (including the ones Zentara AI builds) looks consistent and needs no build step.
 
-- **Stage 12b:** themes and public page components mean apps no longer have to look like the Zentara brand, still with no build step.
+- **Stages 12b to 12d:** a complete UI kit, themes, and public page components mean apps no longer have to look like the Zentara brand, still with no build step.
 - **Stage 13:** [htmx](https://htmx.org) joins the core for pagination, filters, and form saves without full page reloads. The server still sends HTML.
 - **Stage 14:** other AI agents (Claude Code, Cursor, and other MCP clients) can work in a Zentara project through `zentara mcp` and `AGENTS.md`.
 - **Stage 18:** Tailwind, charts, rich text editors, maps, payments, Google/GitHub sign-in, and React/Preact "islands" become optional plugins from an official catalog (`zentara add <plugin>`). Zentara AI only offers them as options when a request actually needs one, with "no plugin" as the default, and installing always asks for approval.
