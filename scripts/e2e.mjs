@@ -269,15 +269,22 @@ try {
         const chrome = findChrome();
         if (!chrome) console.log("  - Chrome tidak ditemukan (CHROME_PATH): uji tampilan di browser dilewati");
         else {
-          const closeBrowser = openBrowser(chrome, `http://127.0.0.1:${devPort}/login`);
+          // Tab dibuka setelah /login pasti menjawab: halaman galat Chrome (server sedang dimulai ulang) tidak
+          // pernah terhubung. Bila tab belum terhubung juga (Chrome pertama kali di CI lambat), buka ulang sekali.
+          await waitFor(`http://127.0.0.1:${devPort}/login`);
+          let closeBrowser = openBrowser(chrome, `http://127.0.0.1:${devPort}/login`);
           try {
             let login = view("/login", "--json");
-            for (let i = 0; i < 40 && !login.out.includes('"mode": "browser"'); i++) {
+            for (let i = 0; i < 80 && !login.out.includes('"mode": "browser"'); i++) {
+              if (i === 30) {
+                closeBrowser();
+                closeBrowser = openBrowser(chrome, `http://127.0.0.1:${devPort}/login`);
+              }
               await new Promise((r) => setTimeout(r, 500));
               login = view("/login", "--json");
             }
             const loginResult = JSON.parse(login.out);
-            check(loginResult.mode === "browser", "zentara view lewat tab browser yang terhubung ke devtools");
+            check(loginResult.mode === "browser", `zentara view lewat tab browser yang terhubung ke devtools${loginResult.mode === "browser" ? "" : `\n${loginResult.text}`}`);
             check(loginResult.ok === true, `zentara view /login di browser: tanpa temuan\n${loginResult.ok ? "" : loginResult.text}`);
             const mobile = JSON.parse(view("/login", "--mobile", "--json").out);
             check(mobile.mode === "browser" && mobile.summary.viewport === "mobile" && /390x844/.test(mobile.text), "zentara view /login --mobile: dilihat di layar 390px");
