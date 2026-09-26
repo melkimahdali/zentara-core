@@ -8,6 +8,7 @@ import { SYSTEM_PROMPT } from "../src/ai/prompt.js";
 import { run } from "../src/cli.js";
 import { editConfigUi, writeConfigUi } from "../src/core/config-edit.js";
 import { resolveConfig } from "../src/core/config.js";
+import { session } from "../src/core/session.js";
 import { h, renderToString, type Child } from "../src/core/view.js";
 import { setLocale } from "../src/i18n/index.js";
 import { catalogDetail, catalogForAi, findCatalogEntry, similarEntries, UI_CATALOG } from "../src/ui/catalog.js";
@@ -34,7 +35,7 @@ import {
   Switch,
 } from "../src/ui/index.js";
 import { accentPalette, ACCENT_PRESETS, contrast, resolveUiTheme, setUiTheme, themeCss } from "../src/ui/theme.js";
-import { startServer } from "./helpers.js";
+import { FIXTURES, startServer } from "./helpers.js";
 // @ts-expect-error skrip .mjs tanpa deklarasi tipe
 import { generateCatalog, OUTPUT } from "../scripts/ui-catalog.mjs";
 
@@ -310,5 +311,200 @@ describe("zentara theme dan zentara ui", () => {
     assert.equal(missing.code, 1);
     assert.match(missing.err, /Mungkin maksud Anda: Select/);
     assert.equal((await cli(dir, ["ui", "--group", "x"])).code, 1);
+  });
+});
+
+describe("kit UI 12c: navigasi, lapisan, umpan balik, tampilan data", () => {
+  afterEach(() => setLocale("id"));
+
+  it("Navbar: tautan aktif, aksi, dan menu ponsel <details> tanpa JavaScript", () => {
+    const out = html(h(ui.Navbar, { appName: "Toko <Senja>", links: [{ href: "/", label: "Beranda" }, { href: "/menu", label: "Menu" }], active: "/menu", actions: h(ui.Button, { href: "/pesan" }, "Pesan") }));
+    assert.match(out, /^<header class="zu-navbar">/);
+    assert.match(out, /Toko <b>&lt;Senja&gt;<\/b>/);
+    assert.match(out, /<nav class="zu-navbar-links" aria-label="Navigasi utama"><a href="\/">Beranda<\/a><a href="\/menu" aria-current="page">Menu<\/a><\/nav>/);
+    assert.match(out, /<details class="zu-navbar-menu"><summary aria-label="Menu">/);
+    assert.equal((out.match(/href="\/pesan"/g) ?? []).length, 2, "aksi ada di bilah dan di menu ponsel");
+  });
+
+  it("Breadcrumb, Tabs, Steps", () => {
+    assert.equal(html(h(ui.Breadcrumb, { items: [] })), "");
+    assert.match(html(h(ui.Breadcrumb, { items: [{ label: "Beranda", href: "/" }, { label: "Kopi", href: "/kopi" }] })), /<li><span aria-current="page">Kopi<\/span><\/li>/);
+    const tabs = html(h(ui.Tabs, { items: [{ href: "?tab=a", label: "Baru", count: 3 }, { href: "?tab=b", label: "Selesai" }], active: "?tab=a" }));
+    assert.match(tabs, /<a href="\?tab=a" aria-current="page">Baru<span class="zu-tab-count">3<\/span><\/a><a href="\?tab=b">Selesai<\/a>/);
+    const steps = html(h(ui.Steps, { steps: ["Keranjang", { label: "Alamat", description: "Ke mana" }, "Bayar"], current: 2 }));
+    assert.match(steps, /<li class="done">.*✓.*<li class="current" aria-current="step">.*<b>Alamat<\/b><small>Ke mana<\/small>.*<li class="todo">/);
+  });
+
+  it("Pagination: nomor di sekitar halaman aktif, celah, tepi nonaktif, dan teks id/en", () => {
+    assert.equal(html(h(ui.Pagination, { page: 1, pages: 1 })), "");
+    const out = html(h(ui.Pagination, { page: 5, pages: 12, href: "/produk?page={page}" }));
+    const numbers = [...out.matchAll(/<li>(?:<a[^>]*>|<span[^>]*>)([^<]+)</g)].map((m) => m[1]);
+    assert.deepEqual(numbers, ["1", "…", "4", "5", "6", "…", "12"]);
+    assert.match(out, /<a class="zu-page edge" href="\/produk\?page=4" rel="prev">‹ Sebelumnya<\/a>/);
+    assert.match(out, /<span class="zu-page" aria-current="page">5<\/span>/);
+    assert.match(out, /Halaman 5 dari 12/);
+    assert.deepEqual([...html(h(ui.Pagination, { page: 2, pages: 4 })).matchAll(/<li>(?:<a[^>]*>|<span[^>]*>)([^<]+)</g)].map((m) => m[1]), ["1", "2", "3", "4"]);
+    const first = html(h(ui.Pagination, { page: 0, pages: 3 }));
+    assert.match(first, /<span class="zu-page edge" aria-disabled="true">‹ Sebelumnya<\/span>/, "halaman di luar batas dijepit ke 1");
+    setLocale("en");
+    assert.match(html(h(ui.Pagination, { page: 2, pages: 3 })), /Page 2 of 3.*Next ›/);
+  });
+
+  it("DropdownMenu: tautan dan aksi POST; BottomNav; Footer", () => {
+    const menu = html(h(ui.DropdownMenu, { label: "Aksi", align: "end", items: [{ label: "Ubah", href: "/p/1" }, { label: "Hapus", action: "/p/1/hapus", danger: true }] }));
+    assert.match(menu, /^<details class="zu-dropdown end"><summary class="zu-btn secondary small">Aksi/);
+    assert.match(menu, /<form method="post" action="\/p\/1\/hapus"><button type="submit" class="zu-menu-item danger">Hapus<\/button><\/form>/);
+    assert.match(html(h(ui.BottomNav, { items: [{ href: "/", label: "Beranda", icon: "⌂" }], active: "/" })), /<a href="\/" aria-current="page"><span class="zu-bottomnav-icon" aria-hidden="true">⌂<\/span><span>Beranda<\/span><\/a>/);
+    const footer = html(h(ui.Footer, { appName: "Toko Senja", columns: [{ title: "Toko", links: [{ href: "/menu", label: "Menu" }] }] }));
+    assert.match(footer, new RegExp(`© ${new Date().getFullYear()} Toko Senja`));
+    assert.match(footer, /<h2>Toko<\/h2><ul><li><a href="\/menu">Menu<\/a><\/li><\/ul>/);
+  });
+
+  it("Button opens/closes, Dialog, ConfirmDialog, Drawer, Sheet, Popover, Tooltip memakai popover bawaan", () => {
+    assert.equal(html(h(ui.Button, { opens: "d" }, "Buka")), '<button class="zu-btn primary" type="button" popovertarget="d" popovertargetaction="show">Buka</button>');
+    assert.equal(html(h(ui.Button, null, "Simpan")), '<button class="zu-btn primary" type="submit">Simpan</button>', "tombol biasa tidak berubah");
+    const dialog = html(h(ui.Dialog, { id: "tambah", title: "Tambah <produk>", trigger: "Tambah", open: true }, "isi"));
+    assert.match(dialog, /^<button class="zu-btn primary" type="button" popovertarget="tambah" popovertargetaction="show">Tambah<\/button><dialog class="zu-dialog" id="tambah" popover="auto" aria-labelledby="tambah-title" data-zu-open="">/);
+    assert.match(dialog, /<h2 id="tambah-title">Tambah &lt;produk&gt;<\/h2><button class="zu-close" type="button" popovertarget="tambah" popovertargetaction="hide" aria-label="Tutup">×<\/button>/);
+    const confirm = html(h(ui.ConfirmDialog, { id: "hapus", title: "Hapus?", text: "Tidak bisa dikembalikan.", action: "/p/1/hapus", confirm: "Hapus" }));
+    assert.match(confirm, /role="alertdialog"/);
+    assert.match(confirm, /<form class="zu-dialog-foot" method="post" action="\/p\/1\/hapus"><button class="zu-btn secondary" type="button" popovertarget="hapus" popovertargetaction="hide">Batal<\/button><button class="zu-btn danger" type="submit">Hapus<\/button><\/form>/);
+    assert.match(html(h(ui.Drawer, { id: "f", title: "Filter", side: "left" }, "x")), /<dialog class="zu-drawer left" id="f" popover="auto"/);
+    assert.match(html(h(ui.Sheet, { id: "s", title: "Bagikan" }, "x")), /<dialog class="zu-drawer bottom" id="s"/);
+    assert.match(html(h(ui.Popover, { id: "p", trigger: "Info" }, "isi")), /<button class="zu-btn secondary small" type="button" popovertarget="p">Info<\/button><div class="zu-popover" id="p" popover="auto">isi<\/div>/);
+    assert.match(html(h(ui.Tooltip, { text: "PPN <11%>" }, h("button", null, "Harga"))), /<span class="zu-tip" data-zu-tip="(zu-tip-\d+)"><button>Harga<\/button><span class="zu-tip-text" role="tooltip" id="\1">PPN &lt;11%&gt;<\/span><\/span>/);
+    setLocale("en");
+    assert.match(html(h(ui.ConfirmDialog, { id: "x", title: "Delete?", action: "/x", confirm: "Delete" })), /aria-label="Close".*>Cancel<\/button>/);
+  });
+
+  it("Toast (termasuk dari flash), Progress, Spinner, Skeleton", () => {
+    assert.equal(html(h(ui.Toast, { flash: undefined })), "", "tanpa pesan flash tidak merender apa-apa");
+    const toast = html(h(ui.Toast, { flash: { message: "Tersimpan <ok>", tone: "error" } }));
+    assert.match(toast, /<div class="zu-toast error" role="alert" data-zu-timeout="6"><span>Tersimpan &lt;ok&gt;<\/span><button class="zu-close" type="button" data-zu-dismiss="" aria-label="Tutup" hidden>×<\/button><\/div>/);
+    assert.match(html(h(ui.Toast, { timeout: 0 }, "Halo")), /<div class="zu-toast success" role="status"><span>Halo<\/span>/);
+    assert.match(html(h(ui.Progress, { label: "Kuota", value: 7, max: 10 })), /<small>70%<\/small><\/div><progress value="7" max="10" aria-label="Kuota"><\/progress>/);
+    assert.match(html(h(ui.Progress, { label: "Mengunggah" })), /<progress max="100" aria-label="Mengunggah"><\/progress>/);
+    assert.match(html(h(ui.Spinner, null)), /role="status" aria-label="Memuat…"/);
+    assert.match(html(h(ui.Spinner, { text: "Memuat pesanan" })), /<span class="zu-spinner" role="status"><span class="zu-spinner-ring" aria-hidden="true"><\/span><span>Memuat pesanan<\/span><\/span>/);
+    assert.equal((html(h(ui.Skeleton, { lines: 3, avatar: true })).match(/zu-skel-line[" ]/g) ?? []).length, 3);
+  });
+
+  it("DescriptionList, Accordion, Timeline, Tag, AvatarGroup, Stat dengan tren", () => {
+    assert.match(html(h(ui.DescriptionList, { columns: 2, items: [{ label: "Total", value: "Rp1" }] })), /<dl class="zu-dl c2"><div><dt>Total<\/dt><dd>Rp1<\/dd><\/div><\/dl>/);
+    const acc = html(h(ui.Accordion, { single: true, items: [{ title: "A", content: "a", open: true }, { title: "B", content: "b" }] }));
+    const names = [...acc.matchAll(/<details name="(zu-acc-\d+)"/g)].map((m) => m[1]);
+    assert.equal(names.length, 2);
+    assert.equal(names[0], names[1], "single: bagian berbagi name");
+    assert.match(acc, /<details name="zu-acc-\d+" open><summary>A<\/summary><div>a<\/div><\/details>/);
+    assert.doesNotMatch(html(h(ui.Accordion, { items: [{ title: "A", content: "a" }] })), /name=/);
+    assert.match(html(h(ui.Timeline, { items: [{ title: "Dibayar", time: "09.15", tone: "ok" }] })), /<li class="ok"><div class="zu-timeline-head"><b>Dibayar<\/b><time>09.15<\/time><\/div><\/li>/);
+    assert.equal(html(h(ui.Tag, { href: "/k", active: true }, "Kopi")), '<a class="zu-tag active" href="/k" aria-current="true">Kopi</a>');
+    const avatars = html(h(ui.AvatarGroup, { names: ["Sari Dewi", "Budi", "Rina"], max: 2 }));
+    assert.match(avatars, /aria-label="Sari Dewi, Budi, Rina"/);
+    assert.match(avatars, />SD<\/span><span class="zu-avatar" aria-hidden="true">B<\/span><span class="zu-avatar more" aria-hidden="true">\+1<\/span>/);
+    const up = html(h(ui.Stat, { label: "Pendapatan", value: 10, trend: "up", change: "12%", hint: "dari bulan lalu" }));
+    assert.match(up, /<small><span class="zu-trend good"><span role="img" aria-label="naik">↑<\/span> 12%<\/span> dari bulan lalu<\/small>/);
+    assert.match(html(h(ui.Stat, { label: "Keluhan", value: 3, trend: "down", good: "down" })), /zu-trend good/);
+    assert.match(html(h(ui.Stat, { label: "Pesanan", value: 3, trend: "down" })), /zu-trend bad/);
+    assert.equal(html(h(ui.Stat, { label: "A", value: 1, hint: "h" })), '<div class="zu-stat"><span>A</span><b>1</b><small>h</small></div>', "Stat lama tidak berubah");
+  });
+
+  it("Rating: tampilan dan input bintang (radio tanpa JavaScript), CodeBlock", () => {
+    const shown = html(h(ui.Rating, { value: 4.5, count: 1280 }));
+    assert.match(shown, /aria-label="Rating 4,5 dari 5"/);
+    assert.match(shown, /<b>4,5<\/b><small>\(1\.280\)<\/small>/);
+    const input = html(h(ui.Rating, { name: "nilai", value: 4 }));
+    assert.equal((input.match(/type="radio"/g) ?? []).length, 5);
+    assert.match(input, /<input type="radio" id="nilai-4" name="nilai" value="4" checked aria-label="4 bintang">/);
+    const code = html(h(ui.CodeBlock, { code: "a < b", title: "Terminal" }));
+    assert.match(code, /<figcaption><span>Terminal<\/span><button class="zu-copy" type="button" data-zu-copy="" data-done="Tersalin" hidden>Salin<\/button><\/figcaption><pre><code>a &lt; b<\/code><\/pre>/);
+    setLocale("en");
+    assert.match(html(h(ui.Rating, { value: 4.5 })), /aria-label="Rated 4.5 out of 5"/);
+  });
+
+  it("Calendar: minggu mulai Senin (id) atau Minggu (en), acara per hari, tautan bulan, daftar", () => {
+    const events = [
+      { date: "2026-09-08", time: "10.00", title: "Kelas <latte>", href: "/k/1" },
+      { date: "2026-09-25", title: "Live musik", tone: "ok" as const },
+      { date: "2026-10-01", title: "Bulan lain" },
+    ];
+    const out = html(h(ui.Calendar, { month: "2026-09", events, href: "/jadwal?bulan={month}", today: "2026-09-25" }));
+    assert.match(out, /<h2>September 2026<\/h2>/);
+    assert.match(out, /href="\/jadwal\?bulan=2026-08" aria-label="Bulan sebelumnya"/);
+    assert.match(out, /href="\/jadwal\?bulan=2026-10" aria-label="Bulan berikutnya"/);
+    assert.match(out, /<th scope="col">Sen<\/th>/);
+    // 1 September 2026 hari Selasa: satu sel kosong sebelum tanggal 1 (minggu mulai Senin).
+    assert.match(out, /<tbody><tr><td class="out"><\/td><td><span class="zu-cal-day">1<\/span><\/td>/);
+    assert.match(out, /<td class="today"><span class="zu-cal-day" aria-current="date">25<\/span><span class="zu-cal-event ok">/);
+    assert.match(out, /<a class="zu-cal-event" href="\/k\/1"><span class="zu-cal-time">10.00<\/span> Kelas &lt;latte&gt;<\/a>/);
+    assert.doesNotMatch(out, /Bulan lain/, "acara bulan lain tidak ditampilkan");
+    assert.match(out, /<ol class="zu-cal-list">/);
+    assert.match(html(h(ui.Calendar, { month: "2026-09", view: "list" })), /<section class="zu-calendar list">.*Belum ada acara bulan ini/);
+    assert.match(html(h(ui.Calendar, { month: "2026-12", href: "?m={month}" })), /href="\?m=2027-01"/);
+    setLocale("en");
+    const en = html(h(ui.Calendar, { month: "2026-09" }));
+    assert.match(en, /<th scope="col">Sun<\/th>/);
+    assert.match(en, /<tbody><tr><td class="out"><\/td><td class="out"><\/td><td><span class="zu-cal-day">1<\/span>/);
+  });
+});
+
+describe("pesan flash dan halaman error bertema", () => {
+  const dir = path.join(FIXTURES, "flash");
+  const cookieOf = (res: Response) => res.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
+
+  it("tanpa session: cookie zen_flash, tampil sekali, lalu dihapus", async () => {
+    const srv = await startServer({ routesDir: dir });
+    try {
+      const saved = await fetch(`${srv.base}/simpan`, { method: "POST", redirect: "manual", headers: { origin: srv.base } });
+      assert.equal(saved.status, 303);
+      const cookie = cookieOf(saved);
+      assert.match(cookie, /^zen_flash=/);
+      const shown = await fetch(`${srv.base}/lihat`, { headers: { cookie } });
+      assert.match(await shown.text(), /<div class="zu-toast success" role="status" data-zu-timeout="6"><span>Tersimpan &lt;ok&gt;<\/span>/);
+      assert.match(shown.headers.getSetCookie().join(), /zen_flash=; .*Max-Age=0/);
+      assert.doesNotMatch(await (await fetch(`${srv.base}/lihat`)).text(), /class="zu-toast/);
+      const forged = await fetch(`${srv.base}/lihat`, { headers: { cookie: "zen_flash=bukan-json" } });
+      assert.doesNotMatch(await forged.text(), /class="zu-toast/, "cookie rusak diabaikan");
+      const same = await fetch(`${srv.base}/sekaligus`);
+      assert.match(await same.text(), /zu-toast info/);
+      assert.match(same.headers.getSetCookie().join(), /zen_flash=; .*Max-Age=0/, "pesan yang sudah tampil tidak terbawa ke request berikutnya");
+    } finally {
+      await srv.close();
+    }
+  });
+
+  it("dengan session(): pesan disimpan di session", async () => {
+    const srv = await startServer({ routesDir: dir, middleware: [session({ secret: "s".repeat(32) })] });
+    try {
+      const saved = await fetch(`${srv.base}/simpan`, { method: "POST", redirect: "manual", headers: { origin: srv.base } });
+      const cookie = cookieOf(saved);
+      assert.match(cookie, /^zen_session=/);
+      assert.doesNotMatch(cookie, /zen_flash/);
+      const shown = await fetch(`${srv.base}/lihat`, { headers: { cookie } });
+      assert.match(await shown.text(), /Tersimpan &lt;ok&gt;/);
+      assert.doesNotMatch(await (await fetch(`${srv.base}/lihat`, { headers: { cookie: cookieOf(shown) } })).text(), /class="zu-toast/);
+    } finally {
+      await srv.close();
+    }
+  });
+
+  it("produksi: 403/404/500 memakai kit UI dengan tema dan nama aplikasi, tanpa detail internal", async () => {
+    const srv = await startServer({ routesDir: dir, debug: false, appName: "Toko Senja", ui: { accent: "blue" } });
+    try {
+      const html403 = await (await fetch(`${srv.base}/admin`, { headers: { accept: "text/html" } })).text();
+      assert.match(html403, /<body class="zu">/);
+      assert.match(html403, /\/_zentara\/theme\.css\?v=/);
+      assert.match(html403, /<p class="zu-status-code">403<\/p><h1>Akses ditolak<\/h1><p>Khusus admin &lt;toko&gt;<\/p>/);
+      assert.match(html403, /Toko <b>Senja<\/b>/);
+      const missing = await fetch(`${srv.base}/tidak-ada`, { headers: { accept: "text/html" } });
+      assert.equal(missing.status, 404);
+      assert.match(await missing.text(), /<p class="zu-status-code">404<\/p><h1>Halaman tidak ditemukan<\/h1>/);
+      const broken = await (await fetch(`${srv.base}/rusak`, { headers: { accept: "text/html" } })).text();
+      assert.match(broken, /<p class="zu-status-code">500<\/p><h1>Terjadi kesalahan<\/h1>/);
+      assert.doesNotMatch(broken, /rahasia internal/);
+    } finally {
+      await srv.close();
+      setUiTheme(resolveUiTheme(undefined));
+    }
   });
 });

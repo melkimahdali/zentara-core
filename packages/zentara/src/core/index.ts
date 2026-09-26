@@ -22,6 +22,7 @@ export { definePlugin, type ZenPlugin } from "./plugin.js";
 export { html, json, redirect, text, ZenResponse, type ResponseInit } from "./response.js";
 export { cors, csrf, type CorsOptions, type CsrfOptions } from "./security.js";
 export { session, Session, type SessionOptions } from "./session.js";
+export { flash, takeFlash, type Flash } from "./flash.js";
 export {
   parse,
   readInput,

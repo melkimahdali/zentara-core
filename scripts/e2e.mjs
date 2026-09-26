@@ -186,6 +186,7 @@ try {
       const missing = await fetch(`http://127.0.0.1:${prodPort}/tidak-ada`, { headers: { accept: "text/html" } });
       const missingHtml = await missing.text();
       check(missing.status === 404 && missingHtml.includes(expect.notFound) && !missingHtml.includes(expect.devRoutes) && noWidget(missingHtml), "zentara start: halaman 404 tanpa detail internal dan tanpa widget");
+      check(missingHtml.includes('<body class="zu">') && missingHtml.includes('<p class="zu-status-code">404</p>') && missingHtml.includes("/_zentara/ui.css"), "zentara start: halaman 404 memakai kit UI dan tema aplikasi");
       const hello = await (await fetch(`http://127.0.0.1:${prodPort}/api/hello?name=Nusantara`)).json();
       check(hello.message === "Hello from Nusantara API", "zentara start: /api/hello");
       if (template === "api") {

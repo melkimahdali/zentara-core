@@ -26,6 +26,11 @@ import {
   Table,
 } from "./index.js";
 import { Cluster, Columns, Container, Divider, PageHeader, Row, Section, Stack } from "./layout.js";
+import { BottomNav, Breadcrumb, DropdownMenu, Footer, Navbar, Pagination, Steps, Tabs } from "./nav.js";
+import { ConfirmDialog, Dialog, Drawer, Popover, Sheet, Tooltip } from "./overlay.js";
+import { Progress, Skeleton, Spinner, Toast } from "./feedback.js";
+import { Accordion, AvatarGroup, Calendar, CodeBlock, DescriptionList, Rating, Tag, Timeline } from "./data.js";
+import { StatusPage } from "./status.js";
 import { activeTheme } from "./theme.js";
 
 /**
@@ -38,7 +43,7 @@ import { activeTheme } from "./theme.js";
 const L = (id: string, en: string) => (getLocale() === "en" ? en : id);
 
 /** Komponen yang membentuk seluruh halaman, jadi tidak ditampilkan di dalam galeri. */
-export const WHOLE_PAGE = new Set(["page", "AuthCard", "AppShell"]);
+export const WHOLE_PAGE = new Set(["page", "statusPage", "AuthCard", "AppShell"]);
 
 const muted = (text: string) => h("p", { class: "zu-muted" }, text);
 
@@ -53,6 +58,43 @@ export const GALLERY_DEMOS: Record<string, () => Child> = {
   Divider: () => h(Stack, { gap: "sm" }, muted(L("Masuk dengan email", "Sign in with email")), h(Divider, { label: L("atau", "or") }), muted(L("Masuk dengan tautan", "Sign in with a link"))),
   PageHeader: () =>
     h(PageHeader, { title: L("Produk", "Products"), description: L("Kelola katalog toko", "Manage the store catalog"), breadcrumb: [{ label: L("Beranda", "Home"), href: "#" }, { label: L("Produk", "Products") }], actions: h(Button, { href: "#", small: true }, L("Tambah", "Add")) }),
+  Navbar: () => h(Navbar, { appName: "Toko Senja", href: "#", links: [{ href: "#", label: L("Beranda", "Home") }, { href: "#menu", label: "Menu" }, { href: "#kontak", label: L("Kontak", "Contact") }], active: "#menu", actions: h(Button, { href: "#", small: true }, L("Pesan", "Order")) }),
+  Breadcrumb: () => h(Breadcrumb, { items: [{ label: L("Beranda", "Home"), href: "#" }, { label: L("Produk", "Products"), href: "#" }, { label: L("Kopi susu", "Iced latte") }] }),
+  Tabs: () => h(Tabs, { items: [{ href: "#baru", label: L("Baru", "New"), count: 3 }, { href: "#proses", label: L("Diproses", "In progress") }, { href: "#selesai", label: L("Selesai", "Done") }], active: "#baru" }),
+  Pagination: () => h(Pagination, { page: 4, pages: 12, href: "#hal-{page}" }),
+  Steps: () => h(Steps, { steps: [L("Keranjang", "Cart"), { label: L("Alamat", "Address"), description: L("Ke mana dikirim", "Where to deliver") }, L("Pembayaran", "Payment")], current: 2 }),
+  DropdownMenu: () => h(DropdownMenu, { label: L("Aksi", "Actions"), items: [{ label: L("Ubah", "Edit"), href: "#" }, { label: L("Duplikat", "Duplicate"), href: "#" }, { label: L("Hapus", "Delete"), action: "#", danger: true }] }),
+  BottomNav: () => h(BottomNav, { items: [{ href: "#", label: L("Beranda", "Home"), icon: "⌂" }, { href: "#pesanan", label: L("Pesanan", "Orders"), icon: "☰" }, { href: "#akun", label: L("Akun", "Account"), icon: "◉" }], active: "#pesanan" }),
+  Footer: () => h(Footer, { appName: "Toko Senja", columns: [{ title: L("Toko", "Store"), links: [{ href: "#", label: "Menu" }, { href: "#", label: L("Lokasi", "Locations") }] }, { title: L("Bantuan", "Help"), links: [{ href: "#", label: "FAQ" }, { href: "#", label: L("Kontak", "Contact") }] }], links: [{ href: "#", label: L("Privasi", "Privacy") }] }),
+  Dialog: () => h(Dialog, { id: "g-dialog", title: L("Tambah produk", "Add product"), trigger: L("Buka dialog", "Open dialog") }, h(Field, { name: "g-dialog-nama", label: L("Nama", "Name") })),
+  ConfirmDialog: () => h(ConfirmDialog, { id: "g-confirm", trigger: L("Hapus", "Delete"), title: L("Hapus Latte?", "Delete Latte?"), text: L("Produk yang dihapus tidak bisa dikembalikan.", "Deleted products cannot be restored."), action: "#", confirm: L("Hapus", "Delete") }),
+  Drawer: () => h(Drawer, { id: "g-drawer", title: "Filter", trigger: "Filter", actions: h(Button, { type: "button" }, L("Terapkan", "Apply")) }, h(CheckboxGroup, { name: "g-drawer-kat", label: L("Kategori", "Category"), options: [L("Kopi", "Coffee"), L("Teh", "Tea")] })),
+  Sheet: () => h(Sheet, { id: "g-sheet", title: L("Bagikan", "Share"), trigger: L("Bagikan", "Share") }, h(List, { items: [[h("a", { href: "#" }, "WhatsApp")], [h("a", { href: "#" }, "Email")]] })),
+  Popover: () => h(Popover, { id: "g-popover", trigger: L("Info ongkir", "Shipping info") }, h("p", null, L("Gratis ongkir untuk pesanan di atas Rp100.000.", "Free shipping for orders over $50."))),
+  Tooltip: () => h(Tooltip, { text: L("Termasuk PPN 11%", "Includes 11% VAT") }, h(Button, { variant: "secondary", small: true, type: "button" }, L("Harga", "Price"))),
+  Toast: () => h(Toast, { tone: "success", timeout: 0 }, L("Produk tersimpan.", "Product saved.")),
+  Progress: () => h(Stack, { gap: "sm" }, h(Progress, { label: L("Kuota penyimpanan", "Storage quota"), value: 7.2, max: 10, text: L("7,2 dari 10 GB", "7.2 of 10 GB") }), h(Progress, { label: L("Mengunggah…", "Uploading…") })),
+  Spinner: () => h(Cluster, { gap: "lg" }, h(Spinner, { text: L("Memuat pesanan…", "Loading orders…") }), h(Spinner, { size: "sm" })),
+  Skeleton: () => h(Skeleton, { lines: 3, avatar: true }),
+  DescriptionList: () => h(DescriptionList, { columns: 2, items: [{ label: L("Pelanggan", "Customer"), value: "Sari Dewi" }, { label: "Total", value: rupiah(56000) }, { label: "Status", value: h(Badge, { tone: "ok" }, L("Lunas", "Paid")) }, { label: L("Tanggal", "Date"), value: formatDate("2026-09-25") }] }),
+  Accordion: () => h(Accordion, { single: true, items: [{ title: L("Berapa lama pengiriman?", "How long is delivery?"), content: L("1 sampai 3 hari kerja.", "1 to 3 business days."), open: true }, { title: L("Bisa bayar di tempat?", "Can I pay on delivery?"), content: L("Bisa, untuk wilayah Bandung.", "Yes, within Bandung.") }] }),
+  Timeline: () => h(Timeline, { items: [{ title: L("Pesanan dibuat", "Order placed"), time: "09.12" }, { title: L("Dibayar", "Paid"), time: "09.15", tone: "ok" }, { title: L("Dikirim", "Shipped"), time: "13.40", text: "JNE 0123456789", tone: "accent" }] }),
+  Tag: () => h(Cluster, null, h(Tag, { href: "#", active: true }, L("Semua", "All")), h(Tag, { href: "#" }, L("Kopi", "Coffee")), h(Tag, { href: "#" }, L("Teh", "Tea")), h(Tag, null, L("Baru", "New"))),
+  AvatarGroup: () => h(AvatarGroup, { names: ["Sari Dewi", "Budi Santoso", "Rina", "Agus", "Wulan", "Dimas"], max: 4 }),
+  Rating: () => h(Stack, { gap: "sm" }, h(Rating, { value: 4.5, count: 128 }), h(Rating, { name: "g-rating", label: L("Nilai pesanan Anda", "Rate your order"), value: 4 })),
+  CodeBlock: () => h(CodeBlock, { title: "Terminal", code: "npx zentara dev" }),
+  Calendar: () =>
+    h(Calendar, {
+      month: "2026-09",
+      today: "2026-09-25",
+      href: "#bulan-{month}",
+      events: [
+        { date: "2026-09-08", time: "10.00", title: L("Kelas latte art", "Latte art class"), href: "#" },
+        { date: "2026-09-25", time: "19.00", title: L("Live musik", "Live music"), tone: "ok" },
+        { date: "2026-09-25", time: "20.30", title: L("Penuh", "Full"), tone: "warn" },
+      ],
+    }),
+  StatusPage: () => h(StatusPage, { status: 404, appName: "Toko Senja", action: h(Button, { href: "#", variant: "secondary", small: true }, L("Lihat produk lain", "See other products")) }),
   Card: () => h(Card, { title: L("Info akun", "Account"), actions: h(Button, { href: "#", variant: "ghost", small: true }, L("Ubah", "Edit")) }, muted("sari@contoh.id")),
   Grid: () => h(Grid, null, h(Card, { title: "Latte" }, rupiah(28000)), h(Card, { title: "Americano" }, rupiah(22000)), h(Card, { title: L("Teh tarik", "Pulled tea") }, rupiah(18000))),
   Split: () => h(Split, null, h(Card, { title: L("Catatan", "Notes") }, muted(L("Isi utama", "Main content"))), h(Card, { title: L("Samping", "Side") }, muted(L("Panel samping", "Side panel")))),
@@ -105,7 +147,7 @@ export const GALLERY_DEMOS: Record<string, () => Child> = {
   PostButton: () => h(PostButton, { action: "#", confirm: L("Hapus data contoh?", "Delete the sample record?") }, L("Hapus", "Delete")),
   Search: () => h(Search, { action: "#", value: L("kopi", "coffee") }),
   Avatar: () => h(Cluster, null, h(Avatar, { name: "Sari Dewi" }), h(Avatar, { name: "Budi" })),
-  Stat: () => h(Stat, { label: L("Pesanan hari ini", "Orders today"), value: formatNumber(42), hint: L("+8 dari kemarin", "+8 from yesterday") }),
+  Stat: () => h(StatGroup, null, h(Stat, { label: L("Pesanan hari ini", "Orders today"), value: formatNumber(42), hint: L("+8 dari kemarin", "+8 from yesterday") }), h(Stat, { label: L("Pendapatan", "Revenue"), value: rupiah(12500000), trend: "up", change: "12%", hint: L("dari bulan lalu", "vs last month") }), h(Stat, { label: L("Keluhan", "Complaints"), value: 3, trend: "down", change: "2", good: "down" })),
   StatGroup: () => h(StatGroup, null, h(Stat, { label: L("Produk", "Products"), value: 12 }), h(Stat, { label: L("Pesanan", "Orders"), value: 40 }), h(Stat, { label: L("Pelanggan", "Customers"), value: 31 })),
   Badge: () => h(Cluster, null, h(Badge, null, L("Netral", "Neutral")), h(Badge, { tone: "accent" }, "Accent"), h(Badge, { tone: "ok" }, L("Lunas", "Paid")), h(Badge, { tone: "warn" }, L("Menunggu", "Pending")), h(Badge, { tone: "danger" }, L("Batal", "Cancelled")), h(Badge, { tone: "gold" }, "Gold")),
   Table: () =>
@@ -119,6 +161,8 @@ export const GALLERY_DEMOS: Record<string, () => Child> = {
   List: () => h(List, { items: [[h("span", { class: "zu-muted" }, "Email"), "sari@contoh.id"], [h("span", { class: "zu-muted" }, L("Peran", "Role")), "Admin"]] }),
   Alert: () => h(Stack, { gap: "sm" }, h(Alert, null, L("Info untuk pengguna.", "Information for the user.")), h(Alert, { tone: "success" }, L("Produk tersimpan.", "Product saved.")), h(Alert, { tone: "warn" }, L("Stok hampir habis.", "Stock is running low.")), h(Alert, { tone: "error" }, L("Gagal menyimpan.", "Could not save."))),
   EmptyState: () => h(EmptyState, { title: L("Belum ada produk", "No products yet"), text: L("Tambahkan produk pertama Anda.", "Add your first product."), action: h(Button, { href: "#", small: true }, L("Tambah produk", "Add product")) }),
+  flash: () => h("code", null, L('flash(ctx, "Produk tersimpan") → redirect', 'flash(ctx, "Product saved") → redirect')),
+  takeFlash: () => h(Toast, { flash: { message: L("Pesan dari takeFlash(ctx)", "Message from takeFlash(ctx)"), tone: "info" }, timeout: 0 }),
   rupiah: () => h("code", null, `rupiah(45000) → ${rupiah(45000)}`),
   money: () => h("code", null, `money(12.5, "USD") → ${money(12.5, "USD")}`),
   formatNumber: () => h("code", null, `formatNumber(12500) → ${formatNumber(12500)}`),
@@ -142,7 +186,7 @@ export function renderGallery(): string {
             Stack,
             { gap: "sm" },
             muted(entryText(e)),
-            WHOLE_PAGE.has(e.name) ? h(Alert, null, m.gallery.wholePage) : (GALLERY_DEMOS[e.name]?.() ?? null),
+            WHOLE_PAGE.has(e.name) ? h(Alert, null, m.gallery.wholePage) : h("div", { class: "zu-gallery-demo" }, GALLERY_DEMOS[e.name]?.() ?? null),
             h("p", null, h("small", { class: "zu-muted" }, `${m.gallery.example}: `), h("code", null, e.example)),
           ),
         ),

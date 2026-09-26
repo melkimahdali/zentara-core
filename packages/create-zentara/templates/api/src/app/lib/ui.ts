@@ -44,12 +44,6 @@ export function appPage(ctx: ZenContext, options: AppPageOptions, ...children: C
   );
 }
 
-/** Pesan singkat setelah redirect (?msg=kode). Hanya kode yang dikenal yang ditampilkan, bukan teks bebas dari URL. */
-export function flash(ctx: ZenContext, messages: Record<string, string>): string | undefined {
-  const code = ctx.query.msg;
-  return typeof code === "string" ? messages[code] : undefined;
-}
-
 /** Tanggal hari ini dalam bahasa Indonesia, mis. "Kamis, 25 September 2026". */
 export function today(): string {
   return new Intl.DateTimeFormat("id-ID", { dateStyle: "full" }).format(new Date());

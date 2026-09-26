@@ -1,14 +1,12 @@
-import { h, html, readInput, redirect, tryParse, type ZenContext } from "zentara";
-import { Alert, Button, Card, Disclosure, EmptyState, Field, Form, FormActions, Search, Table } from "zentara/ui";
+import { flash, h, html, readInput, redirect, takeFlash, tryParse, type ZenContext } from "zentara";
+import { Button, Card, Disclosure, EmptyState, Field, Form, FormActions, Search, Table, Toast } from "zentara/ui";
 import { db } from "../../db/index.js";
 import { notes, type User } from "../../db/schema.js";
 import { requireUserPage } from "../../lib/auth.js";
 import { listNotes, NoteInput } from "../../lib/notes.js";
-import { appPage, excerpt, flash, relativeDate } from "../../lib/ui.js";
+import { appPage, excerpt, relativeDate } from "../../lib/ui.js";
 
 export const middleware = [requireUserPage];
-
-const MESSAGES: Record<string, string> = { created: "Note saved.", updated: "Changes saved.", deleted: "Note deleted." };
 
 type FormState = { values?: Record<string, unknown>; errors?: Record<string, string> };
 
@@ -16,7 +14,6 @@ async function view(ctx: ZenContext, form: FormState = {}): Promise<string> {
   const user = ctx.state.user as User;
   const q = typeof ctx.query.q === "string" ? ctx.query.q.trim().slice(0, 100) : "";
   const rows = await listNotes(user.id, { q });
-  const message = flash(ctx, MESSAGES);
   const v = form.values ?? {};
   const e = form.errors ?? {};
   const str = (x: unknown) => (typeof x === "string" ? x : undefined);
@@ -25,7 +22,7 @@ async function view(ctx: ZenContext, form: FormState = {}): Promise<string> {
   return appPage(
     ctx,
     { title: "Notes", subtitle: q ? `Found ${rows.length} for “${q}”` : `Notes: ${rows.length} · visible only to you`, active: "/notes" },
-    message ? h(Alert, { tone: "success" }, message) : null,
+    h(Toast, { flash: takeFlash(ctx) }),
     h(
       Disclosure,
       { summary: "Write a note", open: openForm },
@@ -62,5 +59,6 @@ export async function POST(ctx: ZenContext) {
   const input = await tryParse(NoteInput, raw);
   if (!input.ok) return html(await view(ctx, { values: raw, errors: input.errors }), { status: 422 });
   await db.insert(notes).values({ ...input.data, userId: (ctx.state.user as User).id });
-  return redirect("/notes?msg=created", 303);
+  flash(ctx, "Note saved.");
+  return redirect("/notes", 303);
 }

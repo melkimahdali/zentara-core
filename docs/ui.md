@@ -44,7 +44,7 @@ Setiap halaman dari `page()` juga sudah punya:
 | `page(options, ...body)` | dokumen HTML lengkap: `title`, `description`, `lang`, `head` tambahan, `script` |
 | `AuthCard` | halaman masuk dan daftar: `title`, `subtitle`, `footer`, `appName`. Dengan `aside: { title, text }`, layar dibagi dua: panel brand di kiri, formulir di kanan (menumpuk di ponsel) |
 | `AppShell` | kerangka aplikasi dengan navigasi atas: logo, menu (`nav`, `active`, pemisah lewat `section`), user dan tombol *Keluar* (POST ke `/logout`), judul, `subtitle`, `actions` |
-| `StatGroup` · `Stat` | strip angka ringkasan dengan pemisah tipis (bukan deretan kartu kembar) |
+| `StatGroup` · `Stat` | strip angka ringkasan dengan pemisah tipis (bukan deretan kartu kembar); `trend: "up"` dan `change: "12%"` menampilkan perubahan berwarna |
 | `Container` · `Stack` · `Row` · `Cluster` · `Columns` | tata letak tanpa CSS: lebar konten, tumpukan vertikal, baris mendatar, kumpulan item kecil, dan kolom sama lebar yang menumpuk di ponsel. Jarak lewat `gap` (`none`, `xs`, `sm`, `md`, `lg`, `xl`), perataan lewat `align` dan `justify` |
 | `PageHeader` · `Section` · `Divider` | kepala halaman (breadcrumb, judul, deskripsi, tombol aksi), bagian berjudul tanpa kotak, dan garis pemisah (opsional dengan teks, mis. "atau") |
 | `Card` · `Split` · `Grid` | kartu berjudul, tata letak dua kolom 2:1 (isi utama dan panel samping), dan grid responsif |
@@ -56,6 +56,17 @@ Setiap halaman dari `page()` juga sudah punya:
 | `Alert` · `Badge` | pesan (`info`, `success`, `error`, `warn`) dan label kecil bersudut (`accent`, `ok`, `warn`, `danger`) |
 | `Table` · `List` · `EmptyState` | tabel data (kolom `align: "num"` untuk angka, `"end"` untuk rata kanan), daftar ringkas dua sisi, dan tampilan saat data kosong dengan saran langkah berikutnya |
 | `Avatar` · `Brand` | inisial nama dan logo dengan nama aplikasi |
+| `Navbar` · `Footer` · `BottomNav` | bilah atas halaman publik (tautan dan tombol pindah ke menu *Menu* di ponsel, tanpa JavaScript), kaki halaman dengan kolom tautan, dan navigasi bawah khusus ponsel |
+| `Breadcrumb` · `Tabs` · `Pagination` · `Steps` | jejak lokasi halaman, tab berupa tautan (`?tab=…`, dengan `count`), nomor halaman (`href: "?page={page}"`, di ponsel ringkas), dan langkah proses (`current` mulai dari 1) |
+| `DropdownMenu` | tombol yang membuka daftar aksi: tautan, atau POST (`action`) untuk aksi seperti hapus |
+| `Dialog` · `ConfirmDialog` · `Drawer` · `Sheet` | dialog di tengah layar, dialog konfirmasi yang mengirim POST, laci dari samping (`side`), dan lembar dari bawah. Dibuka dengan `trigger: "Label"` atau `h(Button, { opens: id })`, memakai atribut `popover` bawaan browser, jadi Esc dan klik di luar menutupnya tanpa JavaScript |
+| `Popover` · `Tooltip` | kotak kecil di bawah tombolnya, dan keterangan saat disentuh kursor atau difokus keyboard |
+| `Toast` · `flash()` · `takeFlash()` | pesan melayang yang hilang sendiri, termasuk pesan satu kali setelah redirect (lihat di bawah) |
+| `Progress` · `Spinner` · `Skeleton` | bilah kemajuan (tanpa `value` = sedang berjalan), indikator memuat, dan kerangka isi yang sedang dimuat |
+| `DescriptionList` · `Timeline` · `Accordion` | detail satu data (label dan nilai), urutan kejadian, dan bagian buka-tutup (`single: true` = satu terbuka) |
+| `Tag` · `AvatarGroup` · `Rating` · `CodeBlock` | label kategori berbentuk pil (bisa tautan), deretan avatar dengan "+N", rating bintang (tampilan, atau input dengan `name`), dan blok kode dengan tombol *Salin* |
+| `Calendar` | kalender satu bulan dengan acara (booking, jadwal); `href: "/jadwal?bulan={month}"` untuk bulan sebelumnya dan berikutnya, di ponsel menjadi daftar |
+| `StatusPage` · `statusPage()` | halaman status (403, 404, 500, …) bertema aplikasi. Framework memakainya sendiri untuk error di produksi |
 | `money()` · `formatNumber()` · `formatDate()` · `rupiah()` | format uang, angka, dan tanggal sesuai [bahasa](bahasa.html) aktif; `rupiah(45000)` selalu `Rp45.000` |
 
 ## Tata letak tanpa CSS
@@ -129,6 +140,52 @@ npx zentara theme --reset                          # kembali ke bawaan
 
 Server dev memuat ulang config sendiri. Zentara AI memakai perintah yang sama saat Anda meminta, misalnya, *"ubah warna utama jadi biru"*.
 
+## Navigasi dan dialog
+
+Semua navigasi berupa tautan biasa, jadi setiap tab dan halaman punya URL sendiri dan bisa dibuka tanpa JavaScript:
+
+```ts
+h(Navbar, { appName: "Toko Senja", links: [{ href: "/", label: "Beranda" }, { href: "/menu", label: "Menu" }], active: "/menu", actions: h(Button, { href: "/pesan", small: true }, "Pesan") }),
+h(Tabs, { items: [{ href: "?tab=baru", label: "Baru", count: 3 }, { href: "?tab=selesai", label: "Selesai" }], active: `?tab=${tab}` }),
+h(Pagination, { page, pages, href: "/produk?page={page}" }),
+```
+
+Dialog, laci, dan popover memakai atribut `popover` bawaan browser. Isi `trigger` untuk membuat tombol pembukanya sekaligus, atau buka dari tombol mana pun dengan `opens`:
+
+```ts
+h(ConfirmDialog, { id: `hapus-${p.id}`, trigger: "Hapus", title: `Hapus ${p.name}?`, text: "Produk yang dihapus tidak bisa dikembalikan.", action: `/produk/${p.id}/hapus`, confirm: "Hapus" }),
+h(Button, { opens: "filter", variant: "secondary" }, "Filter"),
+h(Drawer, { id: "filter", title: "Filter" }, ...),
+```
+
+`Dialog` dengan `open: true` langsung terbuka saat halaman dimuat, misalnya bila formulir di dalamnya punya error.
+
+## Pesan setelah redirect (flash)
+
+`flash(ctx, pesan)` menyimpan pesan untuk ditampilkan satu kali di halaman berikutnya, dan `takeFlash(ctx)` mengambilnya. Pesan disimpan di session bila middleware `session()` terpasang, bila tidak di cookie pendek `zen_flash`:
+
+```ts
+import { flash, redirect, takeFlash } from "zentara";
+import { Toast } from "zentara/ui";
+
+export async function POST(ctx: ZenContext) {
+  // … simpan data
+  flash(ctx, "Catatan disimpan.");
+  return redirect("/notes", 303);
+}
+
+// Di halaman tujuan: tidak ada pesan = Toast tidak merender apa-apa.
+h(Toast, { flash: takeFlash(ctx) })
+```
+
+Tone bawaan `success`; pakai `flash(ctx, "Gagal mengirim email", "error")` untuk yang lain. Toast hilang sendiri setelah 6 detik (`timeout: 0` = tetap tampil).
+
+## Halaman error
+
+Di produksi, error 403, 404, 500, dan status lainnya ditampilkan dengan kit UI dan tema aplikasi (`ui` di `zentara.config.mjs`), lengkap dengan nama aplikasi (`appName`) dan tombol kembali ke beranda. Pesan dari `throw new HttpError(403, "Hanya admin yang bisa membuka halaman ini")` ikut ditampilkan; detail error 500 tidak pernah ditampilkan. Saat pengembangan, 404 dan 500 tetap memakai halaman pengembang yang lebih lengkap.
+
+Untuk halaman status buatan sendiri, pakai `h(StatusPage, { status: 404, text: "…", action: … })` di dalam `page()`, atau `statusPage(404)` untuk dokumen lengkap.
+
 ## Katalog komponen dan galeri
 
 - **`zentara ui`** mencetak semua komponen per kelompok. `zentara ui Select` menampilkan kegunaan, setiap prop beserta tipe dan pilihannya, dan contoh. `--json` untuk dipakai alat lain.
@@ -142,14 +199,15 @@ Katalog dibuat otomatis dari JSDoc di kode kit UI, jadi selalu sesuai dengan ver
 `tryParse()` memvalidasi tanpa melempar error, sehingga formulir bisa ditampilkan ulang lengkap dengan pesannya:
 
 ```ts
-import { html, readInput, redirect, tryParse } from "zentara";
+import { flash, html, readInput, redirect, tryParse } from "zentara";
 
 export async function POST(ctx: ZenContext) {
   const raw = await readInput(ctx); // form HTML maupun JSON
   const input = await tryParse(NoteForm, raw);
   if (!input.ok) return html(view({ values: raw, errors: input.errors }), { status: 422 });
   await db.insert(notes).values({ ...input.data, userId: (ctx.state.user as User).id });
-  return redirect("/notes?msg=created", 303);
+  flash(ctx, "Catatan disimpan.");
+  return redirect("/notes", 303);
 }
 ```
 

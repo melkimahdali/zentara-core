@@ -1,5 +1,5 @@
 import { h, type Child } from "../core/view.js";
-import { t } from "../i18n/index.js";
+import { Breadcrumb, type Crumb } from "./nav.js";
 import { cx, type Align, type Gap, type Justify, type WithChildren } from "./types.js";
 
 /**
@@ -92,12 +92,6 @@ export function Divider({ label }: WithChildren<{ label?: string }>): Child {
   return label ? h("div", { class: "zu-divider-label", role: "separator" }, label) : h("hr", { class: "zu-divider" });
 }
 
-export interface Crumb {
-  label: string;
-  /** Kosongkan untuk halaman saat ini (item terakhir). */
-  href?: string;
-}
-
 /**
  * Kepala halaman: breadcrumb, judul (h1), deskripsi, dan tombol aksi. Untuk halaman tanpa AppShell
  * atau bagian utama halaman publik.
@@ -106,16 +100,6 @@ export interface Crumb {
  * @example h(PageHeader, { title: "Produk", description: "Kelola katalog toko", breadcrumb: [{ label: "Beranda", href: "/" }, { label: "Produk" }], actions: h(Button, { href: "/produk/baru" }, "Tambah") })
  */
 export function PageHeader({ title, description, breadcrumb, actions }: WithChildren<{ title: string; description?: string; breadcrumb?: Crumb[]; actions?: Child }>): Child {
-  const crumbs = breadcrumb?.length
-    ? h(
-        "nav",
-        { class: "zu-crumbs", "aria-label": t().ui.breadcrumb },
-        h(
-          "ol",
-          null,
-          breadcrumb.map((c, i) => h("li", null, c.href && i < breadcrumb.length - 1 ? h("a", { href: c.href }, c.label) : h("span", { "aria-current": i === breadcrumb.length - 1 ? "page" : undefined }, c.label))),
-        ),
-      )
-    : null;
+  const crumbs = breadcrumb?.length ? h(Breadcrumb, { items: breadcrumb }) : null;
   return h("header", { class: "zu-page-head" }, h("div", null, crumbs, h("h1", null, title), description ? h("p", null, description) : null), actions ?? null);
 }

@@ -119,6 +119,51 @@ export const UI_CATALOG: CatalogEntry[] = [
     ]
   },
   {
+    "name": "StatusPage",
+    "group": "page",
+    "kind": "component",
+    "id": "Isi halaman status: kode besar, judul, penjelasan, dan tombol kembali. Judul dan teks bawaan mengikuti status (403, 404, 500, …) dalam bahasa aktif.",
+    "en": "Status page content: a large code, title, explanation, and a back button. The default title and text follow the status (403, 404, 500, …) in the active language.",
+    "example": "h(StatusPage, { status: 404, text: \"Produk ini sudah tidak dijual.\", action: h(Button, { href: \"/produk\" }, \"Lihat produk lain\") })",
+    "props": [
+      {
+        "name": "status",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "appName",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "action",
+        "type": "Child",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "statusPage",
+    "group": "page",
+    "kind": "function",
+    "id": "Dokumen HTML lengkap halaman status dengan tema aplikasi. Framework memakainya sendiri untuk error di produksi (mis. `throw new HttpError(403)`); panggil langsung bila perlu halaman status dari handler.",
+    "en": "Full HTML status page document in the app theme. The framework uses it for errors in production (e.g. `throw new HttpError(403)`); call it directly when a handler needs a status page.",
+    "example": "statusPage(403, { message: \"Hanya admin yang bisa membuka halaman ini.\", appName: \"Toko Senja\" })",
+    "props": [],
+    "signature": "statusPage(status: number, options?: { message?: string; appName?: string; }): string"
+  },
+  {
     "name": "Container",
     "group": "layout",
     "kind": "component",
@@ -374,6 +419,201 @@ export const UI_CATALOG: CatalogEntry[] = [
       {
         "name": "open",
         "type": "boolean",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Navbar",
+    "group": "nav",
+    "kind": "component",
+    "id": "Bilah navigasi atas untuk halaman publik: logo, tautan, dan tombol aksi. Di ponsel tautan dan aksi pindah ke menu yang dibuka lewat tombol Menu (tanpa JavaScript). Untuk aplikasi dengan login, pakai AppShell.",
+    "en": "Top navigation bar for public pages: logo, links, and action buttons. On phones the links and actions move into a menu opened with the Menu button (no JavaScript). For signed-in apps use AppShell.",
+    "example": "h(Navbar, { appName: \"Toko Senja\", links: [{ href: \"/\", label: \"Beranda\" }, { href: \"/menu\", label: \"Menu\" }], active: \"/menu\", actions: h(Button, { href: \"/pesan\", small: true }, \"Pesan\") })",
+    "props": [
+      {
+        "name": "appName",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "href",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "links",
+        "type": "NavLink[]",
+        "required": false
+      },
+      {
+        "name": "active",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "actions",
+        "type": "Child",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Breadcrumb",
+    "group": "nav",
+    "kind": "component",
+    "id": "Jejak lokasi halaman (Beranda / Produk / Kopi). Item terakhir adalah halaman saat ini.",
+    "en": "Page location trail (Home / Products / Coffee). The last item is the current page.",
+    "example": "h(Breadcrumb, { items: [{ label: \"Beranda\", href: \"/\" }, { label: \"Produk\", href: \"/produk\" }, { label: \"Kopi\" }] })",
+    "props": [
+      {
+        "name": "items",
+        "type": "Crumb[]",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "Tabs",
+    "group": "nav",
+    "kind": "component",
+    "id": "Tab berupa tautan (mis. `?tab=aktif`), jadi setiap tab punya URL sendiri dan berfungsi tanpa JavaScript. `active` = href tab yang sedang dibuka. Bergulir mendatar di layar sempit.",
+    "en": "Tabs made of links (e.g. `?tab=active`), so each tab has its own URL and works without JavaScript. `active` = href of the open tab. Scrolls sideways on narrow screens.",
+    "example": "h(Tabs, { items: [{ href: \"?tab=baru\", label: \"Baru\", count: 3 }, { href: \"?tab=selesai\", label: \"Selesai\" }], active: `?tab=${tab}` })",
+    "props": [
+      {
+        "name": "items",
+        "type": "TabItem[]",
+        "required": true
+      },
+      {
+        "name": "active",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Pagination",
+    "group": "nav",
+    "kind": "component",
+    "id": "Nomor halaman untuk daftar panjang, berupa tautan biasa. `href` memakai `{page}` sebagai tempat nomor halaman (default `?page={page}`). Di ponsel hanya Sebelumnya, \"Halaman 2 dari 9\", dan Berikutnya.",
+    "en": "Page numbers for long lists, as plain links. `href` uses `{page}` as the page-number placeholder (default `?page={page}`). On phones only Previous, \"Page 2 of 9\", and Next.",
+    "example": "h(Pagination, { page: Number(ctx.query.page ?? 1), pages: Math.ceil(total / 20), href: \"/produk?page={page}\" })",
+    "props": [
+      {
+        "name": "page",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "pages",
+        "type": "number",
+        "required": true
+      },
+      {
+        "name": "href",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Steps",
+    "group": "nav",
+    "kind": "component",
+    "id": "Langkah proses (mis. checkout: Keranjang, Alamat, Bayar). `current` = nomor langkah aktif, mulai dari 1; langkah sebelumnya ditandai selesai. Menumpuk vertikal di ponsel.",
+    "en": "Process steps (e.g. checkout: Cart, Address, Pay). `current` = the active step number, starting at 1; earlier steps are marked done. Stacks vertically on phones.",
+    "example": "h(Steps, { steps: [\"Keranjang\", \"Alamat\", \"Pembayaran\"], current: 2 })",
+    "props": [
+      {
+        "name": "steps",
+        "type": "(string | StepItem)[]",
+        "required": true
+      },
+      {
+        "name": "current",
+        "type": "number",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "DropdownMenu",
+    "group": "nav",
+    "kind": "component",
+    "id": "Tombol yang membuka daftar aksi (tautan atau POST), tanpa JavaScript. `align: \"end\"` membuka menu rata kanan (untuk tombol di sisi kanan).",
+    "en": "Button that opens a list of actions (links or POSTs), without JavaScript. `align: \"end\"` opens the menu right-aligned (for a button on the right side).",
+    "example": "h(DropdownMenu, { label: \"Aksi\", align: \"end\", items: [{ label: \"Ubah\", href: `/produk/${p.id}` }, { label: \"Hapus\", action: `/produk/${p.id}/hapus`, danger: true }] })",
+    "props": [
+      {
+        "name": "label",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "items",
+        "type": "MenuItem[]",
+        "required": true
+      },
+      {
+        "name": "align",
+        "type": "\"start\" | \"end\"",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "BottomNav",
+    "group": "nav",
+    "kind": "component",
+    "id": "Navigasi bawah untuk ponsel (3 sampai 5 tujuan utama), menempel di bawah layar. Hanya tampil di layar sempit; di layar lebar pakai Navbar atau AppShell.",
+    "en": "Bottom navigation for phones (3 to 5 main destinations), fixed to the bottom of the screen. Only shown on narrow screens; on wide screens use Navbar or AppShell.",
+    "example": "h(BottomNav, { items: [{ href: \"/\", label: \"Beranda\", icon: \"⌂\" }, { href: \"/pesanan\", label: \"Pesanan\", icon: \"☰\" }], active: \"/pesanan\" })",
+    "props": [
+      {
+        "name": "items",
+        "type": "BottomNavItem[]",
+        "required": true
+      },
+      {
+        "name": "active",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Footer",
+    "group": "nav",
+    "kind": "component",
+    "id": "Kaki halaman publik: nama aplikasi, kolom tautan, dan catatan (default \"© tahun nama\").",
+    "en": "Public page footer: app name, link columns, and a note (default \"© year name\").",
+    "example": "h(Footer, { appName: \"Toko Senja\", columns: [{ title: \"Toko\", links: [{ href: \"/menu\", label: \"Menu\" }, { href: \"/kontak\", label: \"Kontak\" }] }] })",
+    "props": [
+      {
+        "name": "appName",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "columns",
+        "type": "FooterColumn[]",
+        "required": false
+      },
+      {
+        "name": "links",
+        "type": "NavLink[]",
+        "required": false
+      },
+      {
+        "name": "note",
+        "type": "Child",
         "required": false
       }
     ]
@@ -893,8 +1133,8 @@ export const UI_CATALOG: CatalogEntry[] = [
     "name": "Button",
     "group": "form",
     "kind": "component",
-    "id": "Tombol atau tautan bergaya tombol (`href`). `variant`: primary (default), secondary, ghost, danger. `loading` mengganti teks selama formulir dikirim.",
-    "en": "Button, or a link styled as a button (`href`). `variant`: primary (default), secondary, ghost, danger. `loading` replaces the label while the form is being sent.",
+    "id": "Tombol atau tautan bergaya tombol (`href`). `variant`: primary (default), secondary, ghost, danger. `loading` mengganti teks selama formulir dikirim. `opens`/`closes` membuka atau menutup Dialog, Drawer, atau Popover.",
+    "en": "Button, or a link styled as a button (`href`). `variant`: primary (default), secondary, ghost, danger. `loading` replaces the label while the form is being sent. `opens`/`closes` open or close a Dialog, Drawer, or Popover.",
     "example": "h(Button, { loading: \"Menyimpan…\" }, \"Simpan\")",
     "props": [
       {
@@ -937,6 +1177,18 @@ export const UI_CATALOG: CatalogEntry[] = [
         "type": "string",
         "required": false,
         "doc": "Label selama formulir dikirim, mis. \"Menyimpan…\" (butuh skrip bawaan page())."
+      },
+      {
+        "name": "opens",
+        "type": "string",
+        "required": false,
+        "doc": "id Dialog, Drawer, atau Popover yang dibuka tombol ini (tanpa JavaScript)."
+      },
+      {
+        "name": "closes",
+        "type": "string",
+        "required": false,
+        "doc": "id Dialog, Drawer, atau Popover yang ditutup tombol ini."
       }
     ]
   },
@@ -1001,6 +1253,196 @@ export const UI_CATALOG: CatalogEntry[] = [
     ]
   },
   {
+    "name": "Dialog",
+    "group": "overlay",
+    "kind": "component",
+    "id": "Dialog di tengah layar untuk isi singkat atau formulir kecil. Dibuka tombol dengan `opens: id`, atau isi `trigger` untuk sekaligus membuat tombolnya. `open: true` membukanya saat halaman dimuat (mis. formulir di dalamnya punya error).",
+    "en": "Centered dialog for short content or a small form. Opened by a button with `opens: id`, or set `trigger` to render that button too. `open: true` opens it when the page loads (e.g. the form inside has errors).",
+    "example": "h(Dialog, { id: \"tambah-produk\", title: \"Tambah produk\", trigger: \"Tambah\" }, h(Form, { action: \"/produk\" }, h(Field, { name: \"nama\", label: \"Nama\" }), h(FormActions, null, h(Button, null, \"Simpan\"))))",
+    "props": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "trigger",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "actions",
+        "type": "Child",
+        "required": false
+      },
+      {
+        "name": "open",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "size",
+        "type": "\"sm\" | \"md\" | \"lg\"",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "ConfirmDialog",
+    "group": "overlay",
+    "kind": "component",
+    "id": "Dialog konfirmasi sebelum aksi penting (mis. hapus): judul, penjelasan, tombol Batal, dan tombol yang mengirim POST ke `action`. Pengganti PostButton dengan `confirm` bila butuh penjelasan lebih.",
+    "en": "Confirmation dialog before an important action (e.g. delete): title, explanation, a Cancel button, and a button that POSTs to `action`. Use it instead of PostButton with `confirm` when more explanation is needed.",
+    "example": "h(ConfirmDialog, { id: `hapus-${p.id}`, trigger: \"Hapus\", title: `Hapus ${p.name}?`, text: \"Produk yang dihapus tidak bisa dikembalikan.\", action: `/produk/${p.id}/hapus`, confirm: \"Hapus\" })",
+    "props": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "action",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "confirm",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "cancel",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "trigger",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "tone",
+        "type": "\"danger\" | \"primary\"",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Drawer",
+    "group": "overlay",
+    "kind": "component",
+    "id": "Laci yang meluncur dari sisi layar (kanan, kiri, atau bawah) untuk filter, detail, atau menu panjang. Dibuka dengan `opens: id` atau `trigger`.",
+    "en": "Drawer that slides in from a side of the screen (right, left, or bottom) for filters, details, or a long menu. Opened with `opens: id` or `trigger`.",
+    "example": "h(Drawer, { id: \"filter\", title: \"Filter\", trigger: \"Filter\", actions: h(Button, null, \"Terapkan\") }, h(CheckboxGroup, { name: \"kategori\", label: \"Kategori\", options: [\"Kopi\", \"Teh\"] }))",
+    "props": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "side",
+        "type": "\"right\" | \"left\" | \"bottom\"",
+        "required": false
+      },
+      {
+        "name": "trigger",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "actions",
+        "type": "Child",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Sheet",
+    "group": "overlay",
+    "kind": "component",
+    "id": "Lembar dari bawah layar, cocok untuk pilihan cepat di ponsel. Sama dengan Drawer `side: \"bottom\"`.",
+    "en": "Sheet from the bottom of the screen, good for quick choices on phones. Same as Drawer with `side: \"bottom\"`.",
+    "example": "h(Sheet, { id: \"bagikan\", title: \"Bagikan\", trigger: \"Bagikan\" }, h(List, { items: [[h(\"a\", { href: waLink }, \"WhatsApp\")]] }))",
+    "props": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "trigger",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "actions",
+        "type": "Child",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Popover",
+    "group": "overlay",
+    "kind": "component",
+    "id": "Kotak kecil yang muncul di bawah tombolnya (info tambahan, pilihan singkat). Klik di luar atau Esc menutupnya.",
+    "en": "Small box that appears below its button (extra info, short choices). Clicking outside or pressing Esc closes it.",
+    "example": "h(Popover, { id: \"info-ongkir\", trigger: \"Info ongkir\" }, h(\"p\", null, \"Gratis ongkir untuk pesanan di atas Rp100.000.\"))",
+    "props": [
+      {
+        "name": "id",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "trigger",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "Tooltip",
+    "group": "overlay",
+    "kind": "component",
+    "id": "Keterangan singkat yang muncul saat elemen disentuh kursor atau difokus keyboard. Hanya untuk penjelasan tambahan; informasi penting tulis langsung di halaman.",
+    "en": "Short hint that appears when the element is hovered or focused with the keyboard. Only for extra explanation; write important information directly on the page.",
+    "example": "h(Tooltip, { text: \"Termasuk PPN 11%\" }, h(Button, { variant: \"ghost\", small: true, type: \"button\" }, \"Harga\"))",
+    "props": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": true
+      }
+    ]
+  },
+  {
     "name": "Avatar",
     "group": "data",
     "kind": "component",
@@ -1019,9 +1461,9 @@ export const UI_CATALOG: CatalogEntry[] = [
     "name": "Stat",
     "group": "data",
     "kind": "component",
-    "id": "Satu angka ringkasan. Kumpulkan beberapa di dalam StatGroup agar tampil sebagai satu strip bersekat.",
-    "en": "One summary number. Put several inside a StatGroup to show them as one divided strip.",
-    "example": "h(Stat, { label: \"Pesanan hari ini\", value: formatNumber(42), hint: \"+8 dari kemarin\" })",
+    "id": "Satu angka ringkasan. Kumpulkan beberapa di dalam StatGroup agar tampil sebagai satu strip bersekat. `trend` + `change` menampilkan perubahan naik/turun berwarna (hijau bila baik); `good: \"down\"` untuk angka yang lebih baik bila turun (mis. keluhan).",
+    "en": "One summary number. Put several inside a StatGroup to show them as one divided strip. `trend` + `change` show a colored up/down change (green when good); `good: \"down\"` for numbers that are better when they go down (e.g. complaints).",
+    "example": "h(Stat, { label: \"Pendapatan\", value: rupiah(12500000), trend: \"up\", change: \"12%\", hint: \"dari bulan lalu\" })",
     "props": [
       {
         "name": "label",
@@ -1036,6 +1478,21 @@ export const UI_CATALOG: CatalogEntry[] = [
       {
         "name": "hint",
         "type": "string",
+        "required": false
+      },
+      {
+        "name": "trend",
+        "type": "\"up\" | \"down\" | \"flat\"",
+        "required": false
+      },
+      {
+        "name": "change",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "good",
+        "type": "\"up\" | \"down\"",
         "required": false
       }
     ]
@@ -1105,6 +1562,201 @@ export const UI_CATALOG: CatalogEntry[] = [
     ]
   },
   {
+    "name": "DescriptionList",
+    "group": "data",
+    "kind": "component",
+    "id": "Detail satu data sebagai pasangan label dan nilai (mis. halaman detail pesanan). `columns: 2` untuk dua kolom di layar lebar.",
+    "en": "Details of one record as label and value pairs (e.g. an order detail page). `columns: 2` for two columns on wide screens.",
+    "example": "h(DescriptionList, { items: [{ label: \"Pelanggan\", value: order.customer }, { label: \"Total\", value: rupiah(order.total) }, { label: \"Status\", value: h(Badge, { tone: \"ok\" }, \"Lunas\") }] })",
+    "props": [
+      {
+        "name": "items",
+        "type": "DescriptionItem[]",
+        "required": true
+      },
+      {
+        "name": "columns",
+        "type": "1 | 2",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Accordion",
+    "group": "data",
+    "kind": "component",
+    "id": "Daftar bagian yang bisa dibuka-tutup (mis. FAQ), tanpa JavaScript. `single: true` = membuka satu bagian menutup yang lain.",
+    "en": "List of sections that open and close (e.g. an FAQ), without JavaScript. `single: true` = opening one section closes the others.",
+    "example": "h(Accordion, { single: true, items: [{ title: \"Berapa lama pengiriman?\", content: \"1 sampai 3 hari kerja.\" }, { title: \"Bisa bayar di tempat?\", content: \"Bisa, untuk wilayah Bandung.\" }] })",
+    "props": [
+      {
+        "name": "items",
+        "type": "AccordionItem[]",
+        "required": true
+      },
+      {
+        "name": "single",
+        "type": "boolean",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Timeline",
+    "group": "data",
+    "kind": "component",
+    "id": "Urutan kejadian dari atas ke bawah (riwayat pesanan, log aktivitas).",
+    "en": "Sequence of events from top to bottom (order history, activity log).",
+    "example": "h(Timeline, { items: [{ title: \"Pesanan dibuat\", time: \"09.12\" }, { title: \"Dibayar\", time: \"09.15\", tone: \"ok\" }, { title: \"Dikirim\", time: \"13.40\", text: \"JNE 0123456789\" }] })",
+    "props": [
+      {
+        "name": "items",
+        "type": "TimelineItem[]",
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "Tag",
+    "group": "data",
+    "kind": "component",
+    "id": "Label kategori berbentuk pil, bisa berupa tautan (mis. filter kategori). Untuk status pakai Badge.",
+    "en": "Pill-shaped category label, optionally a link (e.g. a category filter). For a status use Badge.",
+    "example": "h(Tag, { href: \"/produk?kategori=kopi\" }, \"Kopi\")",
+    "props": [
+      {
+        "name": "href",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "active",
+        "type": "boolean",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "AvatarGroup",
+    "group": "data",
+    "kind": "component",
+    "id": "Deretan avatar yang sedikit bertumpuk, dengan \"+N\" bila lebih dari `max`.",
+    "en": "Row of slightly overlapping avatars, with \"+N\" when there are more than `max`.",
+    "example": "h(AvatarGroup, { names: team.map((m) => m.name), max: 4 })",
+    "props": [
+      {
+        "name": "names",
+        "type": "string[]",
+        "required": true
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Rating",
+    "group": "data",
+    "kind": "component",
+    "id": "Rating bintang. Tanpa `name` hanya menampilkan nilai; dengan `name` menjadi input pilihan bintang dalam formulir (tanpa JavaScript).",
+    "en": "Star rating. Without `name` it only shows the value; with `name` it becomes a star input in a form (no JavaScript).",
+    "example": "h(Rating, { value: 4.5, count: 128 })",
+    "props": [
+      {
+        "name": "value",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "count",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "required",
+        "type": "boolean",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "CodeBlock",
+    "group": "data",
+    "kind": "component",
+    "id": "Blok kode dengan tombol Salin (tombolnya muncul bila JavaScript aktif). `title` untuk nama file.",
+    "en": "Code block with a Copy button (the button appears when JavaScript is on). `title` for a file name.",
+    "example": "h(CodeBlock, { title: \"Terminal\", code: \"npx zentara dev\" })",
+    "props": [
+      {
+        "name": "code",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "lang",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Calendar",
+    "group": "data",
+    "kind": "component",
+    "id": "Kalender satu bulan dengan acara (booking, jadwal kelas, agenda). `month` = \"YYYY-MM\". `href` memakai `{month}` untuk tautan bulan sebelumnya/berikutnya (mis. \"/jadwal?bulan={month}\"). Di ponsel (atau `view: \"list\"`) tampil sebagai daftar acara.",
+    "en": "One-month calendar with events (bookings, class schedules, agendas). `month` = \"YYYY-MM\". `href` uses `{month}` for the previous/next month links (e.g. \"/schedule?month={month}\"). On phones (or with `view: \"list\"`) it shows as a list of events.",
+    "example": "h(Calendar, { month: ctx.query.bulan, href: \"/jadwal?bulan={month}\", events: bookings.map((b) => ({ date: b.date, time: b.time, title: b.name, href: `/booking/${b.id}` })) })",
+    "props": [
+      {
+        "name": "month",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "events",
+        "type": "CalendarEvent[]",
+        "required": false
+      },
+      {
+        "name": "href",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "view",
+        "type": "\"month\" | \"list\"",
+        "required": false
+      },
+      {
+        "name": "today",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
     "name": "Alert",
     "group": "feedback",
     "kind": "component",
@@ -1143,6 +1795,126 @@ export const UI_CATALOG: CatalogEntry[] = [
         "required": false
       }
     ]
+  },
+  {
+    "name": "Toast",
+    "group": "feedback",
+    "kind": "component",
+    "id": "Pesan singkat yang melayang di pojok bawah layar dan hilang sendiri (default 6 detik; `timeout: 0` = tetap tampil). Untuk pesan setelah redirect, pakai `flash: takeFlash(ctx)`: tidak ada pesan = tidak dirender apa-apa. Tanpa JavaScript toast tetap tampil sampai halaman berganti.",
+    "en": "Short message that floats in the bottom corner and disappears by itself (6 seconds by default; `timeout: 0` = stays). For a message after a redirect, pass `flash: takeFlash(ctx)`: no message = nothing is rendered. Without JavaScript the toast stays until the page changes.",
+    "example": "h(Toast, { flash: takeFlash(ctx) })",
+    "props": [
+      {
+        "name": "tone",
+        "type": "\"success\" | \"info\" | \"warn\" | \"error\"",
+        "required": false
+      },
+      {
+        "name": "flash",
+        "type": "Flash",
+        "required": false
+      },
+      {
+        "name": "timeout",
+        "type": "number",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Progress",
+    "group": "feedback",
+    "kind": "component",
+    "id": "Bilah kemajuan (unggah, kuota, langkah). Tanpa `value` menjadi animasi \"sedang berjalan\".",
+    "en": "Progress bar (upload, quota, steps). Without `value` it becomes an indeterminate \"in progress\" animation.",
+    "example": "h(Progress, { label: \"Kuota penyimpanan\", value: 7.2, max: 10, text: \"7,2 dari 10 GB\" })",
+    "props": [
+      {
+        "name": "label",
+        "type": "string",
+        "required": true
+      },
+      {
+        "name": "value",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "max",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Spinner",
+    "group": "feedback",
+    "kind": "component",
+    "id": "Indikator memuat yang berputar, dengan teks opsional di sampingnya.",
+    "en": "Spinning loading indicator, with optional text beside it.",
+    "example": "h(Spinner, { text: \"Memuat pesanan…\" })",
+    "props": [
+      {
+        "name": "text",
+        "type": "string",
+        "required": false
+      },
+      {
+        "name": "size",
+        "type": "\"sm\" | \"md\" | \"lg\"",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "Skeleton",
+    "group": "feedback",
+    "kind": "component",
+    "id": "Kerangka abu-abu berdenyut sebagai tempat isi yang sedang dimuat (mis. di dalam Card).",
+    "en": "Pulsing grey placeholder for content that is still loading (e.g. inside a Card).",
+    "example": "h(Skeleton, { lines: 3, avatar: true })",
+    "props": [
+      {
+        "name": "lines",
+        "type": "number",
+        "required": false
+      },
+      {
+        "name": "avatar",
+        "type": "boolean",
+        "required": false
+      },
+      {
+        "name": "block",
+        "type": "boolean",
+        "required": false
+      }
+    ]
+  },
+  {
+    "name": "flash",
+    "group": "feedback",
+    "kind": "function",
+    "id": "Simpan pesan untuk ditampilkan satu kali di halaman berikutnya (biasanya tepat sebelum redirect). Tampilkan dengan `h(Toast, { flash: takeFlash(ctx) })` di halaman tujuan.",
+    "en": "Store a message to show once on the next page (usually right before a redirect). Show it with `h(Toast, { flash: takeFlash(ctx) })` on the target page.",
+    "example": "flash(ctx, \"Produk tersimpan\"); return redirect(\"/produk\");",
+    "props": [],
+    "signature": "flash(ctx: ZenContext, message: string, tone?: Flash[\"tone\"]): void"
+  },
+  {
+    "name": "takeFlash",
+    "group": "feedback",
+    "kind": "function",
+    "id": "Ambil pesan flash lalu hapus, atau `undefined` bila tidak ada. Biasanya langsung diberikan ke Toast.",
+    "en": "Take the flash message and remove it, or `undefined` when there is none. Usually passed straight to Toast.",
+    "example": "h(Toast, { flash: takeFlash(ctx) })",
+    "props": [],
+    "signature": "takeFlash(ctx: ZenContext): Flash | undefined"
   },
   {
     "name": "rupiah",
