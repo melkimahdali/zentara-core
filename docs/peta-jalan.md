@@ -33,7 +33,7 @@ Tahap 10 dan 11 dirilis bersama di 0.12.
 
 | Tahap | Versi | Isi |
 |---|---|---|
-| 12 | 0.12.5 | Chat Zentara AI di semua halaman saat pengembangan, dan AI bisa melihat halaman (`view_page`) |
+| 12 | 0.12.5 | Chat Zentara AI di semua halaman saat pengembangan, dan AI bisa melihat halaman serta memeriksa tampilannya di desktop dan ponsel (`view_page`) |
 | 12b | 0.12.6 | Kit UI yang cukup untuk AI: primitif tata letak, komponen halaman publik, tema di config, dan katalog komponen |
 | 13 | 0.13 | Data dan panel admin: CRUD otomatis dari schema, relasi, paginasi, filter, interaksi tanpa muat ulang dengan [htmx](https://htmx.org), dan manifest aplikasi `zentara describe --json` |
 | 14 | 0.14 | Zentara untuk semua agen AI: `zentara mcp`, `AGENTS.md` di template, dan `llms.txt` untuk dokumentasi |
@@ -47,9 +47,36 @@ Item bertanda **[menunggu keputusan]** di bawah memakai rekomendasi saat ini dan
 
 ### Tahap 12 · 0.12.5: chat di semua halaman dan `view_page`
 
-- Widget chat Zentara AI muncul di setiap halaman saat server dev berjalan, dan tidak pernah ada di produksi.
-- Tool `view_page` membuat AI bisa membuka halaman aplikasi dan memeriksa hasilnya sendiri.
-- Setiap tugas AI mencatat hasil ringkas (berhasil/gagal, jumlah langkah, cek yang lulus) ke journal lokal untuk eval di Tahap 15. Tidak ada data yang dikirim keluar dari komputer Anda.
+Tujuannya: Zentara AI bisa dipanggil dari halaman mana pun saat pengembangan, dan bisa **melihat sendiri** hasil halaman yang ia buat, termasuk apakah tampilannya rapi. Tahap ini juga menyiapkan fondasi untuk kit UI di Tahap 12b dan eval AI di Tahap 15, supaya tahap itu tidak perlu membongkar ulang Tahap 12.
+
+**Widget chat**
+- Disisipkan ke setiap respons HTML hanya bila tiga syarat terpenuhi: `config.debug`, devtools berjalan, dan server dijalankan oleh `zentara dev` atau CLI interaktif. `zentara start` dan produksi tidak pernah memuatnya, dan aset `/_zentara/dev/*` mengembalikan 404 di produksi.
+- Dimuat sebagai script eksternal (bukan inline), supaya tetap jalan saat CSP bawaan ditambahkan di Tahap 19.
+- Memakai alur chat yang sama dengan halaman error: diff dengan Setujui/Tolak, Batalkan, Berhenti, dan Reset. Halaman yang sudah punya chat sendiri (sambutan, error) tidak mendapat widget ganda.
+- Setiap pesan otomatis membawa konteks halaman dan file route yang melayani URL itu, sehingga "ubah halaman ini" langsung menunjuk file yang benar.
+- Error console, error JavaScript, dan request yang gagal di browser dicatat dan ikut dikirim sebagai konteks.
+- Nilai `<input type=password>` dan elemen bertanda `data-private` tidak pernah dikirim ke AI.
+
+**Tool `view_page({ url, viewport?, expect? })`**
+- Bila ada tab browser yang memuat widget, halaman dibuka di tab itu (iframe tersembunyi, cookie login ikut). Bila tidak ada, dipakai versi teks dari server yang diberi tanda "tanpa JavaScript".
+- Hasilnya: status HTTP, judul, outline (heading, form, tabel, tombol, link), elemen yang terlihat beserta posisi dan ukurannya, error console, dan request gagal.
+- **Pemeriksaan tampilan** (baru, untuk masalah AI yang belum bisa membuat tampilan yang sesuai): elemen yang keluar dari layar atau membuat scroll horizontal, elemen yang saling menimpa, teks yang terpotong, gambar yang gagal dimuat, kontras teks yang terlalu rendah, serta HTML atau atribut `style` yang tidak memakai kit UI. Setiap temuan menyebut elemen dan file route-nya.
+- `viewport` opsional: `"desktop"` (default) atau `"mobile"` (390 px), sehingga AI bisa memeriksa tampilan ponsel.
+- `expect` opsional (mis. `{ text: "Tambah", selector: "table", noConsoleErrors: true, noLayoutIssues: true }`) memberi hasil lulus/gagal yang jelas.
+- Hanya membaca dan hanya untuk URL aplikasi di localhost, jadi tidak perlu persetujuan.
+
+**Alur AI**
+- Setelah mengubah route atau tampilan, AI wajib memanggil `view_page` untuk halaman itu (desktop dan mobile) dan memperbaiki temuan dalam batas dua percobaan, sama seperti typecheck dan tes. Bila masih gagal, AI melaporkan temuannya apa adanya, bukan mengaku selesai.
+- Setiap tugas AI mencatat hasil ringkas ke journal lokal: berhasil/gagal, jumlah langkah, dan hasil typecheck, tes, serta `view_page`. Data ini dipakai eval di Tahap 15 dan tidak pernah dikirim keluar dari komputer Anda.
+
+**CLI dan dua bahasa**
+- `zentara view <url> [--mobile]` mencetak hasil yang sama di terminal, dan CLI interaktif menampilkan hasil `view_page` seperti tool lain.
+- Semua teks widget, tool, dan pemeriksaan tampilan tersedia dalam Bahasa Indonesia dan Bahasa Inggris.
+
+**Selesai bila**
+- Unit: syarat penyisipan widget, penyaringan data rahasia, setiap jenis pemeriksaan tampilan pada halaman contoh yang sengaja dibuat rusak, dan `expect`.
+- e2e: di proyek hasil scaffold, `zentara dev` menyisipkan widget dan `zentara start` tidak; `zentara view /login` dan `zentara view /login --mobile` lulus tanpa temuan; halaman contoh yang rusak menghasilkan temuan yang benar.
+- AI smoke (manual/terjadwal): permintaan "tambahkan halaman X" diakhiri dengan `view_page` yang lulus di desktop dan mobile.
 
 ### Tahap 12b · 0.12.6: kit UI yang cukup untuk AI
 

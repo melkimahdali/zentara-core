@@ -33,7 +33,7 @@ Stages 10 and 11 shipped together in 0.12.
 
 | Stage | Version | Contents |
 |---|---|---|
-| 12 | 0.12.5 | Zentara AI chat on every page during development, and an AI that can see the page (`view_page`) |
+| 12 | 0.12.5 | Zentara AI chat on every page during development, and an AI that can see the page and check its layout on desktop and mobile (`view_page`) |
 | 12b | 0.12.6 | A UI kit rich enough for the AI: layout primitives, public page components, theme config, and a component catalog |
 | 13 | 0.13 | Data and admin panel: automatic CRUD from the schema, relations, pagination, filters, interactions without full page reloads using [htmx](https://htmx.org), and the `zentara describe --json` app manifest |
 | 14 | 0.14 | Zentara for every AI agent: `zentara mcp`, `AGENTS.md` in the templates, and `llms.txt` for the docs |
@@ -47,9 +47,36 @@ Items marked **[pending decision]** below follow the current recommendation and 
 
 ### Stage 12 · 0.12.5: chat on every page and `view_page`
 
-- A Zentara AI chat widget appears on every page while the dev server runs, and never in production.
-- The `view_page` tool lets the AI open a page of your app and check the result itself.
-- Every AI task records a short result (success/failure, number of steps, which checks passed) in the local journal for the evals in stage 15. Nothing leaves your computer.
+The goal: Zentara AI can be called from any page during development, and can **see for itself** the pages it builds, including whether the layout looks right. This stage also lays the groundwork for the UI kit in stage 12b and the AI evals in stage 15, so those stages do not have to rework stage 12.
+
+**Chat widget**
+- Injected into every HTML response only when three conditions hold: `config.debug`, devtools is running, and the server was started by `zentara dev` or the interactive CLI. `zentara start` and production never load it, and the `/_zentara/dev/*` assets return 404 in production.
+- Loaded as an external script (not inline), so it keeps working when the built-in CSP arrives in stage 19.
+- Uses the same chat flow as the error page: diff with Approve/Reject, Undo, Stop, and Reset. Pages that already have their own chat (welcome, error) do not get a second widget.
+- Every message automatically carries the page context and the route file that serves the URL, so "change this page" points at the right file.
+- Console errors, JavaScript errors, and failed requests in the browser are recorded and sent along as context.
+- Values of `<input type=password>` and elements marked `data-private` are never sent to the AI.
+
+**The `view_page({ url, viewport?, expect? })` tool**
+- When a browser tab has the widget loaded, the page opens in that tab (hidden iframe, signed-in cookies included). Otherwise a server-side text version is used, labelled "no JavaScript".
+- The result: HTTP status, title, outline (headings, forms, tables, buttons, links), visible elements with their position and size, console errors, and failed requests.
+- **Layout checks** (new, for the problem of the AI not yet building layouts that fit the request): elements that overflow the screen or cause horizontal scrolling, overlapping elements, clipped text, images that fail to load, text with too little contrast, and HTML or `style` attributes that do not use the UI kit. Each finding names the element and its route file.
+- Optional `viewport`: `"desktop"` (default) or `"mobile"` (390 px), so the AI can check the phone layout.
+- Optional `expect` (e.g. `{ text: "Add", selector: "table", noConsoleErrors: true, noLayoutIssues: true }`) gives a clear pass/fail result.
+- Read-only and limited to the app's localhost URLs, so it needs no approval.
+
+**AI workflow**
+- After changing a route or a page, the AI must call `view_page` for that page (desktop and mobile) and fix what it finds within two attempts, just like typecheck and tests. If it still fails, the AI reports the findings as they are instead of claiming it is done.
+- Every AI task records a short result in the local journal: success/failure, number of steps, and the typecheck, test, and `view_page` results. The evals in stage 15 use this data, and it never leaves your computer.
+
+**CLI and both languages**
+- `zentara view <url> [--mobile]` prints the same result in the terminal, and the interactive CLI shows `view_page` results like any other tool.
+- All widget, tool, and layout-check text is available in Indonesian and English.
+
+**Done when**
+- Unit: widget injection conditions, filtering of private data, every kind of layout check on a deliberately broken sample page, and `expect`.
+- e2e: in a scaffolded project, `zentara dev` injects the widget and `zentara start` does not; `zentara view /login` and `zentara view /login --mobile` pass with no findings; the broken sample page produces the right findings.
+- AI smoke (manual/scheduled): a request such as "add page X" ends with a `view_page` that passes on desktop and mobile.
 
 ### Stage 12b · 0.12.6: a UI kit rich enough for the AI
 
