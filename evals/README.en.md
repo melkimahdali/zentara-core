@@ -112,9 +112,7 @@ Example result line:
 So the runner does not have to parse terminal text, this PR also adds data to the agent's result:
 
 - `AgentResult` (`src/ai/agent.ts`) now holds `usage` (input and output tokens summed across steps, plus `unreported` for steps whose provider did not report usage), `models`, `fixAttempts`, `toolCalls` (tool name and whether it succeeded), `denied` (rejected actions, including those rejected automatically in `--auto`), and `durationMs`.
-- `zentara "<task>" --auto --report=<file>` writes that result as JSON. Without a file name, the report goes to `.zentara/ai-report.json`.
-
-For now the file name must be written with `=`. The `--report <file>` form will be supported once the Stage 12 PR is merged, because that PR also changes the list of value options in `parseArgs`.
+- `zentara "<task>" --auto --report <file>` writes that result as JSON. Without a file name, the report goes to `.zentara/ai-report.json`.
 
 Other points that still apply to the runner:
 

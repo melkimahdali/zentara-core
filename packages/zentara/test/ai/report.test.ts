@@ -66,7 +66,7 @@ describe("zentara ai --report", () => {
   };
 
   it("menulis hasil tugas sebagai JSON ke file yang diminta", async () => {
-    const res = await cli(["ai", "jelaskan proyek ini", "--auto", "--report=hasil/ai.json"]);
+    const res = await cli(["ai", "jelaskan proyek ini", "--auto", "--report", "hasil/ai.json"]);
     assert.equal(res.code, 0, res.err);
     const report = JSON.parse(fs.readFileSync(path.join(dir, "hasil", "ai.json"), "utf8")) as Record<string, unknown>;
     assert.equal(report.task, "jelaskan proyek ini");
@@ -81,6 +81,12 @@ describe("zentara ai --report", () => {
     assert.deepEqual(report.denied, []);
     assert.equal(typeof report.zentara, "string");
     assert.match(res.out, /hasil[\\/]ai\.json/);
+  });
+
+  it("bentuk --report=<file> juga diterima", async () => {
+    const res = await cli(["ai", "jelaskan proyek ini", "--report=lain.json"]);
+    assert.equal(res.code, 0, res.err);
+    assert.ok(fs.existsSync(path.join(dir, "lain.json")));
   });
 
   it("tanpa nama file ditulis ke .zentara/ai-report.json", async () => {
