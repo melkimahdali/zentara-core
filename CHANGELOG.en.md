@@ -2,6 +2,15 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.4]
+
+### Added
+- **End-to-end tests for real-world use**, so bugs like the ones in 0.12.2 are caught in CI (Ubuntu & Windows) before a release:
+  - **Global CLI:** zentara installed with `npm install -g` without drizzle-orm. After a new table and route are added, `db:generate`, `db:migrate`, `routes`, and `jobs` run from the global CLI in the api project.
+  - **Zentara AI tools from the global install:** `list_routes` reads new routes and schema exports right away in the same process, `database generate/migrate` runs through the project's zentara, and so does the `zentara jobs` tool.
+  - **Interactive flow:** on first open, the language is asked first and saved. "Create a new project" with a name containing spaces produces a safe folder, installs dependencies, and uses the chosen language template.
+- `ZENTARA_CREATE_PACKAGE` and `ZENTARA_CREATE_ARGS` to test "Create a new project" with local packages.
+
 ## [0.12.3]
 
 ### Fixed

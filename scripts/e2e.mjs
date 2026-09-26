@@ -1,11 +1,12 @@
 // Uji ujung ke ujung "seolah sudah di-publish":
 // build -> npm pack kedua paket -> periksa isi tarball -> create-zentara dari tarball
-// -> npm install -> typecheck, test, build -> jalankan server produksi & dev lalu panggil API-nya.
+// -> npm install -> typecheck, test, build -> jalankan server produksi & dev lalu panggil API-nya
+// -> CLI global (npm install -g, tanpa drizzle-orm), tool Zentara AI, dan alur interaktif buat proyek.
 import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const WORK = fs.mkdtempSync(path.join(os.tmpdir(), "zentara-e2e-"));
@@ -163,6 +164,85 @@ try {
       stop();
     }
   }
+  // ── Pemakaian sungguhan: CLI global + proyek, tool Zentara AI, dan alur interaktif ──────────────
+  const apiApp = path.join(WORK, "app-api-id");
+  if (fs.existsSync(apiApp)) {
+    console.log("\n=== CLI global (npm install -g) ===");
+    // Seperti `npm install -g zentara` di komputer developer: tanpa drizzle-orm milik proyek.
+    const prefix = path.join(WORK, "global");
+    sh(npm, ["install", "-g", "--prefix", prefix, zentara.tarball, "--no-audit", "--no-fund"], WORK);
+    const globalPkg = isWindows ? path.join(prefix, "node_modules", "zentara") : path.join(prefix, "lib", "node_modules", "zentara");
+    const globalCli = path.join(globalPkg, "dist", "cli.js");
+    check(fs.existsSync(globalCli) && !fs.existsSync(path.join(globalPkg, "node_modules", "drizzle-orm")), "zentara global terpasang tanpa drizzle-orm");
+    const global = (args) => sh(process.execPath, [globalCli, ...args], apiApp);
+
+    // Tabel & route baru, lalu migrasi lewat CLI global (kasus "bookings").
+    fs.appendFileSync(path.join(apiApp, "src", "app", "db", "schema.ts"), '\nexport const e2eTrips = sqliteTable("e2e_trips", { id: integer("id").primaryKey({ autoIncrement: true }), origin: text("origin").notNull() });\n');
+    fs.writeFileSync(path.join(apiApp, "src", "app", "routes", "e2e-trips.ts"), 'import { db } from "../db/index.js";\nimport { e2eTrips } from "../db/schema.js";\nexport const GET = () => db.select().from(e2eTrips);\n');
+    check(/\.sql/.test(global(["db:generate"])), "CLI global: db:generate memakai zentara proyek (drizzle-kit)");
+    global(["db:migrate"]);
+    check(global(["routes"]).includes("/e2e-trips"), "CLI global: routes membaca route & schema baru");
+    check(global(["jobs"]).includes("welcome-email"), "CLI global: jobs");
+
+    console.log("\n=== Tool Zentara AI (dari instalasi global) ===");
+    const tools = await import(pathToFileURL(path.join(globalPkg, "dist", "ai", "tools.js")).href);
+    const { Journal } = await import(pathToFileURL(path.join(globalPkg, "dist", "ai", "journal.js")).href);
+    const { ApprovalPolicy } = await import(pathToFileURL(path.join(globalPkg, "dist", "ai", "approval.js")).href);
+    const ctx = { root: apiApp, approval: new ApprovalPolicy("auto", async () => "yes"), journal: new Journal(apiApp, "e2e"), dryRun: false, runScript: async () => ({ ok: true, output: "" }), runDb: tools.createDbRunner(apiApp) };
+    const tool = (name, input) => tools.agentTools.find((t) => t.spec.name === name).run(input, ctx);
+    // Proses yang sama tetap membaca schema terbaru (tanpa cache modul lama).
+    fs.appendFileSync(path.join(apiApp, "src", "app", "db", "schema.ts"), '\nexport const e2eStops = sqliteTable("e2e_stops", { id: integer("id").primaryKey({ autoIncrement: true }) });\n');
+    fs.writeFileSync(path.join(apiApp, "src", "app", "routes", "e2e-stops.ts"), 'import { e2eStops } from "../db/schema.js";\nexport const GET = () => ({ table: String(Boolean(e2eStops)) });\n');
+    check((await tool("list_routes", {})).includes("/e2e-stops"), "AI list_routes: route & export schema baru langsung terbaca");
+    check(/^(BERHASIL|OK): db:generate/.test(await tool("database", { action: "generate" })), "AI database generate lewat zentara proyek");
+    check(/^(BERHASIL|OK): db:migrate/.test(await tool("database", { action: "migrate" })), "AI database migrate lewat zentara proyek");
+    check(/welcome-email/.test(await tool("zentara", { command: "jobs" })), "AI tool zentara: jobs");
+
+    console.log("\n=== Alur interaktif: pertama kali dibuka & buat proyek ===");
+    const home = path.join(WORK, "zentara-home");
+    const outside = path.join(WORK, "belum-ada-proyek");
+    fs.mkdirSync(outside, { recursive: true });
+    const saved = { home: process.env.ZENTARA_HOME, pkg: process.env.ZENTARA_CREATE_PACKAGE, args: process.env.ZENTARA_CREATE_ARGS, lang: process.env.ZENTARA_LANG };
+    Object.assign(process.env, { ZENTARA_HOME: home, ZENTARA_CREATE_PACKAGE: create.tarball, ZENTARA_CREATE_ARGS: `--zentara-spec file:${zentara.tarball}` });
+    delete process.env.ZENTARA_LANG;
+    try {
+      const { createReplHost } = await import(pathToFileURL(path.join(globalPkg, "dist", "repl", "host.js")).href);
+      const { resolveAiConfig } = await import(pathToFileURL(path.join(globalPkg, "dist", "ai", "config.js")).href);
+      const asked = [];
+      const answers = [["Bahasa / Language", "en"], ["start", "create"], ["language", "en"], ["template", "api"]];
+      const noop = () => {};
+      const ui = {
+        thinking: noop, delta: noop, assistant: noop, toolStart: noop, toolEnd: noop, notice: noop, busy: noop, changed: noop,
+        approve: async () => "yes",
+        choose: async (question, choices, cancel) => {
+          asked.push(question);
+          const hit = answers.find(([key]) => question.toLowerCase().includes(key.toLowerCase()));
+          return hit ? choices.find((c) => c.value === hit[1])?.value ?? cancel : cancel;
+        },
+        ask: async (question) => (asked.push(question), "My E2E App"),
+        // Membuka Zentara di proyek baru (proses interaktif) dilewati di e2e.
+        suspend: async () => 0,
+      };
+      const host = await createReplHost({
+        cwd: outside, version: "e2e", loadConfig: async () => resolveAiConfig({}), serverEnv: process.env,
+        fallbackDev: { command: process.execPath, args: [globalCli, "dev"] }, appPort: 4999, offerDevServer: false,
+        runSetup: async () => 0, askLanguage: true,
+      }, ui);
+      const code = await host.startup();
+      await host.close();
+      check(asked[0] === "Bahasa / Language", "pertama kali dibuka: bahasa ditanyakan lebih dulu");
+      check(JSON.parse(fs.readFileSync(path.join(home, "settings.json"), "utf8")).locale === "en", "pilihan bahasa disimpan ke settings.json");
+      const created = path.join(outside, "my-e2e-app");
+      check(code === 0 && fs.existsSync(path.join(created, "src", "app")) && fs.existsSync(path.join(created, "node_modules", "zentara")), "buat proyek dari CLI: folder aman (my-e2e-app), dependency terpasang");
+      check(fs.readFileSync(path.join(created, "README.md"), "utf8").includes("Start from a blank canvas"), "buat proyek dari CLI: bahasa aplikasi en");
+    } finally {
+      for (const [key, value] of [["ZENTARA_HOME", saved.home], ["ZENTARA_CREATE_PACKAGE", saved.pkg], ["ZENTARA_CREATE_ARGS", saved.args], ["ZENTARA_LANG", saved.lang]]) {
+        if (value === undefined) delete process.env[key];
+        else process.env[key] = value;
+      }
+    }
+  }
+
   console.log(`\nSemua uji e2e lulus. (folder kerja: ${WORK})`);
   fs.rmSync(WORK, { recursive: true, force: true });
 } catch (err) {
