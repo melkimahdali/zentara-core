@@ -8,7 +8,7 @@ description: Simpan hasil perhitungan yang mahal di memori dengan masa berlaku.
 # Cache
 
 ```ts
-import { cache } from "zentara";
+import { cache } from "zusantara";
 
 export async function GET() {
   // Dihitung paling banyak sekali per menit; permintaan lain memakai hasil yang tersimpan.
@@ -42,7 +42,7 @@ cache.clear(`notes:${userId}:`);
 `cache` bawaan menyimpan sampai 1000 entri. Buat cache terpisah dengan batas sendiri:
 
 ```ts
-import { MemoryCache } from "zentara";
+import { MemoryCache } from "zusantara";
 
 const kurs = new MemoryCache({ max: 100, ttl: "10m" });
 ```

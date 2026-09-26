@@ -1,22 +1,22 @@
 ---
-title: Zentara AI in the browser
+title: Zusantara AI in the browser
 order: 3
-group: Zentara AI
+group: Zusantara AI
 description: The welcome page, error pages, AI chat on every page, and an AI that can see the page.
 ---
 
-# Zentara AI in the browser
+# Zusantara AI in the browser
 
-During development (`npx zentara` or `npm run dev`), Zentara AI is also available in the browser:
+During development (`npx zusantara` or `npm run dev`), Zusantara AI is also available in the browser:
 
-- **The welcome page** (the template's default `src/app/routes/index.ts`) shows the app status, the route list, and a Zentara AI chat box. Replace that file with your own page; bring it back any time with `export { welcomePage as GET } from "zentara";`.
-- **Error pages** show the message, a stack trace with highlighted code excerpts, the `cause`, and request details. The **✦ Ask Zentara AI** button sends the error to the AI, which explains the cause and proposes a fix. Every change still asks for approval (diff + Approve/Reject buttons) and can be undone.
+- **The welcome page** (the template's default `src/app/routes/index.ts`) shows the app status, the route list, and a Zusantara AI chat box. Replace that file with your own page; bring it back any time with `export { welcomePage as GET } from "zusantara";`.
+- **Error pages** show the message, a stack trace with highlighted code excerpts, the `cause`, and request details. The **✦ Ask Zusantara AI** button sends the error to the AI, which explains the cause and proposes a fix. Every change still asks for approval (diff + Approve/Reject buttons) and can be undone.
 - **The 404 page** lists the available routes and offers a button to build that page with the AI.
 - An app that fails to start (e.g. a typo in a route file) still shows an error page on its port, and the server restarts automatically once the file is fixed.
 
 ## Chat on every page
 
-During development, every page of your app (not only the welcome and error pages) gets an **Ask Zentara AI** button floating in the bottom-right corner. It works like the chat on the error page: request changes, review the diff and Approve/Reject, Undo changes, Stop, and New conversation. The conversation survives a page reload.
+During development, every page of your app (not only the welcome and error pages) gets an **Ask Zusantara AI** button floating in the bottom-right corner. It works like the chat on the error page: request changes, review the diff and Approve/Reject, Undo changes, Stop, and New conversation. The conversation survives a page reload.
 
 Every message from the widget carries **the page as it looks right now**, so a request like "add an export button above this table" points straight at the right route file:
 
@@ -29,7 +29,7 @@ Values of password fields, hidden fields, fields named like `token`/`secret`/`ca
 
 ## The AI checks its work: `view_page`
 
-After changing a page, Zentara AI **must** call the `view_page` tool for that page on a desktop and a mobile screen and fix what it finds, just like the typecheck and tests. If problems remain after two attempts, the AI reports the findings as they are and the task is not marked done.
+After changing a page, Zusantara AI **must** call the `view_page` tool for that page on a desktop and a mobile screen and fix what it finds, just like the typecheck and tests. If problems remain after two attempts, the AI reports the findings as they are and the task is not marked done.
 
 - **A browser tab is open** (any page with the widget): the page is loaded in a hidden iframe in that tab, with your login cookie, at 1280×800 (`desktop`), 768×1024 (`tablet`), or 390×844 (`mobile`). The chat keeps running.
 - **No tab is open:** the AI uses a text version from the server (no JavaScript, not logged in). If the page redirects to `/login`, the AI says so.
@@ -56,7 +56,7 @@ Extra options:
 | `screenshot: true` | also capture a PNG of the page; Claude models receive it as an image |
 | `expect.minScore` | fail when the page score is below this number |
 
-The `theme` and `lang` variants only apply to that request (through the `__zentara_mode` and `__zentara_lang` parameters, removed before routing), so other pages and your tab stay the same.
+The `theme` and `lang` variants only apply to that request (through the `__zusantara_mode` and `__zusantara_lang` parameters, removed before routing), so other pages and your tab stay the same.
 
 ### Page score
 
@@ -72,7 +72,7 @@ The score does not change the `ok`/`fail` status unless you use `expect.minScore
 
 ### Screenshots
 
-`screenshot: true` (or `zentara view --screenshot`) opens the page in the headless Chrome, Chromium, or Edge already installed on your computer, at the same screen size, and saves it in `.zentara/screenshots/`. No browser is downloaded; if none is found, set `CHROME_PATH` to the browser's executable. The page is opened without a login and without the development widget.
+`screenshot: true` (or `zusantara view --screenshot`) opens the page in the headless Chrome, Chromium, or Edge already installed on your computer, at the same screen size, and saves it in `.zusantara/screenshots/`. No browser is downloaded; if none is found, set `CHROME_PATH` to the browser's executable. The page is opened without a login and without the development widget.
 
 Claude models receive the image along with the text result, so they can judge the look visually. OpenAI-format providers do not accept images in tool results, so they only get the file path and a note.
 
@@ -88,30 +88,30 @@ Every `view_page` result includes layout checks. Each finding names its element,
 | `image` | an image failed to load | ✓ | ✓ (local images) |
 | `contrast` | text contrast below WCAG AA: 4.5:1, or 3:1 for large text | ✓ | |
 | `style` | a `style` attribute, a `<style>` element, or a stylesheet outside the UI kit | ✓ | ✓ |
-| `kit` | the page is not built with `page()` from `zentara/ui` | ✓ | ✓ |
+| `kit` | the page is not built with `page()` from `zusantara/ui` | ✓ | ✓ |
 | `meta` | no `<meta name="viewport">`, so phones show the page zoomed out | ✓ | ✓ |
 
 The framework's own welcome and error pages are not checked for `style`, `kit`, and `meta`.
 
-You can see the same result yourself. When `zentara dev` or the interactive CLI is running and a browser tab is open, `zentara view` uses that tab; otherwise the text version. It exits with 1 when there are findings, errors, or a missing `--text`.
+You can see the same result yourself. When `zusantara dev` or the interactive CLI is running and a browser tab is open, `zusantara view` uses that tab; otherwise the text version. It exits with 1 when there are findings, errors, or a missing `--text`.
 
 ```bash
-npx zentara view /notes                    # elements, console errors, layout checks, and score
-npx zentara view /notes --mobile           # phone screen (390 px); --tablet for 768 px
-npx zentara view /notes --dark --lang en   # dark mode and English variants
-npx zentara view /notes --screenshot       # save a PNG in .zentara/screenshots/
-npx zentara view /login --text "Sign in"   # fails when the text is missing
-npx zentara view / --min-score 90          # fails when the score is below 90
-npx zentara view /api/hello --json
+npx zusantara view /notes                    # elements, console errors, layout checks, and score
+npx zusantara view /notes --mobile           # phone screen (390 px); --tablet for 768 px
+npx zusantara view /notes --dark --lang en   # dark mode and English variants
+npx zusantara view /notes --screenshot       # save a PNG in .zusantara/screenshots/
+npx zusantara view /login --text "Sign in"   # fails when the text is missing
+npx zusantara view / --min-score 90          # fails when the score is below 90
+npx zusantara view /api/hello --json
 ```
 
 ## Developer tools
 
-All of these exist only while `zentara dev` is running, and Zentara AI can read all of their data too.
+All of these exist only while `zusantara dev` is running, and Zusantara AI can read all of their data too.
 
 ### Request toolbar
 
-Next to the **Ask Zentara AI** button is a small button with the page request's processing time and query count, e.g. `42 ms · 3 queries`. A red **N+1** mark appears when the same query runs three or more times in one request (usually a query inside a loop; load it at once with a join or `inArray`). Click it to see:
+Next to the **Ask Zusantara AI** button is a small button with the page request's processing time and query count, e.g. `42 ms · 3 queries`. A red **N+1** mark appears when the same query runs three or more times in one request (usually a query inside a loop; load it at once with a join or `inArray`). Click it to see:
 
 - the processing time and the total time spent in the database;
 - every query with its duration (SQLite; Postgres without per-query timing);
@@ -121,13 +121,13 @@ Next to the **Ask Zentara AI** button is a small button with the page request's 
 The dev server keeps the last 50 requests in memory. From the terminal or the AI:
 
 ```bash
-npx zentara requests                 # last 50 requests, newest first
-npx zentara requests --path /notes   # only paths starting with /notes
-npx zentara requests <id>            # details: queries, N+1, session, logs
-npx zentara requests --json
+npx zusantara requests                 # last 50 requests, newest first
+npx zusantara requests --path /notes   # only paths starting with /notes
+npx zusantara requests <id>            # details: queries, N+1, session, logs
+npx zusantara requests --json
 ```
 
-Zentara AI uses the `request_log` tool for the same thing, and `view_page` results already include the request of the page they looked at. Every response carries an `X-Zentara-Request` header with its id.
+Zusantara AI uses the `request_log` tool for the same thing, and `view_page` results already include the request of the page they looked at. Every response carries an `X-Zusantara-Request` header with its id.
 
 ### Inspect mode
 
@@ -141,41 +141,41 @@ The widget records the last 30 steps in that tab: pages opened, clicks, inputs (
 
 ### Automatic reload
 
-After a file changes and the dev server finishes restarting, every open app tab reloads. A tab with unsent form input is not reloaded (a notice appears instead), and while Zentara AI works on a task from the browser, the reload waits until the task finishes.
+After a file changes and the dev server finishes restarting, every open app tab reloads. A tab with unsent form input is not reloaded (a notice appears instead), and while Zusantara AI works on a task from the browser, the reload waits until the task finishes.
 
 ### Voice input
 
-The microphone button in the chat box (welcome page, error page, and widget) turns speech into text in the Zentara language (`id-ID` or `en-US`). It only appears in browsers that support the Web Speech API (Chrome, Edge, Safari). In Chrome, speech recognition is processed by Google's service.
+The microphone button in the chat box (welcome page, error page, and widget) turns speech into text in the Zusantara language (`id-ID` or `en-US`). It only appears in browsers that support the Web Speech API (Chrome, Edge, Safari). In Chrome, speech recognition is processed by Google's service.
 
 ## AI task journal
 
-Every Zentara AI task (terminal, interactive CLI, and the browser chat) writes a summary to `.zentara/ai-tasks.jsonl`: status, steps, duration, tokens, the typecheck and test results, and every `view_page`. File contents and the conversation are not recorded. Only the first line of the request is kept, and the journal never leaves your computer. The AI evals in Stage 15 use this data.
+Every Zusantara AI task (terminal, interactive CLI, and the browser chat) writes a summary to `.zusantara/ai-tasks.jsonl`: status, steps, duration, tokens, the typecheck and test results, and every `view_page`. File contents and the conversation are not recorded. Only the first line of the request is kept, and the journal never leaves your computer. The AI evals in Stage 15 use this data.
 
 ```bash
-npx zentara ai:log               # the last 20 tasks and the share that finished
-npx zentara ai:log --limit 100 --json
+npx zusantara ai:log               # the last 20 tasks and the share that finished
+npx zusantara ai:log --limit 100 --json
 ```
 
 ## Not in production
 
 Only the development server injects the widget. There is nothing to remove before a build or deploy:
 
-- the app server only injects it when debug mode is on, the app was started by `zentara dev` or the interactive CLI (which set `ZENTARA_DEV=1` and the devtools token), and `NODE_ENV` is not `production`;
-- `zentara start` removes the development server variables from the environment;
-- in production `/_zentara/dev/probe.js`, `/_zentara/dev/widget.js`, and `/_zentara/dev/requests` answer 404, your HTML is left untouched (no `data-zsrc`), no request traces are recorded, and the `__zentara_*` variant parameters have no effect;
+- the app server only injects it when debug mode is on, the app was started by `zusantara dev` or the interactive CLI (which set `ZUSANTARA_DEV=1` and the devtools token), and `NODE_ENV` is not `production`;
+- `zusantara start` removes the development server variables from the environment;
+- in production `/_zusantara/dev/probe.js`, `/_zusantara/dev/widget.js`, and `/_zusantara/dev/requests` answer 404, your HTML is left untouched (no `data-zsrc`), no request traces are recorded, and the `__zusantara_*` variant parameters have no effect;
 - HTML fragments (without `<html>`/`<body>`) and htmx requests are never touched.
 
-The e2e tests check that production pages do not include the widget, including when the devtools variables leak into the environment and `ZENTARA_DEBUG=1` is set.
+The e2e tests check that production pages do not include the widget, including when the devtools variables leak into the environment and `ZUSANTARA_DEBUG=1` is set.
 
 ## Browser chat safety
 
 - it is only active during development, through a small server that only listens on `127.0.0.1`;
 - every request needs a random per-session token and is only accepted from `localhost` pages (other sites and DNS rebinding are rejected);
 - the rules are the same as in the terminal: `.env` and database files are off limits, critical actions are always asked, and every change can be undone;
-- `zentara dev` writes the devtools port and token to `.zentara/devtools.json` (readable only by the file's owner, removed when the server stops) so `zentara view` from another terminal can use the browser tab;
+- `zusantara dev` writes the devtools port and token to `.zusantara/devtools.json` (readable only by the file's owner, removed when the server stops) so `zusantara view` from another terminal can use the browser tab;
 - the devtools token is on the page during development, so a third-party script you load on the page (e.g. from a CDN) could technically use the chat too. The `ask` mode (the default) still asks for your approval before every change, so use it when your pages load outside scripts.
 
-In production (`zentara start`), visitors only see a simple error page without details, and the welcome page has no chat or route list. API clients (`Accept: application/json`) still get JSON.
+In production (`zusantara start`), visitors only see a simple error page without details, and the welcome page has no chat or route list. API clients (`Accept: application/json`) still get JSON.
 
 ## How the AI works
 

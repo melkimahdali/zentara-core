@@ -9,7 +9,7 @@ description: Accept files from multipart forms and store them safely with readFo
 
 ```ts
 // src/app/routes/profile/photo.ts
-import { HttpError, readForm, saveUpload, type ZenContext } from "zentara";
+import { HttpError, readForm, saveUpload, type ZenContext } from "zusantara";
 
 export async function POST(ctx: ZenContext) {
   const form = await readForm(ctx, { maxBytes: "10mb" });
@@ -23,7 +23,7 @@ export async function POST(ctx: ZenContext) {
 The form, with the [UI kit](ui.html). Pass the same `types` and `maxBytes` as `saveUpload()`, so the browser only offers matching files, the "Image, max. 5 MB" hint is written for you, and a chosen image is previewed right away:
 
 ```ts
-import { Button, FileInput, Form, FormActions } from "zentara/ui";
+import { Button, FileInput, Form, FormActions } from "zusantara/ui";
 
 h(Form, { action: "/profile/photo", upload: true },
   h(FileInput, { name: "photo", label: "Profile photo", types: ["image/*"], maxBytes: "5mb", preview: user.photoUrl }),

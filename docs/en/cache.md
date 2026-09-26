@@ -8,7 +8,7 @@ description: Keep the results of expensive work in memory with an expiry time.
 # Cache
 
 ```ts
-import { cache } from "zentara";
+import { cache } from "zusantara";
 
 export async function GET() {
   // Computed at most once a minute; other requests reuse the stored result.
@@ -42,7 +42,7 @@ cache.clear(`notes:${userId}:`);
 The built-in `cache` holds up to 1000 entries. Create a separate cache with its own limits:
 
 ```ts
-import { MemoryCache } from "zentara";
+import { MemoryCache } from "zusantara";
 
 const rates = new MemoryCache({ max: 100, ttl: "10m" });
 ```

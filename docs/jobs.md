@@ -14,13 +14,13 @@ Job adalah pekerjaan yang tidak perlu ditunggu pengguna: mengirim email, membuat
 Setiap file di `src/app/jobs/` adalah satu job. Nama job adalah path file tanpa ekstensi, jadi `src/app/jobs/laporan/harian.ts` bernama `laporan/harian`.
 
 ```bash
-npx zentara make:job kirim-laporan
-npx zentara make:job bersihkan-sesi --schedule "0 3 * * *"
+npx zusantara make:job kirim-laporan
+npx zusantara make:job bersihkan-sesi --schedule "0 3 * * *"
 ```
 
 ```ts
 // src/app/jobs/kirim-laporan.ts
-import { sendMail, type JobContext } from "zentara";
+import { sendMail, type JobContext } from "zusantara";
 
 export const retries = 3; // opsional, default 3
 
@@ -35,7 +35,7 @@ export default async function (data: { email: string }, job: JobContext) {
 ## Memasukkan ke antrean
 
 ```ts
-import { enqueue } from "zentara";
+import { enqueue } from "zusantara";
 
 export async function POST(ctx: ZenContext) {
   const user = await registerUser(input);
@@ -80,22 +80,22 @@ Kolomnya: menit, jam, tanggal, bulan, hari (0 atau 7 = Minggu; nama seperti `mon
 ## Perintah CLI
 
 ```bash
-npx zentara jobs                                  # daftar job, jadwal, dan jalan berikutnya
-npx zentara jobs --json
-npx zentara jobs:run kirim-laporan --data '{"email":"sari@mail.id"}'   # jalankan sekarang, tanpa antrean
+npx zusantara jobs                                  # daftar job, jadwal, dan jalan berikutnya
+npx zusantara jobs --json
+npx zusantara jobs:run kirim-laporan --data '{"email":"sari@mail.id"}'   # jalankan sekarang, tanpa antrean
 ```
 
 ## Penyimpanan & pekerja
 
-Antrean disimpan di SQLite (`data/jobs.db`), jadi job yang belum selesai tidak hilang saat server dimulai ulang. Pekerja berjalan di dalam proses server (`zentara dev` dan `zentara start`).
+Antrean disimpan di SQLite (`data/jobs.db`), jadi job yang belum selesai tidak hilang saat server dimulai ulang. Pekerja berjalan di dalam proses server (`zusantara dev` dan `zusantara start`).
 
 ```js
-// zentara.config.mjs
+// zusantara.config.mjs
 export default {
   jobs: {
     store: "sqlite",       // atau "memory" (bawaan saat NODE_ENV=test)
     path: "data/jobs.db",
-    worker: true,          // false atau env ZENTARA_JOBS=off: server hanya memasukkan job, tidak menjalankannya
+    worker: true,          // false atau env ZUSANTARA_JOBS=off: server hanya memasukkan job, tidak menjalankannya
     concurrency: 2,        // job yang berjalan bersamaan
     pollMs: 1000,
   },
@@ -107,7 +107,7 @@ export default {
 Saat `NODE_ENV=test` antrean disimpan di memori. Panggil `jobs.drain()` untuk menjalankan semua job yang sudah waktunya:
 
 ```ts
-import { jobs, outbox } from "zentara";
+import { jobs, outbox } from "zusantara";
 
 await post("/api/auth/register", { name: "Sari", email: "sari@mail.id", password: "rahasia123" });
 await jobs.drain();

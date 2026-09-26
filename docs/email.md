@@ -8,7 +8,7 @@ description: Kirim email lewat SMTP dengan sendMail(), dicetak ke log saat penge
 # Email
 
 ```ts
-import { sendMail } from "zentara";
+import { sendMail } from "zusantara";
 
 await sendMail({
   to: "sari@mail.id",
@@ -34,7 +34,7 @@ MAIL_FROM="Aplikasi Sari <halo@sari.id>"
 ```
 
 ```js
-// zentara.config.mjs
+// zusantara.config.mjs
 export default {
   mail: { from: "Aplikasi Sari <halo@sari.id>" }, // env MAIL_URL / MAIL_FROM menimpa nilai ini
 };
@@ -45,14 +45,14 @@ Karakter khusus di user atau password harus di-encode untuk URL, mis. `@` menjad
 | Kondisi | Yang terjadi |
 |---|---|
 | `MAIL_URL` berisi `smtp://` atau `smtps://` | email dikirim lewat SMTP |
-| pengembangan tanpa `MAIL_URL` | email dicetak ke log dan disimpan di `.zentara/mail/*.eml` |
+| pengembangan tanpa `MAIL_URL` | email dicetak ke log dan disimpan di `.zusantara/mail/*.eml` |
 | `NODE_ENV=test` | email dikumpulkan di `outbox` |
 | produksi tanpa `MAIL_URL` | `sendMail()` melempar error, jadi email tidak hilang diam-diam |
 
 ## Menguji email
 
 ```ts
-import { outbox } from "zentara";
+import { outbox } from "zusantara";
 
 await jobs.drain();
 const mail = outbox.find((m) => m.to.includes("sari@mail.id"));

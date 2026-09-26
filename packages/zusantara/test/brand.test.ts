@@ -1,0 +1,80 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { FAVICON_PNG, LOGO_TERMINAL, LOGO_WEBP } from "../src/brand/assets.js";
+import { banner, BRAND, colorDepth, terminalLogo, terminalLogoFrame, to256, visibleWidth } from "../src/brand/index.js";
+
+const strip = (s: string) => s.replace(/\x1b\[[0-9;]*m/g, "");
+const tty = (depth: number) => ({ isTTY: true, getColorDepth: () => depth }) as unknown as NodeJS.WriteStream;
+
+describe("brand Zusantara Core", () => {
+  it("token warna sesuai pedoman brand", () => {
+    assert.deepEqual(BRAND, { teal: "#2ED3B7", gold: "#C89B52", obsidian: "#0D1719", pearl: "#F2F4F0", slate: "#829490" });
+  });
+
+  it("aset logo tersedia dan ringan", () => {
+    assert.match(LOGO_WEBP, /^data:image\/webp;base64,/);
+    assert.match(FAVICON_PNG, /^data:image\/png;base64,/);
+    assert.ok(LOGO_WEBP.length < 20_000);
+    assert.ok(LOGO_TERMINAL.length >= 12 && LOGO_TERMINAL.every((r) => /^[TG.]+$/.test(r) && r.length === LOGO_TERMINAL[0]!.length));
+  });
+
+  it("colorDepth menghormati NO_COLOR dan non-TTY", () => {
+    assert.equal(colorDepth(tty(24), { NO_COLOR: "1" }), "none");
+    assert.equal(colorDepth({ isTTY: false } as NodeJS.WriteStream, {}), "none");
+    assert.equal(colorDepth(tty(24), {}), "truecolor");
+    assert.equal(colorDepth(tty(8), {}), "256");
+    assert.equal(colorDepth(tty(4), {}), "basic");
+  });
+
+  it("to256 memetakan warna brand ke palet xterm", () => {
+    assert.ok(to256([46, 211, 183]) >= 16 && to256([46, 211, 183]) < 232);
+  });
+
+  it("logo terminal: tanpa warna tidak ada kode ANSI, dengan truecolor memakai warna brand", () => {
+    const plain = terminalLogo("none");
+    assert.ok(plain.length >= 12 && plain.length <= 20);
+    assert.ok(plain.every((l) => !l.includes("\x1b")));
+    assert.ok(Math.max(...plain.map(visibleWidth)) <= 48);
+    assert.match(terminalLogo("truecolor").join(""), /38;2;\d+;\d+;\d+/);
+  });
+
+  it("animasi logo: kosong di awal, tersapu dari kiri bawah dengan kilau, dan berakhir sama dengan logo diam", () => {
+    assert.ok(terminalLogoFrame("none", 0).every((l) => l === ""));
+    const mid = terminalLogoFrame("none", 0.4);
+    assert.equal(mid.length, terminalLogo("none").length, "tinggi tetap selama animasi");
+    assert.ok(mid.at(-1)!.trim() !== "" && mid[0]!.trim() === "", "bawah muncul lebih dulu dari atas");
+    assert.match(terminalLogoFrame("truecolor", 0.5).join(""), /38;2;242;244;240/, "kilau Pearl di tepi sapuan");
+    assert.deepEqual(terminalLogoFrame("truecolor", 1), terminalLogo("truecolor"));
+    const cells = (p: number) => terminalLogoFrame("none", p).join("").replace(/\s/g, "").length;
+    assert.ok(cells(0.2) < cells(0.5) && cells(0.5) < cells(0.9), "makin lama makin lengkap");
+  });
+
+  it("banner: logo + teks berdampingan, logo di atas teks, teks saja, atau satu baris sesuai lebar terminal", () => {
+    const wide = banner({ version: "0.8.0", columns: 120, depth: "none" }).map(strip);
+    assert.ok(wide.some((l) => /▀|▄|█/.test(l) && l.includes("Zusantara Core")));
+    assert.ok(wide.some((l) => l.includes("Rooted here. Built for what's next.")));
+    assert.ok(wide.every((l) => l.length <= 120));
+
+    const medium = banner({ version: "0.8.0", columns: 80, depth: "none" }).map(strip);
+    assert.ok(medium.some((l) => /▀|▄|█/.test(l)));
+    assert.ok(medium.every((l) => l.length <= 80));
+    assert.ok(!medium.some((l) => /▀|▄|█/.test(l) && l.includes("Zusantara")), "teks di bawah logo");
+
+    const small = banner({ version: "0.8.0", columns: 46, depth: "none" });
+    assert.ok(small.every((l) => !/▀|▄|█/.test(l)));
+    assert.ok(small.some((l) => l.includes("AI-driven TypeScript web framework from Indonesia")));
+
+    assert.deepEqual(banner({ version: "0.8.0", columns: 30, depth: "none" }), ["Z> Zusantara Core v0.8.0"]);
+  });
+});
+
+describe("kotak header CLI", () => {
+  it("lebar tetap, judul di garis atas, keterangan di garis bawah, teks panjang dipotong", async () => {
+    const { box } = await import("../src/repl/widgets.js");
+    const lines = box("◆ ZUSANTARA CORE  v1", ["~/proyek", "x".repeat(200)], "/help perintah", 60).map(strip);
+    assert.ok(lines[0]!.startsWith("╭─ ◆ ZUSANTARA CORE  v1 ") && lines[0]!.endsWith("╮"));
+    assert.ok(lines.at(-1)!.startsWith("╰─ /help perintah ") && lines.at(-1)!.endsWith("╯"));
+    assert.ok(lines.every((l) => l.length === lines[0]!.length), "semua baris sama lebar");
+    assert.ok(lines[2]!.includes("…"));
+  });
+});

@@ -1,6 +1,6 @@
 # Skill desain untuk Claude Code
 
-Dipakai saat mengerjakan tampilan Zentara Core (kit UI `zentara/ui`, halaman template, situs dokumentasi).
+Dipakai saat mengerjakan tampilan Zusantara Core (kit UI `zusantara/ui`, halaman template, situs dokumentasi).
 
 | Folder | Skill | Kapan dipakai |
 |---|---|---|
@@ -9,6 +9,6 @@ Dipakai saat mengerjakan tampilan Zentara Core (kit UI `zentara/ui`, halaman tem
 
 Sumber: https://github.com/Leonxlnx/taste-skill (commit `c184364`), lisensi MIT (lihat `LICENSE` di tiap folder). Disalin apa adanya; perbarui dengan menyalin ulang dari repo tersebut.
 
-Aturan tambahan Zentara Core yang menang atas skill:
-- Brand tetap: Zentara Teal `#2ED3B7` sebagai satu-satunya aksen UI, Heritage Gold hanya untuk logo/motif, font Plus Jakarta Sans (pedoman brand).
+Aturan tambahan Zusantara Core yang menang atas skill:
+- Brand tetap: Zusantara Teal `#2ED3B7` sebagai satu-satunya aksen UI, Heritage Gold hanya untuk logo/motif, font Plus Jakarta Sans (pedoman brand).
 - Kit UI adalah HTML server-side tanpa framework frontend, jadi saran React/Tailwind/Motion di skill diterjemahkan ke CSS murni.

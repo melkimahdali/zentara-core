@@ -1,6 +1,6 @@
 # CORE_SPEC
 
-Kontrak inti Zentara v0.6. Framework ada di `packages/zentara`, pembuat proyek di `packages/create-zentara`. Perubahan pada kontrak ini dianggap *breaking change*.
+Kontrak inti Zusantara v0.6. Framework ada di `packages/zusantara`, pembuat proyek di `packages/create-zusantara`. Perubahan pada kontrak ini dianggap *breaking change*.
 
 ## 1. Siklus hidup runtime
 
@@ -105,9 +105,9 @@ Hanya untuk `GET`/`HEAD`, dan hanya bila tidak ada route yang cocok. Path di-dec
 - Urutan validasi di `validate()`: `params` → `query` → `body`. Handler hanya dipanggil bila semuanya valid.
 - Respons error berbentuk JSON bila `Accept` meminta JSON, atau bila error memiliki `details` dan `Accept` tidak meminta HTML.
 
-## 13. Zentara AI
+## 13. Zusantara AI
 
-- **Masukan.** Perintah CLI yang tidak dikenal dan berisi spasi diteruskan ke AI, begitu juga `zentara ai "<teks>"`. Menjalankan `zentara` tanpa argumen di terminal interaktif membuka mode obrolan.
+- **Masukan.** Perintah CLI yang tidak dikenal dan berisi spasi diteruskan ke AI, begitu juga `zusantara ai "<teks>"`. Menjalankan `zusantara` tanpa argumen di terminal interaktif membuka mode obrolan.
 - **Loop agen.** Model dipanggil dan tool yang diminta dijalankan, berulang sampai model selesai atau batas `ai.maxSteps` (default 40) tercapai.
   - Setelah model selesai, bila ada perubahan file, runtime menjalankan `npm run typecheck` lalu `npm run test`.
   - Bila verifikasi gagal, output kegagalan dikirim kembali ke model, maksimal 2 kali.
@@ -118,15 +118,15 @@ Hanya untuk `GET`/`HEAD`, dan hanya bila tidak ada route yang cocok. Path di-dec
   |---|---|---|
   | read | tool yang hanya membaca | tidak pernah ditanyakan |
   | write | membuat/mengubah file biasa | ditanyakan di mode `ask`; otomatis di mode `auto` atau setelah jawaban "semua" |
-  | critical | `delete_file`, `install_package`, `database` migrate/seed, dan penulisan ke `package*.json`, `zentara.config.*`, `tsconfig*.json`, `.github/`, `.gitignore`, `.env*`, `src/core/`, `drizzle/` | **selalu** ditanyakan |
+  | critical | `delete_file`, `install_package`, `database` migrate/seed, dan penulisan ke `package*.json`, `zusantara.config.*`, `tsconfig*.json`, `.github/`, `.gitignore`, `.env*`, `src/core/`, `drizzle/` | **selalu** ditanyakan |
 
   Di terminal non-interaktif, semua aksi yang butuh persetujuan ditolak.
 - **Larangan mutlak:**
   - path di luar root proyek, dicek secara leksikal dan lewat `realpath` leluhur terdekat (mencegah lolos lewat symlink);
-  - menulis ke `.git/`, `node_modules/`, `.zentara/`, `dist/`;
+  - menulis ke `.git/`, `node_modules/`, `.zusantara/`, `dist/`;
   - membaca atau mengubah `.env` dan `.env.*` (kecuali `.env.example`);
   - membaca atau menulis file database (`*.db`, `*.sqlite`, `*.sqlite3`, beserta `-wal`/`-shm`/`-journal`).
-- **Undo.** Sebelum file pertama kali diubah dalam satu perintah, isinya dicatat di `.zentara/history/<waktu>.json` (`null` bila file baru). Untuk `database generate`, isi `drizzle/` difoto sebelum perintah jalan, sehingga file baru maupun yang berubah ikut tercatat. `zentara undo` memulihkan file dalam urutan terbalik lalu menghapus jurnalnya. Isi database tidak ikut dipulihkan.
+- **Undo.** Sebelum file pertama kali diubah dalam satu perintah, isinya dicatat di `.zusantara/history/<waktu>.json` (`null` bila file baru). Untuk `database generate`, isi `drizzle/` difoto sebelum perintah jalan, sehingga file baru maupun yang berubah ikut tercatat. `zusantara undo` memulihkan file dalam urutan terbalik lalu menghapus jurnalnya. Isi database tidak ikut dipulihkan.
 - **Rantai provider.** Provider dicoba berurutan.
   - `ProviderUnavailableError` membuat rantai pindah ke provider berikutnya dan menetap di sana selama sesi. Pemicunya: kredensial tidak ada, 401/402/403/404/408/429, 5xx, koneksi gagal, timeout, atau respons rusak.
   - Error lain (mis. 400) diteruskan tanpa fallback.
@@ -165,19 +165,19 @@ Hanya untuk `GET`/`HEAD`, dan hanya bila tidak ada route yang cocok. Path di-dec
 
 ## 16. Paket & struktur proyek
 
-- **Paket `zentara`:**
-  - `exports` `"."` → core (`dist/core/index.js`, beserta tipe) dan `"./db"` → modul database. `bin` `zentara` → `dist/cli.js`.
+- **Paket `zusantara`:**
+  - `exports` `"."` → core (`dist/core/index.js`, beserta tipe) dan `"./db"` → modul database. `bin` `zusantara` → `dist/cli.js`.
   - Dependency: `@anthropic-ai/sdk` dan `tsx`. Peer opsional: `drizzle-orm`, `drizzle-kit`, dan `postgres`.
   - Perintah database dimuat saat dipakai saja, sehingga proyek tanpa database tidak memerlukan `drizzle-orm`.
-- **Folder aplikasi (`appDir`)** ditentukan dengan urutan: `config.appDir` → env `ZENTARA_APP_DIR` → `src/app` bila ada → `dist/app`. `routesDir` default-nya `<appDir>/routes`, dan file middleware `<appDir>/middleware`. Modul database dan seed ada di `<appDir>/db/{index,seed}`.
+- **Folder aplikasi (`appDir`)** ditentukan dengan urutan: `config.appDir` → env `ZUSANTARA_APP_DIR` → `src/app` bila ada → `dist/app`. `routesDir` default-nya `<appDir>/routes`, dan file middleware `<appDir>/middleware`. Modul database dan seed ada di `<appDir>/db/{index,seed}`.
 - **CLI:**
-  - `zentara dev`: `tsx watch` pada entry server dengan `ZENTARA_APP_DIR=src/app`.
-  - `zentara build`: `tsc -p tsconfig.build.json` (atau `tsconfig.json`) memakai TypeScript milik proyek.
-  - `zentara start`: menjalankan server dari `dist/app` dengan default `NODE_ENV=production`.
+  - `zusantara dev`: `tsx watch` pada entry server dengan `ZUSANTARA_APP_DIR=src/app`.
+  - `zusantara build`: `tsc -p tsconfig.build.json` (atau `tsconfig.json`) memakai TypeScript milik proyek.
+  - `zusantara start`: menjalankan server dari `dist/app` dengan default `NODE_ENV=production`.
   - Perintah yang memuat kode proyek (`routes`, `db:migrate`, `db:seed`, `ai`) memasang loader `tsx` secara otomatis bila `appDir` bukan `dist/`.
-- **`create-zentara`** menyalin `templates/<nama>` dengan aturan berikut:
+- **`create-zusantara`** menyalin `templates/<nama>` dengan aturan berikut:
   - `_gitignore` diubah menjadi `.gitignore`, karena npm tidak mem-publish file `.gitignore`.
-  - `name` diatur dari nama folder, dan `dependencies.zentara` diisi `^<versi create-zentara>`.
+  - `name` diatur dari nama folder, dan `dependencies.zusantara` diisi `^<versi create-zusantara>`.
   - `.env` dibuat dari `.env.example` dengan `SESSION_SECRET` acak (mode 0600).
   - Folder tujuan harus kosong.
   - Bila install diminta: memasang dependency memakai package manager pemanggil, lalu untuk template `api` menjalankan `db:migrate` dan `db:seed`.

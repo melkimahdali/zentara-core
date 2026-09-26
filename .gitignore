@@ -7,8 +7,8 @@ coverage/
 !.env.example
 .DS_Store
 
-# Jurnal perubahan AI (untuk zentara undo)
-.zentara/
+# Jurnal perubahan AI (untuk zusantara undo)
+.zusantara/
 
 # Database SQLite lokal
 data/

@@ -1,0 +1,20 @@
+name: Usulan fitur / Feature request
+description: Usulkan fitur atau perbaikan. / Suggest a feature or improvement.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Masalah yang ingin diselesaikan / Problem to solve
+      description: Apa yang ingin Anda bangun, dan apa yang menghambat sekarang. / What you want to build and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Usulan / Proposal
+      description: Seperti apa bentuknya di CLI, Zusantara AI, atau kode? / What would it look like in the CLI, Zusantara AI, or code?
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatif yang sudah dicoba / Alternatives considered

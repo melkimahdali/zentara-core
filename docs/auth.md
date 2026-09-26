@@ -10,7 +10,7 @@ description: Login, role, dan password yang aman.
 Auth sudah tersedia di core. Password di-hash dengan scrypt (parameter OWASP), dan sesi memakai session terenkripsi.
 
 ```ts
-import { hashPassword, verifyPassword, fakeVerify, login, logout, currentUser, requireAuth, rateLimit, withMiddleware } from "zentara";
+import { hashPassword, verifyPassword, fakeVerify, login, logout, currentUser, requireAuth, rateLimit, withMiddleware } from "zusantara";
 
 login(ctx, { id: user.id, role: user.role });   // setelah password cocok
 logout(ctx);

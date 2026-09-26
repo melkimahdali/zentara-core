@@ -11,7 +11,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const REPO = process.env.ZENTARA_REPO ?? "melkimahdali/zentara-core";
+const REPO = process.env.ZUSANTARA_REPO ?? "melkimahdali/zusantara-core";
 const API = "https://api.github.com";
 const REGISTRY = "https://registry.npmjs.org";
 const isWindows = process.platform === "win32";
@@ -36,7 +36,7 @@ export function supportsStage(version) {
 }
 
 async function getJson(url) {
-  const res = await fetch(url, { headers: { Accept: "application/vnd.github+json", "User-Agent": "zentara-release-approve" } });
+  const res = await fetch(url, { headers: { Accept: "application/vnd.github+json", "User-Agent": "zusantara-release-approve" } });
   if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
   return res.json();
 }
@@ -62,7 +62,7 @@ async function findStaged() {
   if (staged.length === 0) {
     // Run lama belum menulis ID di anotasi: baca dari log job. GitHub hanya memberikan log kepada
     // pengguna yang login, jadi pakai GITHUB_TOKEN bila ada.
-    const headers = { "User-Agent": "zentara-release-approve" };
+    const headers = { "User-Agent": "zusantara-release-approve" };
     if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
     let res;
     try {

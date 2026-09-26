@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Dokumentasi / Documentation
+    url: https://zusantara.morixa.id/
+    about: Panduan, referensi CLI, dan Zusantara AI. / Guides, CLI reference, and Zusantara AI.
+  - name: Laporan keamanan / Security report
+    url: https://github.com/melkimahdali/zusantara-core/security/advisories/new
+    about: Laporkan celah keamanan secara privat. / Report vulnerabilities privately.
+  - name: Dukungan & layanan komersial / Commercial support & services
+    url: https://github.com/melkimahdali/zusantara-core/blob/main/COMMERCIAL.md
+    about: Dukungan prioritas, konsultasi, izin merek, dan kerja sama. / Priority support, consulting, trademark permission, and partnerships.

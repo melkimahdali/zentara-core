@@ -1,9 +1,9 @@
 """Buat aset brand kecil untuk framework dari master PNG (tanpa desain ulang).
 
 Pemakaian (butuh Python 3 + Pillow):
-    python3 scripts/brand/generate.py assets/brand/master/zentara-logo-original.png
+    python3 scripts/brand/generate.py assets/brand/master/zusantara-logo-original.png
 
-Menghasilkan packages/zentara/src/brand/assets.ts:
+Menghasilkan packages/zusantara/src/brand/assets.ts:
 - LOGO_WEBP: logo 160 px (WebP, base64) untuk halaman bawaan;
 - FAVICON_PNG: favicon 32 px (PNG, base64);
 - LOGO_TERMINAL: logo 48 kolom untuk banner terminal (lengkap dengan motif, warna brand flat per sel).
@@ -50,13 +50,13 @@ while grid and set(grid[-1]) == {"."}: grid.pop()
 if len(grid) % 2: grid.append("." * N)
 rows = grid
 
-out = root / "packages/zentara/src/brand/assets.ts"
+out = root / "packages/zusantara/src/brand/assets.ts"
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(
-    "// Dibuat oleh scripts/brand/generate.py dari master logo Zentara Core. Jangan diedit manual.\n"
+    "// Dibuat oleh scripts/brand/generate.py dari master logo Zusantara Core. Jangan diedit manual.\n"
     f'export const LOGO_WEBP = "data:image/webp;base64,{logo}";\n'
     f'export const FAVICON_PNG = "data:image/png;base64,{favicon}";\n'
-    "/** Logo terminal (motif lengkap, warna flat): T = Zentara Teal, G = Heritage Gold, . = kosong. Satu baris teks = dua baris piksel. */\n"
+    "/** Logo terminal (motif lengkap, warna flat): T = Zusantara Teal, G = Heritage Gold, . = kosong. Satu baris teks = dua baris piksel. */\n"
     "export const LOGO_TERMINAL: readonly string[] = [\n" + "".join(f'  "{r}",\n' for r in rows) + "];\n"
 )
 print(out, out.stat().st_size, "byte")

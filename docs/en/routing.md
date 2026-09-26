@@ -25,7 +25,7 @@ Export one function per HTTP method. `default` handles every method:
 
 ```ts
 // src/app/routes/api/users/[id].ts
-import { HttpError, json, type ZenContext } from "zentara";
+import { HttpError, json, type ZenContext } from "zusantara";
 
 export function GET(ctx: ZenContext) {
   return { id: ctx.params.id };                 // object -> JSON

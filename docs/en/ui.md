@@ -1,17 +1,17 @@
 ---
-title: UI kit (zentara/ui)
+title: UI kit (zusantara/ui)
 order: 1
 group: Front-End
-description: Zentara-branded HTML components for sign-in, dashboard, and admin pages.
+description: Zusantara-branded HTML components for sign-in, dashboard, and admin pages.
 ---
 
-# UI kit (zentara/ui)
+# UI kit (zusantara/ui)
 
-`zentara/ui` provides ready-to-use server-side HTML components. They follow the Zentara Core brand: the Plus Jakarta Sans font, a single teal accent (gold only in the logo), dark/light mode that follows the system, and responsive layouts on phones. No build step, and every text is escaped automatically.
+`zusantara/ui` provides ready-to-use server-side HTML components. They follow the Zusantara Core brand: the Plus Jakarta Sans font, a single teal accent (gold only in the logo), dark/light mode that follows the system, and responsive layouts on phones. No build step, and every text is escaped automatically.
 
 ```ts
-import { h, type ZenContext } from "zentara";
-import { AuthCard, Button, Field, Form, page } from "zentara/ui";
+import { h, type ZenContext } from "zusantara";
+import { AuthCard, Button, Field, Form, page } from "zusantara/ui";
 
 export function GET(ctx: ZenContext) {
   return page(
@@ -27,12 +27,12 @@ export function GET(ctx: ZenContext) {
 }
 ```
 
-`page()` produces a complete HTML document that loads the `/_zentara/ui.css` stylesheet. That stylesheet, along with the logo (`/_zentara/logo.webp`), favicons, and fonts, is served by the framework itself, so there's nothing to copy into `public/`.
+`page()` produces a complete HTML document that loads the `/_zusantara/ui.css` stylesheet. That stylesheet, along with the logo (`/_zusantara/logo.webp`), favicons, and fonts, is served by the framework itself, so there's nothing to copy into `public/`.
 
 Every page from `page()` also comes with:
 
 - **Built-in texts in the active language** (`id` or `en`), or `page({ lang })` for a single page. See [Language](bahasa.html).
-- **Self-hosted Plus Jakarta Sans** in `/_zentara/fonts/` (latin and latin-ext subsets, SIL OFL license at `/_zentara/fonts/LICENSE.txt`). No requests to Google Fonts or other CDNs.
+- **Self-hosted Plus Jakarta Sans** in `/_zusantara/fonts/` (latin and latin-ext subsets, SIL OFL license at `/_zusantara/fonts/LICENSE.txt`). No requests to Google Fonts or other CDNs.
 - **A "Skip to content" link** for keyboard users, pointing to the `#konten` element.
 - **Loading state on forms.** When a form is submitted, its button is disabled and gets `aria-busy`, so it can't be sent twice. If the button has `loading`, its text changes, e.g. `h(Button, { loading: "Saving…" }, "Save")`. This small script can be turned off with `page({ title, script: false })`; pages still work without it.
 - A subtle entrance animation, turned off automatically for users who prefer *reduced motion*.
@@ -72,7 +72,7 @@ Every page from `page()` also comes with:
 | `TeamCard` · `ContactForm` | a team member card (photo or initials), and a ready-made contact form with `values`, `errors`, and a WhatsApp link (`whatsapp: "0812…"`) |
 | `PriceTag` · `ProductCard` | a price with a struck-through original and a period, and a product card (photo, price, automatic discount label, rating, sold out, action button) |
 | `QuantityInput` · `CartSummary` | a quantity input with − and + buttons (a plain number input without JavaScript), and a cart summary (quantity × price, subtotal, shipping, discount, total) |
-| `placeholder()` | URL of the built-in sample image `/_zentara/placeholder.svg` for prototypes before real photos exist |
+| `placeholder()` | URL of the built-in sample image `/_zusantara/placeholder.svg` for prototypes before real photos exist |
 | `StatusPage` · `statusPage()` | a status page (403, 404, 500, …) in the app theme. The framework uses it for errors in production |
 | `money()` · `formatNumber()` · `formatDate()` · `rupiah()` | money, numbers, and dates in the active [language](bahasa.html); `rupiah(45000)` is always `Rp45.000` |
 
@@ -122,7 +122,7 @@ h(Form, { action: "/products", upload: true },
 
 ## Theme
 
-The accent color, corner radius, font, and dark/light mode are set in `zentara.config.mjs`, without CSS:
+The accent color, corner radius, font, and dark/light mode are set in `zusantara.config.mjs`, without CSS:
 
 ```js
 export default {
@@ -140,12 +140,12 @@ export default {
 The accent color is adjusted for light and dark mode automatically, so text on buttons and links keeps WCAG AA contrast whatever color you pick. You can also set it from the terminal:
 
 ```bash
-npx zentara theme                                  # show the current theme
-npx zentara theme --accent blue --radius lg        # change it (written to zentara.config.mjs)
-npx zentara theme --reset                          # back to the default
+npx zusantara theme                                  # show the current theme
+npx zusantara theme --accent blue --radius lg        # change it (written to zusantara.config.mjs)
+npx zusantara theme --reset                          # back to the default
 ```
 
-The dev server reloads the config on its own. Zentara AI runs the same command when you ask, for example, *"make the main color blue"*.
+The dev server reloads the config on its own. Zusantara AI runs the same command when you ask, for example, *"make the main color blue"*.
 
 ## Navigation and dialogs
 
@@ -172,8 +172,8 @@ A `Dialog` with `open: true` opens as soon as the page loads, for example when t
 `flash(ctx, message)` stores a message to show once on the next page, and `takeFlash(ctx)` takes it. The message lives in the session when the `session()` middleware is installed, otherwise in a short-lived `zen_flash` cookie:
 
 ```ts
-import { flash, redirect, takeFlash } from "zentara";
-import { Toast } from "zentara/ui";
+import { flash, redirect, takeFlash } from "zusantara";
+import { Toast } from "zusantara/ui";
 
 export async function POST(ctx: ZenContext) {
   // … save the data
@@ -192,8 +192,8 @@ The default tone is `success`; use `flash(ctx, "Could not send the email", "erro
 Front pages, business profiles, shops, and booking pages are built from the components above without custom CSS:
 
 ```ts
-import { h } from "zentara";
-import { Button, Container, CTA, FAQ, Hero, Navbar, page, placeholder, Stack } from "zentara/ui";
+import { h } from "zusantara";
+import { Button, Container, CTA, FAQ, Hero, Navbar, page, placeholder, Stack } from "zusantara/ui";
 
 export function GET() {
   return page(
@@ -210,28 +210,28 @@ export function GET() {
 
 Prices in `Pricing`, `PriceTag`, `ProductCard`, and `CartSummary` are formatted with `money()`: rupiah without decimals in Indonesian. `QuantityInput` goes inside a `Form`, so the quantity is sent with the form.
 
-**Whole-page examples.** The catalog holds five complete pages as starting points: `landing` (bakery), `profile` (business and team profile), `store` (shop with a cart), `booking` (booking schedule), and `dashboard` (admin dashboard). `zentara ui --example` lists them, `zentara ui --example store` prints its complete route file, and during `zentara dev` the result opens at `/_zentara/ui/examples/store`. Zentara AI uses the same examples through `ui_catalog`.
+**Whole-page examples.** The catalog holds five complete pages as starting points: `landing` (bakery), `profile` (business and team profile), `store` (shop with a cart), `booking` (booking schedule), and `dashboard` (admin dashboard). `zusantara ui --example` lists them, `zusantara ui --example store` prints its complete route file, and during `zusantara dev` the result opens at `/_zusantara/ui/examples/store`. Zusantara AI uses the same examples through `ui_catalog`.
 
 ## Error pages
 
-In production, 403, 404, 500, and other statuses are shown with the UI kit and the app theme (`ui` in `zentara.config.mjs`), with the app name (`appName`) and a button back to the home page. The message from `throw new HttpError(403, "Only admins can open this page")` is shown too; details of a 500 error never are. During development, 404 and 500 keep the richer developer pages.
+In production, 403, 404, 500, and other statuses are shown with the UI kit and the app theme (`ui` in `zusantara.config.mjs`), with the app name (`appName`) and a button back to the home page. The message from `throw new HttpError(403, "Only admins can open this page")` is shown too; details of a 500 error never are. During development, 404 and 500 keep the richer developer pages.
 
 For your own status page, use `h(StatusPage, { status: 404, text: "…", action: … })` inside `page()`, or `statusPage(404)` for a full document.
 
 ## Component catalog and gallery
 
-- **`zentara ui`** prints every component by group. `zentara ui Select` shows what it is for, every prop with its type and allowed values, and an example. `--json` for other tools. `zentara ui --example` shows the whole-page examples.
-- **The `/_zentara/ui` gallery** during `zentara dev`: every component with a live example in your app's theme. At the bottom it links to the whole-page examples. The gallery does not exist in production.
-- **Zentara AI** reads the same catalog (the `ui_catalog` tool), arranges the page with the layout primitives, then checks it with `view_page` on desktop and mobile. When the kit cannot build what you asked for, the AI explains the limit and offers custom CSS, which it only writes after you agree.
+- **`zusantara ui`** prints every component by group. `zusantara ui Select` shows what it is for, every prop with its type and allowed values, and an example. `--json` for other tools. `zusantara ui --example` shows the whole-page examples.
+- **The `/_zusantara/ui` gallery** during `zusantara dev`: every component with a live example in your app's theme. At the bottom it links to the whole-page examples. The gallery does not exist in production.
+- **Zusantara AI** reads the same catalog (the `ui_catalog` tool), arranges the page with the layout primitives, then checks it with `view_page` on desktop and mobile. When the kit cannot build what you asked for, the AI explains the limit and offers custom CSS, which it only writes after you agree.
 
-The catalog is generated from the JSDoc in the UI kit's code, so it always matches the installed zentara version.
+The catalog is generated from the JSDoc in the UI kit's code, so it always matches the installed zusantara version.
 
 ## Forms with per-field errors
 
 `tryParse()` validates without throwing, so the form can be shown again with its messages:
 
 ```ts
-import { flash, html, readInput, redirect, tryParse } from "zentara";
+import { flash, html, readInput, redirect, tryParse } from "zusantara";
 
 export async function POST(ctx: ZenContext) {
   const raw = await readInput(ctx); // HTML forms or JSON
@@ -258,7 +258,7 @@ After sign-in, redirect to local paths only. The `api` template includes `safeNe
 
 ## Built-in pages in the api template
 
-A new project from `npm create zentara` (the **api** template) comes with:
+A new project from `npm create zusantara` (the **api** template) comes with:
 
 | Page | Contents |
 |---|---|
@@ -268,4 +268,4 @@ A new project from `npm create zentara` (the **api** template) comes with:
 | `/notes/:id` | edit and delete a note |
 | `/admin/users` | users and their roles (admins only) |
 
-All of these pages live in `src/app/routes/` and are yours to change. `src/app/lib/ui.ts` contains `appPage()` (the frame with top navigation) and `APP_NAME`. Zentara AI uses this kit too when you ask for a new page, e.g. *"build a booking schedule page for signed-in users"*.
+All of these pages live in `src/app/routes/` and are yours to change. `src/app/lib/ui.ts` contains `appPage()` (the frame with top navigation) and `APP_NAME`. Zusantara AI uses this kit too when you ask for a new page, e.g. *"build a booking schedule page for signed-in users"*.

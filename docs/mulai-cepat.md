@@ -2,7 +2,7 @@
 title: Mulai cepat
 order: 1
 group: Memulai
-description: Buat proyek Zentara pertama dalam satu menit.
+description: Buat proyek Zusantara pertama dalam satu menit.
 ---
 
 # Mulai cepat
@@ -10,32 +10,32 @@ description: Buat proyek Zentara pertama dalam satu menit.
 Butuh Node.js 22 atau lebih baru.
 
 ```bash
-npm create zentara@latest aplikasi-saya     # pilih bahasa (id/en) dan template: api (login + database) atau minimal
+npm create zusantara@latest aplikasi-saya     # pilih bahasa (id/en) dan template: api (login + database) atau minimal
 cd aplikasi-saya
-npx zentara                             # CLI interaktif: chat dengan AI + server dev di latar belakang
+npx zusantara                             # CLI interaktif: chat dengan AI + server dev di latar belakang
 ```
 
-Atau jalankan server saja dengan `npm run dev` (http://localhost:3000, auto-reload). Halaman sambutan dan halaman error di browser juga punya chat Zentara AI selama pengembangan.
+Atau jalankan server saja dengan `npm run dev` (http://localhost:3000, auto-reload). Halaman sambutan dan halaman error di browser juga punya chat Zusantara AI selama pengembangan.
 
 | Perintah | Fungsi |
 |---|---|
-| `zentara dev` | server pengembangan dari `src/app` (TypeScript, auto-reload) |
-| `zentara build` | kompilasi ke `dist/` (memakai `tsconfig.build.json`) |
-| `zentara start` | jalankan hasil build (`dist/app`), default `NODE_ENV=production` |
-| `zentara routes` | daftar route |
-| `zentara make:route <path>` · `make:middleware <nama>` · `make:job <nama>` | buat file baru |
-| `zentara jobs` · `jobs:run <nama>` | job latar belakang |
-| `zentara db:generate` · `db:migrate` · `db:seed` | database |
-| `zentara` | CLI interaktif Zentara AI (gaya Claude Code) |
-| `zentara "<kalimat>"` · `ai:status` · `ai:setup` · `undo` | Zentara AI |
+| `zusantara dev` | server pengembangan dari `src/app` (TypeScript, auto-reload) |
+| `zusantara build` | kompilasi ke `dist/` (memakai `tsconfig.build.json`) |
+| `zusantara start` | jalankan hasil build (`dist/app`), default `NODE_ENV=production` |
+| `zusantara routes` | daftar route |
+| `zusantara make:route <path>` · `make:middleware <nama>` · `make:job <nama>` | buat file baru |
+| `zusantara jobs` · `jobs:run <nama>` | job latar belakang |
+| `zusantara db:generate` · `db:migrate` · `db:seed` | database |
+| `zusantara` | CLI interaktif Zusantara AI (gaya Claude Code) |
+| `zusantara "<kalimat>"` · `ai:status` · `ai:setup` · `undo` | Zusantara AI |
 
-Di dalam proyek, jalankan lewat `npx zentara ...` atau skrip `npm run dev` / `build` / `start`.
+Di dalam proyek, jalankan lewat `npx zusantara ...` atau skrip `npm run dev` / `build` / `start`.
 
 Import API framework dari paket:
 
 ```ts
-import { HttpError, json, validate, type ZenContext } from "zentara";
-import { createSqlite, createPostgres } from "zentara/db";
+import { HttpError, json, validate, type ZenContext } from "zusantara";
+import { createSqlite, createPostgres } from "zusantara/db";
 ```
 
 ## Struktur proyek
@@ -49,5 +49,5 @@ src/app/lib/          helper aplikasi (mis. requireUser/requireAdmin)
 public/               file statis
 drizzle/              file migrasi SQL (hasil db:generate)
 test/                 test (node:test)
-zentara.config.mjs    konfigurasi
+zusantara.config.mjs    konfigurasi
 ```

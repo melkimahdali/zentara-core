@@ -9,7 +9,7 @@ description: Terima file dari formulir multipart dan simpan dengan aman memakai 
 
 ```ts
 // src/app/routes/profil/foto.ts
-import { HttpError, readForm, saveUpload, type ZenContext } from "zentara";
+import { HttpError, readForm, saveUpload, type ZenContext } from "zusantara";
 
 export async function POST(ctx: ZenContext) {
   const form = await readForm(ctx, { maxBytes: "10mb" });
@@ -23,7 +23,7 @@ export async function POST(ctx: ZenContext) {
 Formulirnya dengan [kit UI](ui.html). Berikan `types` dan `maxBytes` yang sama dengan `saveUpload()`, sehingga browser hanya menawarkan file yang cocok, petunjuk "Gambar, maks. 5 MB" ditulis otomatis, dan gambar yang dipilih langsung dipratinjau:
 
 ```ts
-import { Button, FileInput, Form, FormActions } from "zentara/ui";
+import { Button, FileInput, Form, FormActions } from "zusantara/ui";
 
 h(Form, { action: "/profil/foto", upload: true },
   h(FileInput, { name: "photo", label: "Foto profil", types: ["image/*"], maxBytes: "5mb", preview: user.photoUrl }),

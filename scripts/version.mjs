@@ -19,9 +19,9 @@ const edit = (file, fn) => {
 };
 
 console.log(`Versi -> ${version}`);
-edit("packages/zentara/package.json", (p) => (p.version = version));
-edit("packages/create-zentara/package.json", (p) => (p.version = version));
-for (const t of fs.readdirSync(path.join(ROOT, "packages/create-zentara/templates"))) {
-  edit(`packages/create-zentara/templates/${t}/package.json`, (p) => (p.dependencies.zentara = `^${version}`));
+edit("packages/zusantara/package.json", (p) => (p.version = version));
+edit("packages/create-zusantara/package.json", (p) => (p.version = version));
+for (const t of fs.readdirSync(path.join(ROOT, "packages/create-zusantara/templates"))) {
+  edit(`packages/create-zusantara/templates/${t}/package.json`, (p) => (p.dependencies.zusantara = `^${version}`));
 }
 console.log(`\nLanjutkan: npm install (memperbarui lockfile), perbarui CHANGELOG.md, commit, lalu buat GitHub Release dengan tag v${version}.`);
