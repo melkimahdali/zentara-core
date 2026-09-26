@@ -31,7 +31,7 @@ Isi field password, field tersembunyi, field dengan nama seperti `token`/`secret
 
 Setelah mengubah halaman, Zentara AI **wajib** memanggil tool `view_page` untuk halaman itu di layar desktop dan ponsel, lalu memperbaiki temuannya, sama seperti typecheck dan test. Bila setelah dua percobaan masih ada masalah, AI melaporkan temuannya apa adanya dan tugas tidak ditandai selesai.
 
-- **Ada tab browser yang terbuka** (halaman apa pun dengan widget): halaman dimuat di iframe tersembunyi di tab itu, dengan cookie login Anda, berukuran 1280×800 (`desktop`) atau 390×844 (`mobile`). Chat tidak terputus.
+- **Ada tab browser yang terbuka** (halaman apa pun dengan widget): halaman dimuat di iframe tersembunyi di tab itu, dengan cookie login Anda, berukuran 1280×800 (`desktop`), 768×1024 (`tablet`), atau 390×844 (`mobile`). Chat tidak terputus.
 - **Tidak ada tab yang terbuka:** AI memakai versi teks dari server (tanpa JavaScript, tanpa login). Bila halaman mengarah ke `/login`, AI menyampaikannya.
 
 Contoh pemanggilan oleh AI:
@@ -39,6 +39,42 @@ Contoh pemanggilan oleh AI:
 ```json
 { "url": "/notes", "viewport": "mobile", "expect": { "text": ["Tambah"], "selector": ["table"], "noConsoleErrors": true, "noLayoutIssues": true } }
 ```
+
+Selain elemen dan temuan, hasil `view_page` juga memuat:
+
+- **file dan baris pembuat setiap elemen**, mis. `- button "Simpan" @24,310 120x40 ← src/app/routes/notes.ts:31`, jadi AI langsung tahu baris mana yang harus diubah;
+- **skor halaman** 0 sampai 100 (lihat di bawah);
+- **sisi server request halaman itu**: waktu proses, query database beserta waktunya, query berulang (N+1), dan log.
+
+Opsi tambahan:
+
+| Opsi | Artinya |
+| --- | --- |
+| `viewport: "tablet"` | layar tablet 768×1024 |
+| `theme: "dark"` / `"light"` | paksa mode gelap atau terang untuk satu kali lihat (halaman kit UI) |
+| `lang: "en"` / `"id"` | tampilkan halaman dalam bahasa itu untuk satu kali lihat |
+| `screenshot: true` | ambil juga gambar PNG halaman; model Claude menerimanya sebagai gambar |
+| `expect.minScore` | gagal bila skor halaman di bawah angka ini |
+
+Varian `theme` dan `lang` hanya berlaku untuk request itu (lewat parameter `__zentara_mode` dan `__zentara_lang` yang dibuang sebelum routing), jadi halaman lain dan tab Anda tidak berubah.
+
+### Skor halaman
+
+| Bagian | Dikurangi bila |
+| --- | --- |
+| Kecepatan | halaman dimuat lebih dari 1,5 detik (-7) atau 3 detik (-15) |
+| Ukuran | total lebih dari 1 MB (-7) atau 2 MB (-15) |
+| Request | lebih dari 30 (-5) atau 60 request (-10) |
+| SEO | tanpa `<title>` (-10), tanpa meta description (-5), bukan tepat satu `h1` (-5), tanpa `lang` di `<html>` (-5) |
+| Aksesibilitas | gambar tanpa `alt`, field formulir tanpa label, tombol atau link tanpa nama (masing-masing -5) |
+
+Skor tidak memengaruhi status `ok`/`fail` kecuali Anda memakai `expect.minScore` atau `--min-score`. Versi teks hanya menilai yang terbaca dari HTML (ukuran HTML, SEO, dan `alt`).
+
+### Tangkapan layar
+
+`screenshot: true` (atau `zentara view --screenshot`) membuka halaman di Chrome, Chromium, atau Edge headless yang sudah terpasang di komputer Anda, dengan ukuran layar yang sama, lalu menyimpannya di `.zentara/screenshots/`. Tidak ada browser yang diunduh; bila tidak ditemukan, isi `CHROME_PATH` dengan lokasi file browser. Halaman dibuka tanpa login dan tanpa widget pengembangan.
+
+Model Claude menerima gambar itu bersama hasil teks, jadi bisa menilai tampilan secara visual. Provider berformat OpenAI tidak menerima gambar di hasil tool, jadi hanya mendapat path file dan catatannya.
 
 ### Pemeriksaan tampilan
 
@@ -60,11 +96,56 @@ Halaman sambutan dan error bawaan framework tidak diperiksa untuk `style`, `kit`
 Hasil yang sama bisa Anda lihat sendiri. Bila `zentara dev` atau CLI interaktif berjalan dan ada tab browser yang terbuka, `zentara view` memakai tab itu; bila tidak, versi teks. Kode keluarnya 1 bila ada temuan, error, atau teks `--text` yang tidak ada.
 
 ```bash
-npx zentara view /notes                    # elemen, error console, dan pemeriksaan tampilan
-npx zentara view /notes --mobile           # layar ponsel (390 px)
+npx zentara view /notes                    # elemen, error console, pemeriksaan tampilan, dan skor
+npx zentara view /notes --mobile           # layar ponsel (390 px); --tablet untuk 768 px
+npx zentara view /notes --dark --lang en   # varian mode gelap dan Bahasa Inggris
+npx zentara view /notes --screenshot       # simpan gambar PNG di .zentara/screenshots/
 npx zentara view /login --text "Masuk"     # gagal bila teks tidak ada
+npx zentara view / --min-score 90          # gagal bila skor di bawah 90
 npx zentara view /api/hello --json
 ```
+
+## Alat pengembang
+
+Semua alat ini hanya ada selama `zentara dev` berjalan, dan semua datanya juga bisa dibaca Zentara AI.
+
+### Toolbar request
+
+Di samping tombol **Tanya Zentara AI** ada tombol kecil berisi waktu proses request halaman itu dan jumlah query, mis. `42 ms · 3 query`. Tanda merah **N+1** muncul bila query yang sama dijalankan tiga kali atau lebih dalam satu request (biasanya query di dalam perulangan; ambil sekaligus dengan join atau `inArray`). Klik untuk melihat:
+
+- waktu proses dan total waktu di database;
+- setiap query beserta lamanya (SQLite; Postgres tanpa lama per query);
+- isi session (nilai dengan nama seperti `password`, `token`, `csrf`, `key` disembunyikan);
+- `console.log`/`warn`/`error` yang dipanggil selama request itu.
+
+50 request terakhir disimpan di memori server dev. Dari terminal atau AI:
+
+```bash
+npx zentara requests                 # 50 request terakhir, terbaru di atas
+npx zentara requests --path /notes   # hanya path yang diawali /notes
+npx zentara requests <id>            # rincian: query, N+1, session, log
+npx zentara requests --json
+```
+
+Zentara AI memakai tool `request_log` untuk hal yang sama, dan hasil `view_page` sudah menyertakan request halaman yang dilihat. Setiap respons membawa header `X-Zentara-Request` berisi id-nya.
+
+### Mode inspeksi
+
+Tombol **⌖ Inspeksi** di samping widget: arahkan kursor ke elemen mana pun untuk melihat file dan baris kode yang membuatnya (mis. `src/app/routes/notes.ts:31`). Klik elemen untuk membuka chat dengan pertanyaan tentang elemen itu (lokasinya juga disalin ke clipboard). Esc untuk keluar.
+
+Lokasinya dicatat oleh `h()` saat pengembangan sebagai atribut `data-zsrc`: elemen HTML dari kode Anda mendapat baris pemanggilnya, dan komponen kit UI mendapat baris tempat Anda memakainya. Di produksi atribut ini tidak ada dan `h()` tidak mencatat apa pun.
+
+### Rekaman langkah
+
+Widget mencatat 30 langkah terakhir di tab itu: halaman yang dibuka, klik, isian (nilai field rahasia diganti `•••`), dan formulir yang dikirim. Saat Anda bertanya ke AI, langkah-langkah ini ikut terlampir bersama tampilan halaman, jadi AI bisa mengulang bug seperti yang Anda alami. Rekaman disimpan di `sessionStorage` tab itu saja.
+
+### Muat ulang otomatis
+
+Setelah file berubah dan server dev selesai mulai ulang, semua tab aplikasi yang terbuka dimuat ulang. Tab yang punya isian formulir belum terkirim tidak dimuat ulang (muncul pemberitahuan), dan selama Zentara AI mengerjakan tugas dari browser, muat ulang ditunda sampai tugas selesai.
+
+### Input suara
+
+Tombol mikrofon di kotak chat (halaman sambutan, halaman error, dan widget) mengubah ucapan jadi teks dalam bahasa Zentara (`id-ID` atau `en-US`). Tombol ini hanya muncul di browser yang mendukung Web Speech API (Chrome, Edge, Safari). Di Chrome, pengenalan suara diproses oleh layanan Google.
 
 ## Journal hasil tugas AI
 
@@ -81,7 +162,7 @@ Widget hanya disisipkan oleh server pengembangan. Anda tidak perlu menghapus apa
 
 - server aplikasi hanya menyisipkannya bila mode debug aktif, aplikasi dijalankan oleh `zentara dev` atau CLI interaktif (yang mengisi `ZENTARA_DEV=1` dan token devtools), dan bukan `NODE_ENV=production`;
 - `zentara start` menghapus variabel server pengembangan dari env;
-- di produksi `/_zentara/dev/probe.js` dan `/_zentara/dev/widget.js` menjawab 404, dan HTML Anda tidak diubah;
+- di produksi `/_zentara/dev/probe.js`, `/_zentara/dev/widget.js`, dan `/_zentara/dev/requests` menjawab 404, HTML Anda tidak diubah (tanpa `data-zsrc`), jejak request tidak dicatat, dan parameter varian `__zentara_*` tidak berlaku;
 - potongan HTML (tanpa `<html>`/`<body>`) dan request htmx tidak pernah disisipi.
 
 Uji e2e memastikan halaman produksi tidak memuat widget, termasuk saat env devtools sengaja terbawa dan `ZENTARA_DEBUG=1`.

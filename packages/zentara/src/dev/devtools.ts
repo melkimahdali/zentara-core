@@ -12,7 +12,8 @@ import type { ToolCall, ToolResult } from "../ai/types.js";
 import { ZENTARA_VERSION } from "../core/devpage/theme.js";
 import fs from "node:fs";
 import path from "node:path";
-import { formatSnapshot, normalizeSnapshot, parseViewport, viewPage, VIEWPORTS, type BrowserView, type PageViewer, type ViewExpect } from "./view.js";
+import { fetchTraces } from "./requests.js";
+import { formatSnapshot, normalizeSnapshot, parseVariant, parseViewport, viewPage, VIEWPORTS, type BrowserView, type PageViewer, type ViewExpect } from "./view.js";
 
 /**
  * Server devtools: jembatan antara chat Zentara AI di browser (halaman sambutan & halaman error)
@@ -116,6 +117,38 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
   let appUrl: string | undefined;
   let appStartedAt = 0;
   const appWaiters = new Set<() => void>();
+  // Muat ulang otomatis: setelah server aplikasi mulai ulang (file berubah), semua tab dimuat ulang.
+  // Ditunda selama tugas AI dari browser berjalan, karena memuat ulang tab akan memutus tugas itu.
+  let reloadPending = false;
+  let reloadedAt = 0;
+  const tabWaiters = new Set<() => void>();
+
+  function broadcastReload(): void {
+    if (lock.owner === "browser") {
+      reloadPending = true;
+      return;
+    }
+    reloadPending = false;
+    if (!pages.size) return;
+    reloadedAt = Date.now();
+    for (const tab of pages.values()) sendToPage(tab, { type: "reload" });
+  }
+
+  /** Setelah muat ulang otomatis, tab butuh sebentar untuk tersambung lagi. */
+  function waitForTab(signal?: AbortSignal): Promise<void> {
+    if (pages.size || Date.now() - reloadedAt > 5000) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        tabWaiters.delete(done);
+        signal?.removeEventListener("abort", done);
+        resolve();
+      };
+      const timer = setTimeout(done, Math.max(0, 5000 - (Date.now() - reloadedAt)));
+      signal?.addEventListener("abort", done, { once: true });
+      tabWaiters.add(done);
+    });
+  }
 
   function sendToPage(tab: PageTab, event: WebEvent): void {
     if (!tab.res.writableEnded) tab.res.write(JSON.stringify(event) + "\n");
@@ -147,7 +180,16 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
         appWaiters.add(check);
       });
     },
-    browser(path, { selectors, viewport, signal }) {
+    async trace(id, { signal } = {}) {
+      if (!appUrl) return undefined;
+      return (await fetchTraces(appUrl, token, id, signal))[0];
+    },
+    async traces(id, { signal } = {}) {
+      if (!appUrl) return undefined;
+      return fetchTraces(appUrl, token, id, signal);
+    },
+    async browser(path, { selectors, viewport, signal }) {
+      await waitForTab(signal);
       const tab = [...pages.values()].sort((a, b) => b.seen - a.seen)[0];
       if (!tab) return Promise.resolve(undefined);
       const id = `v${++viewSeq}`;
@@ -175,6 +217,7 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
     pages.set(id, tab);
     res.writeHead(200, { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
     sendToPage(tab, { type: "hello", id });
+    for (const done of [...tabWaiters]) done();
     const ping = setInterval(() => sendToPage(tab, { type: "ping" }), 25_000);
     res.on("close", () => {
       clearInterval(ping);
@@ -267,6 +310,7 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
     } finally {
       finished = true;
       lock.owner = undefined;
+      if (reloadPending) setTimeout(broadcastReload, 300);
       controller = undefined;
       emit = () => {};
       res.end();
@@ -332,17 +376,37 @@ export async function startDevtools(options: DevtoolsOptions): Promise<Devtools>
           const body = await readBody(req);
           const raw = (body.expect && typeof body.expect === "object" ? body.expect : {}) as Record<string, unknown>;
           const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 20) : undefined);
-          const expect: ViewExpect = { text: strings(raw.text), selector: strings(raw.selector), noConsoleErrors: raw.noConsoleErrors === true, noLayoutIssues: raw.noLayoutIssues === true };
+          const expect: ViewExpect = {
+            text: strings(raw.text),
+            selector: strings(raw.selector),
+            noConsoleErrors: raw.noConsoleErrors === true,
+            noLayoutIssues: raw.noLayoutIssues === true,
+            ...(typeof raw.minScore === "number" && Number.isFinite(raw.minScore) ? { minScore: raw.minScore } : {}),
+          };
           const fallbackBase = typeof body.base === "string" && LOCAL_ORIGIN.test(body.base) ? body.base : "http://localhost:3000";
-          const result = await viewPage({ path: typeof body.path === "string" ? body.path : "/", viewport: parseViewport(body.viewport), expect }, viewer, { fallbackBase });
-          return json(res, 200, result);
+          const result = await viewPage(
+            { path: typeof body.path === "string" ? body.path : "/", viewport: parseViewport(body.viewport), expect, variant: parseVariant(body), screenshot: body.screenshot === true },
+            viewer,
+            { fallbackBase, root: options.root },
+          );
+          // Gambar sudah tersimpan di .zentara/screenshots; tidak perlu dikirim ulang lewat JSON.
+          const { screenshot: _shot, ...rest } = result;
+          return json(res, 200, rest);
+        }
+        case "GET /requests": {
+          const id = new URL(req.url ?? "/", "http://127.0.0.1").searchParams.get("id") ?? undefined;
+          if (!appUrl) return json(res, 503, { error: t().dev.requests.unavailable });
+          const traces = await fetchTraces(appUrl, token, id);
+          return json(res, 200, { requests: traces });
         }
         case "POST /app": {
           const body = await readBody(req);
           if (typeof body.url === "string" && /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?$/.test(body.url)) {
+            const restarted = appStartedAt > 0;
             appUrl = body.url;
             appStartedAt = Date.now();
             for (const check of [...appWaiters]) check();
+            if (restarted) broadcastReload();
           }
           return json(res, 200, { ok: true });
         }

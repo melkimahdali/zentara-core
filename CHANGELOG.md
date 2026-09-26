@@ -2,6 +2,23 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.9]
+
+### Ditambahkan
+- **Toolbar request saat `zentara dev`:** tombol kecil di samping widget berisi waktu proses dan jumlah query halaman itu, dengan tanda **N+1** bila query yang sama berjalan tiga kali atau lebih. Rinciannya memuat setiap query beserta lamanya, isi session (nilai rahasia disembunyikan), dan `console.log`/`warn`/`error` selama request. 50 request terakhir bisa dibaca dengan `zentara requests [id] [--path] [--json]` dan tool `request_log` Zentara AI. Setiap respons membawa header `X-Zentara-Request`.
+- **Mode inspeksi:** tombol **⌖ Inspeksi** menampilkan file dan baris kode pembuat elemen yang disorot (`h()` mencatatnya sebagai `data-zsrc` saat pengembangan), dan klik membuka chat tentang elemen itu. Hasil `view_page` juga menyebut lokasi ini per elemen (`← src/app/routes/x.ts:12`).
+- **Skor halaman** di `view_page` dan `zentara view`: waktu muat, ukuran, jumlah request, meta SEO (judul, deskripsi, satu `h1`, `lang`), dan aksesibilitas dasar (alt gambar, label formulir, nama tombol dan link). `expect.minScore` dan `--min-score` menjadikannya syarat.
+- **Varian pemeriksaan:** `viewport: "tablet"` (768×1024), `theme: "dark"`/`"light"`, dan `lang: "en"`/`"id"` hanya untuk satu kali lihat. CLI: `--tablet`, `--dark`, `--light`, `--lang`.
+- **Tangkapan layar:** `screenshot: true` dan `zentara view --screenshot` mengambil PNG lewat Chrome, Chromium, atau Edge yang sudah terpasang (atau `CHROME_PATH`), disimpan di `.zentara/screenshots/`. Model Claude menerimanya sebagai gambar; provider format OpenAI mendapat catatan saja.
+- **Rekaman langkah:** widget mencatat 30 langkah terakhir di tab (halaman, klik, isian tanpa nilai rahasia, formulir) dan melampirkannya saat bertanya ke AI, supaya bug bisa diulang.
+- **Muat ulang otomatis:** semua tab aplikasi dimuat ulang setelah file berubah dan server dev siap, kecuali tab dengan isian formulir yang belum dikirim. Selama tugas AI dari browser berjalan, muat ulang ditunda.
+- **Input suara** di chat (widget, halaman sambutan, halaman error) dengan `id-ID` atau `en-US`, bila browser mendukung Web Speech API.
+- **Tugas eval baru:** `fix-n-plus-one` dan `page-login-score` (31 tugas), dengan cek `requests` (tanpa N+1, batas jumlah query) dan cek halaman `themes`, `langs`, `minScore`, dan `noScoreFindings`.
+
+### Diubah
+- Baris pertama hasil `view_page` menyebut varian dan skor, mis. `RESULT ok · browser · tablet · dark · 0 temuan · skor 95`.
+- Di produksi tidak ada yang berubah: tanpa jejak request, tanpa `data-zsrc`, parameter `__zentara_*` tidak berlaku, dan `/_zentara/dev/requests` menjawab 404 (diperiksa e2e).
+
 ## [0.12.8]
 
 ### Ditambahkan

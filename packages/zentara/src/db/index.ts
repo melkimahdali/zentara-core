@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { recordQuery, tracingEnabled } from "../core/devtrace.js";
 import { t } from "../i18n/index.js";
 import fs from "node:fs";
 import path from "node:path";
@@ -97,15 +98,21 @@ export function createSqlite<S extends Schema>(url: string, schema: S, options: 
   const db = drizzleSqliteProxy(
     async (query, params, method) => {
       await waitTurn();
-      const stmt = sqlite.prepare(query);
-      const args = params as never[];
-      if (method === "run") {
-        stmt.run(...args);
-        return { rows: [] };
+      const started = tracingEnabled() ? performance.now() : 0;
+      try {
+        const stmt = sqlite.prepare(query);
+        const args = params as never[];
+        if (method === "run") {
+          stmt.run(...args);
+          return { rows: [] };
+        }
+        stmt.setReturnArrays(true);
+        if (method === "get") return { rows: (stmt.get(...args) ?? undefined) as never };
+        return { rows: stmt.all(...args) as never };
+      } finally {
+        // Toolbar dev: catat query dan lamanya di jejak request yang sedang berjalan.
+        if (started) recordQuery(query, performance.now() - started);
       }
-      stmt.setReturnArrays(true);
-      if (method === "get") return { rows: (stmt.get(...args) ?? undefined) as never };
-      return { rows: stmt.all(...args) as never };
     },
     { schema },
   );
@@ -165,7 +172,8 @@ export async function createPostgres<S extends Schema>(
   }
   const { drizzle } = await import("drizzle-orm/postgres-js");
   const client = postgres(url, { max: options.max ?? 10, onnotice: () => {} });
-  const db = drizzle(client, { schema });
+  // Toolbar dev: query dicatat di jejak request (driver ini tidak memberi lama eksekusi per query).
+  const db = drizzle(client, { schema, logger: { logQuery: (query: string) => recordQuery(query) } });
   return attach(db, {
     dialect: "postgres",
     migrate: async (folder) => {

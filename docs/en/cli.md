@@ -21,7 +21,8 @@ npm install -g zentara
 | `zentara build` | compile to `dist/` |
 | `zentara start` | run the build (`NODE_ENV=production`) |
 | `zentara routes [--json]` | list routes |
-| `zentara view <path> [--mobile] [--text "a,b"] [--json]` | view a page and check its layout, in a browser tab when one is open, otherwise the text version ([AI in the browser](ai-browser.html)) |
+| `zentara view <path> [--mobile\|--tablet] [--dark] [--lang en] [--screenshot] [--min-score 80] [--text "a,b"] [--json]` | view a page, check its layout, and score it, in a browser tab when one is open, otherwise the text version ([AI in the browser](ai-browser.html)) |
+| `zentara requests [id] [--path /x] [--json]` | recent requests on the dev server: processing time, queries, N+1, session, and logs ([Developer tools](ai-browser.html#developer-tools)) |
 | `zentara ai:log [--limit 20] [--json]` | results of recent Zentara AI tasks from the local journal |
 | `zentara ui [Name] [--group form] [--json]` | UI kit component catalog: purpose, props, and examples ([UI kit](ui.html)) |
 | `zentara ui --example [name]` | whole-page examples (landing, profile, store, booking, dashboard) as complete route files |

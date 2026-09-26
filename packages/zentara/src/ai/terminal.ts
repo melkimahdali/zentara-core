@@ -35,8 +35,10 @@ function mainArg(call: ToolCall): string | undefined {
   const input = (call.input ?? {}) as Record<string, unknown>;
   const main = input.path ?? input.url ?? input.query ?? input.check ?? input.command ?? input.name ?? input.action ?? input.component ?? input.group;
   if (typeof main !== "string") return undefined;
-  // view_page: sebutkan layar ponsel, mis. "view_page /notes (mobile)".
-  return call.name === "view_page" && input.viewport === "mobile" ? `${main} (mobile)` : main;
+  // view_page: sebutkan layar dan varian, mis. "view_page /notes (mobile, dark)".
+  if (call.name !== "view_page") return main;
+  const extra = [input.viewport === "mobile" || input.viewport === "tablet" ? input.viewport : "", input.theme === "dark" || input.theme === "light" ? input.theme : "", input.lang === "en" || input.lang === "id" ? input.lang : ""].filter(Boolean);
+  return extra.length ? `${main} (${extra.join(", ")})` : main;
 }
 
 export function summarizeCall(call: ToolCall): string {
@@ -65,10 +67,10 @@ export function toolResultSummary(call: ToolCall, result: ToolResult): string {
     case "search":
       return result.content === t().ai.tools.noResults ? result.content : t().ai.summary.hits(lines);
     case "view_page": {
-      // Baris pertama hasil view_page: "RESULT ok|fail · browser|text · desktop|mobile · N temuan[ · N FAIL]".
-      const head = /^RESULT (ok|fail) · (browser|text) · (desktop|mobile) · (\d+)[^·]*(?:· (\d+) FAIL)?/.exec(result.content);
+      // Baris pertama hasil view_page: "RESULT ok|fail · browser|text · desktop|tablet|mobile[ · dark][ · en] · N temuan[ · N FAIL][ · skor N]".
+      const head = /^RESULT (ok|fail) · (browser|text) · (desktop|tablet|mobile)(?: · (?:light|dark))?(?: · (?:id|en))? · (\d+)[^·]*(?:· (\d+) FAIL)?/.exec(result.content);
       if (!head) return first;
-      return t().ai.summary.view(head[2] === "browser", head[3] === "mobile", Number(head[4]), Number(head[5] ?? 0));
+      return t().ai.summary.view(head[2] === "browser", head[3] === "desktop" ? "" : head[3]!, Number(head[4]), Number(head[5] ?? 0));
     }
     default:
       return first;

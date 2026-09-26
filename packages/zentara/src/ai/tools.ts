@@ -9,10 +9,11 @@ import { findLocalCli, platformCommand } from "../process.js";
 import type { ApprovalPolicy, PendingAction, Risk } from "./approval.js";
 import type { Journal } from "./journal.js";
 import { layoutWarning } from "./layout.js";
-import type { ToolSpec } from "./types.js";
+import type { ToolImage, ToolSpec } from "./types.js";
 import { unifiedDiff } from "./diff.js";
 import { classifyCommand, CommandRejected, parseCommand, redactSecrets, secretValues } from "./command.js";
-import { parseViewport, viewPage, ViewUnreachableError, type PageViewer, type ViewExpect, type ViewSummary } from "../dev/view.js";
+import { parseVariant, parseViewport, viewPage, ViewUnreachableError, type PageViewer, type Viewport, type ViewExpect, type ViewSummary } from "../dev/view.js";
+import { formatTrace, formatTraceList } from "../dev/requests.js";
 import { DEV_ONLY_ENV } from "../core/devpage/info.js";
 
 /** Hasil tool ditambah catatan bila route yang ditulis membuat layout HTML/CSS sendiri. */
@@ -40,10 +41,12 @@ export interface ToolContext {
   viewer?: PageViewer;
   /** Hasil setiap `view_page` (diisi tool, dibaca agen untuk pemeriksaan wajib dan journal tugas). */
   views?: ViewRecord[];
+  /** Gambar untuk hasil tool yang sedang berjalan (diisi agen sebelum setiap tool; mis. tangkapan layar). */
+  images?: ToolImage[];
 }
 
 /** Satu kali `view_page`. `unreachable` = server aplikasi tidak bisa dihubungi (tidak ada yang dilihat). */
-export type ViewRecord = (ViewSummary & { unreachable?: false }) | { path: string; viewport: "desktop" | "mobile"; unreachable: true };
+export type ViewRecord = (ViewSummary & { unreachable?: false }) | { path: string; viewport: Viewport; unreachable: true };
 
 export type DbAction = "generate" | "migrate" | "seed";
 
@@ -512,12 +515,15 @@ export const agentTools: AgentTool[] = [
     spec: {
       name: "view_page",
       description:
-        "Look at a page of the running app the way the developer sees it, and run layout checks. When a browser tab with the Zentara AI chat widget is open, the page is loaded there (logged in) and you get the visible elements with their position and size, console errors, failed requests, and layout findings: elements past the screen edge or causing sideways scrolling, overlapping elements, cut-off text, broken images, low text contrast, and custom CSS or HTML outside the UI kit. Otherwise you get a text version from the dev server (no JavaScript, not logged in) with the checks that can be read from HTML. Use viewport \"mobile\" (390px) to check the phone layout. Read-only, local app only.",
+        "Look at a page of the running app the way the developer sees it, and run layout checks. When a browser tab with the Zentara AI chat widget is open, the page is loaded there (logged in) and you get the visible elements with their position and size, console errors, failed requests, and layout findings: elements past the screen edge or causing sideways scrolling, overlapping elements, cut-off text, broken images, low text contrast, and custom CSS or HTML outside the UI kit. Otherwise you get a text version from the dev server (no JavaScript, not logged in) with the checks that can be read from HTML. Both include a page score (load time, size, request count, missing alt, SEO meta, basic accessibility), the file:line that created each element (\"← src/app/routes/x.ts:12\") when available, and the server side of the request (processing time, database queries with timing, repeated N+1 queries, logs). Use viewport \"mobile\" (390px) or \"tablet\" (768px) to check other screens, theme \"dark\" and lang \"en\" to check variants, and screenshot true to also get a PNG image of the page (not logged in; needs Chrome, Chromium, or Edge). Read-only, local app only.",
       inputSchema: {
         type: "object",
         properties: {
           url: { type: "string", description: 'Page path, e.g. "/notes" or "/notes/3?tab=edit" (a full http://localhost URL is also accepted)' },
-          viewport: { type: "string", enum: ["desktop", "mobile"], description: 'Screen size: "desktop" (default, 1280px) or "mobile" (390px)' },
+          viewport: { type: "string", enum: ["desktop", "tablet", "mobile"], description: 'Screen size: "desktop" (default, 1280px), "tablet" (768px), or "mobile" (390px)' },
+          theme: { type: "string", enum: ["light", "dark"], description: "Force light or dark mode for this view (UI kit pages)" },
+          lang: { type: "string", enum: ["id", "en"], description: "Render the page in this Zentara language for this view" },
+          screenshot: { type: "boolean", description: "Also capture a PNG screenshot (sent as an image when the provider supports it)" },
           expect: {
             type: "object",
             description: "Optional checks, reported as PASS/FAIL",
@@ -526,6 +532,7 @@ export const agentTools: AgentTool[] = [
               selector: { type: "array", items: { type: "string" }, description: 'CSS selectors that must match at least one element, e.g. "table" (browser view only)' },
               noConsoleErrors: { type: "boolean", description: "true = no console errors, failed requests, or HTTP error status" },
               noLayoutIssues: { type: "boolean", description: "true = no layout check findings" },
+              minScore: { type: "number", description: "Minimum page score (0-100)" },
             },
             additionalProperties: false,
           },
@@ -547,20 +554,55 @@ export const agentTools: AgentTool[] = [
         selector: strings(raw.selector),
         noConsoleErrors: raw.noConsoleErrors === true || raw.noErrors === true,
         noLayoutIssues: raw.noLayoutIssues === true,
+        ...(typeof raw.minScore === "number" && Number.isFinite(raw.minScore) ? { minScore: Math.max(0, Math.min(100, raw.minScore)) } : {}),
       };
       try {
-        const result = await viewPage({ path: target, viewport, expect }, ctx.viewer, {
+        const result = await viewPage({ path: target, viewport, expect, variant: parseVariant(input), screenshot: input.screenshot === true }, ctx.viewer, {
           fallbackBase: `http://localhost:${process.env.PORT ?? 3000}`,
           signal: ctx.signal,
           changedAt: latestChange(ctx.root),
+          root: ctx.root,
         });
         ctx.views?.push(result.summary);
+        if (result.screenshot) ctx.images?.push({ mediaType: "image/png", data: result.screenshot.base64 });
         // Awal hasil (status, error, temuan tampilan) paling penting: potong bagian akhirnya.
         return result.text.length > 12_000 ? `${result.text.slice(0, 12_000)}\n...(truncated)` : result.text;
       } catch (err) {
         if (err instanceof ViewUnreachableError) ctx.views?.push({ path: target, viewport, unreachable: true });
         throw new ToolError((err as Error).message);
       }
+    },
+  },
+  {
+    spec: {
+      name: "request_log",
+      description:
+        "Server side of recent requests to the running dev app: processing time, status, route file, every database query with its timing, identical queries repeated in one request (N+1), session contents (secrets hidden), and console logs. Without id: the last 50 requests, newest first. With id (from the list, a view_page result, or the X-Zentara-Request header): full details. Use it to find slow pages, N+1 queries, and server errors. Only while the app runs under `zentara dev`.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "Request id for full details" },
+          path: { type: "string", description: 'Only requests whose path starts with this, e.g. "/produk"' },
+        },
+        additionalProperties: false,
+      },
+    },
+    async run(input, ctx) {
+      const id = str(input, "id", true);
+      const prefix = str(input, "path", true);
+      if (!ctx.viewer?.traces) throw new ToolError(t().dev.requests.unavailable);
+      let traces;
+      try {
+        traces = await ctx.viewer.traces(id, { signal: ctx.signal });
+      } catch (err) {
+        throw new ToolError(`${t().dev.requests.unavailable} (${(err as Error).message})`);
+      }
+      if (!traces) throw new ToolError(t().dev.requests.unavailable);
+      if (id) {
+        if (!traces[0]) throw new ToolError(t().dev.requests.notFound(id));
+        return truncate(formatTrace(traces[0], { maxQueries: 80 }), 12_000);
+      }
+      return truncate(formatTraceList(prefix ? traces.filter((tr) => tr.path.startsWith(prefix)) : traces), 12_000);
     },
   },
   {

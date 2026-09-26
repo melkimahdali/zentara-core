@@ -35,7 +35,9 @@ Perintah manual:
   zentara make:route <path> [--methods GET,POST]   Buat file route baru, mis. api/events/[id]
   zentara make:middleware <nama>                   Buat file middleware baru
   zentara make:job <nama> [--schedule "<cron>"]    Buat file job baru, mis. kirim-laporan
-  zentara view <path> [--mobile] [--text "a,b"]   Lihat halaman dan periksa tampilannya (browser bila ada tab)
+  zentara view <path> [--mobile|--tablet] [--dark] [--lang en] [--screenshot] [--text "a,b"]
+                                                   Lihat halaman, periksa tampilan, dan beri skor (browser bila ada tab)
+  zentara requests [id] [--path /produk] [--json]  Request terakhir di server dev: waktu, query, N+1, session, log
   zentara ai:log [--limit 20] [--json]            Hasil tugas Zentara AI terakhir (journal lokal)
   zentara ui [Nama] [--group form] [--json]        Katalog komponen kit UI: kegunaan, props, dan contoh
   zentara ui --example [nama]                      Contoh halaman utuh (landing, profil, toko, booking, dasbor)
@@ -49,7 +51,8 @@ Opsi:
   --force        Timpa file yang sudah ada
   --dir <path>   Folder aplikasi (default: src/app)
 `,
-  viewUsage: "Pakai: zentara view <path> [--mobile] [--url http://localhost:3000] [--text \"teks1,teks2\"] [--json]",
+  viewUsage: "Pakai: zentara view <path> [--mobile|--tablet] [--dark|--light] [--lang id|en] [--screenshot] [--min-score 80] [--url http://localhost:3000] [--text \"teks1,teks2\"] [--json]",
+  requestsUnavailable: "Jejak request hanya ada saat aplikasi berjalan dengan `npx zentara dev` (tidak ditemukan .zentara/devtools.json).",
   aiLogEmpty: "Belum ada tugas Zentara AI yang tercatat di proyek ini (.zentara/ai-tasks.jsonl).",
   aiLogLine: (e: TaskLogEntry) =>
     `${e.at.slice(0, 16).replace("T", " ")}  ${e.ok ? "✓" : "✗"} ${e.status.padEnd(19)} ${String(e.steps).padStart(2)} langkah` +

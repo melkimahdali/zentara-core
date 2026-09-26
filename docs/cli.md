@@ -21,7 +21,8 @@ npm install -g zentara
 | `zentara build` | kompilasi ke `dist/` |
 | `zentara start` | jalankan hasil build (`NODE_ENV=production`) |
 | `zentara routes [--json]` | daftar route |
-| `zentara view <path> [--mobile] [--text "a,b"] [--json]` | lihat halaman dan periksa tampilannya, di tab browser bila ada, bila tidak versi teks ([AI di browser](ai-browser.html)) |
+| `zentara view <path> [--mobile\|--tablet] [--dark] [--lang en] [--screenshot] [--min-score 80] [--text "a,b"] [--json]` | lihat halaman, periksa tampilannya, dan beri skor, di tab browser bila ada, bila tidak versi teks ([AI di browser](ai-browser.html)) |
+| `zentara requests [id] [--path /x] [--json]` | request terakhir di server dev: waktu proses, query, N+1, session, dan log ([Alat pengembang](ai-browser.html#alat-pengembang)) |
 | `zentara ai:log [--limit 20] [--json]` | hasil tugas Zentara AI terakhir dari journal lokal |
 | `zentara ui [Nama] [--group form] [--json]` | katalog komponen kit UI: kegunaan, props, dan contoh ([Kit UI](ui.html)) |
 | `zentara ui --example [nama]` | contoh halaman utuh (landing, profil, toko, booking, dasbor) sebagai kode route lengkap |

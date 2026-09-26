@@ -36,7 +36,9 @@ Manual commands:
   zentara make:route <path> [--methods GET,POST]   Create a route file, e.g. api/events/[id]
   zentara make:middleware <name>                   Create a middleware file
   zentara make:job <name> [--schedule "<cron>"]    Create a job file, e.g. send-report
-  zentara view <path> [--mobile] [--text "a,b"]   View a page and check its layout (in the browser when a tab is open)
+  zentara view <path> [--mobile|--tablet] [--dark] [--lang en] [--screenshot] [--text "a,b"]
+                                                   View a page, check its layout, and score it (in the browser when a tab is open)
+  zentara requests [id] [--path /products] [--json] Recent requests on the dev server: time, queries, N+1, session, logs
   zentara ai:log [--limit 20] [--json]            Results of recent Zentara AI tasks (local journal)
   zentara ui [Name] [--group form] [--json]        UI kit component catalog: purpose, props, and examples
   zentara ui --example [name]                      Whole-page examples (landing, profile, store, booking, dashboard)
@@ -50,7 +52,8 @@ Options:
   --force        Overwrite existing files
   --dir <path>   App folder (default: src/app)
 `,
-  viewUsage: "Usage: zentara view <path> [--mobile] [--url http://localhost:3000] [--text \"text1,text2\"] [--json]",
+  viewUsage: "Usage: zentara view <path> [--mobile|--tablet] [--dark|--light] [--lang id|en] [--screenshot] [--min-score 80] [--url http://localhost:3000] [--text \"text1,text2\"] [--json]",
+  requestsUnavailable: "Request traces are only available while the app runs under `npx zentara dev` (.zentara/devtools.json not found).",
   aiLogEmpty: "No Zentara AI tasks recorded in this project yet (.zentara/ai-tasks.jsonl).",
   aiLogLine: (e) =>
     `${e.at.slice(0, 16).replace("T", " ")}  ${e.ok ? "✓" : "✗"} ${e.status.padEnd(19)} ${String(e.steps).padStart(2)} ${e.steps === 1 ? "step " : "steps"}` +

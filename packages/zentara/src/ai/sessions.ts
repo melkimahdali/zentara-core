@@ -85,7 +85,15 @@ export function listSessions(root: string): SessionSummary[] {
   return out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
-/** Perkiraan kasar jumlah token percakapan (±4 karakter per token). */
+/** Perkiraan kasar jumlah token percakapan (±4 karakter per token; gambar dihitung ±1600 token). */
 export function estimateTokens(messages: readonly ChatMessage[]): number {
-  return Math.ceil(JSON.stringify(messages).length / 4);
+  let images = 0;
+  const text = JSON.stringify(messages, (key, value: unknown) => {
+    if (key === "images" && Array.isArray(value)) {
+      images += value.length;
+      return undefined;
+    }
+    return value;
+  });
+  return Math.ceil(text.length / 4) + images * 1600;
 }

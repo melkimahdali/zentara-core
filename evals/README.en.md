@@ -2,19 +2,19 @@
 
 [Bahasa Indonesia](README.md)
 
-This folder holds the design of the **Zentara AI eval**: a standard set of tasks run against a template project to measure how often Zentara AI finishes real work correctly, how many steps it takes, and what it costs. Results will be published per version, for example "Zentara 0.15: 25/29 tasks passed with Claude".
+This folder holds the design of the **Zentara AI eval**: a standard set of tasks run against a template project to measure how often Zentara AI finishes real work correctly, how many steps it takes, and what it costs. Results will be published per version, for example "Zentara 0.15: 27/31 tasks passed with Claude".
 
 Status: **draft**. There is no runner yet. What is done is the task set, its validator, and the AI result data (`AgentResult` and `--report`) the runner will read. The runner is planned for Stage 15 (testing and AI eval), building on `scripts/ai-smoke.mjs`.
 
 | File | Contents |
 |---|---|
-| `tasks.json` | 29 standard tasks, each with id and en prompts, an injected bug (for fix tasks), and grading checks |
+| `tasks.json` | 31 standard tasks, each with id and en prompts, an injected bug (for fix tasks), and grading checks |
 | `validate-tasks.mjs` | Checks `tasks.json` without AI: unique ids, prompts in both languages, and every injected bug matches both the id and en templates |
 | `README.md`, `README.en.md` | This document |
 
 ```bash
 node evals/validate-tasks.mjs
-# ✓ 29 tugas valid: api 5, database 2, auth 4, page 7, jobs 2, bugfix 6, safety 3
+# ✓ 31 tugas valid: api 5, database 2, auth 4, page 8, jobs 2, bugfix 7, safety 3
 ```
 
 ## What is measured
@@ -84,10 +84,16 @@ HTTP probe rules:
 Page check rules (`view`):
 - `url` may be `{ "id": "...", "en": "..." }` when the path differs per language.
 - `selector` = elements that must exist (CSS selectors), e.g. `.zu-hero` to make sure the page uses kit components.
-- `viewports` = screen sizes to check (`desktop` 1280px, `mobile` 390px); desktop only by default.
+- `viewports` = screen sizes to check (`desktop` 1280px, `tablet` 768px, `mobile` 390px); desktop only by default.
+- `themes` and `langs` = variants also checked (`light`/`dark`, `id`/`en`) through the `theme` and `lang` options of `view_page`; every combination with `viewports` is checked.
+- `minScore` = minimum `view_page` page score; `noScoreFindings` = no score findings of those kinds (`speed`, `size`, `requests`, `seo`, `a11y`).
 - `noLayoutIssues` = no `view_page` layout findings (past the screen edge, overlapping, cut-off text, broken images, contrast).
 - `noCustomCss` = no `style` attribute, `<style>` tag, or stylesheet other than the kit's on that page, and no new `.css` file in the project.
 - `config` (in `checks`) = values in `zentara.config.mjs` after the AI finishes, e.g. `{ "ui.accent": "blue" }`.
+
+Request check rules (`requests`), read from the dev server's request traces (`zentara requests --json`) after opening the page as the `as` actor:
+- `noRepeatedQueries` = no identical query runs three or more times (N+1);
+- `maxQueries` = the maximum number of queries for that one request.
 
 ## One run, step by step
 
@@ -131,7 +137,7 @@ Other points that still apply to the runner:
 
 - `npm run eval` (Stage 15) with `--task`, `--category`, `--lang`, `--provider`, and `--repeat` filters. Without an API key, the runner stops with the same message as `ai-smoke.mjs`.
 - GitHub Actions workflow `eval.yml`: manual (`workflow_dispatch`) like AI smoke, plus a weekly schedule once the cost is known. At least Claude and OmniRoute.
-- Estimated runs for one full round: 29 tasks × 2 languages × 3 attempts = 174 runs per provider. The real cost is measured in the first round and then becomes a budget cap (the runner stops when it is exceeded).
+- Estimated runs for one full round: 31 tasks × 2 languages × 3 attempts = 186 runs per provider. The real cost is measured in the first round and then becomes a budget cap (the runner stops when it is exceeded).
 - Results are summarized on an `eval.html` docs page (id and en) per version: pass rate per category, average steps and cost, and a comparison with the previous version. A sharp drop from the previous version is an early warning that prompts, tools, or models got worse.
 
 ## Phases

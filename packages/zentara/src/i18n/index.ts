@@ -36,8 +36,18 @@ export function parseLocale(value: unknown): Locale | undefined {
 
 let current: Locale = parseLocale(process.env.ZENTARA_LANG) ?? DEFAULT_LOCALE;
 
+let override: (() => Locale | undefined) | undefined;
+
 export function getLocale(): Locale {
-  return current;
+  return override?.() ?? current;
+}
+
+/**
+ * Bahasa per request, mis. varian `en` di `view_page` saat pengembangan. Fungsi ini dipanggil setiap
+ * kali bahasa aktif dibaca; undefined = pakai bahasa proses.
+ */
+export function setLocaleOverride(fn: (() => Locale | undefined) | undefined): void {
+  override = fn;
 }
 
 /** Ganti bahasa aktif untuk seluruh proses. ZENTARA_LANG tetap menang bila diisi. */
@@ -46,17 +56,17 @@ export function setLocale(locale: Locale): void {
 }
 
 /** Katalog pesan untuk bahasa aktif (atau bahasa tertentu). */
-export function t(locale: Locale = current): Messages {
+export function t(locale: Locale = getLocale()): Messages {
   return CATALOGS[locale];
 }
 
 /** Tag bahasa BCP 47 untuk Intl dan atribut `lang` HTML. */
-export function intlLocale(locale: Locale = current): string {
+export function intlLocale(locale: Locale = getLocale()): string {
   return locale === "en" ? "en-US" : "id-ID";
 }
 
 /** Alamat dokumentasi dalam bahasa aktif (Bahasa Inggris di /en/), mis. docsUrl("mulai-cepat.html"). */
-export function docsUrl(page = "", locale: Locale = current): string {
+export function docsUrl(page = "", locale: Locale = getLocale()): string {
   return `${DOCS_URL}${locale === "en" ? "en/" : ""}${page}`;
 }
 

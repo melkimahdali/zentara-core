@@ -179,7 +179,9 @@ describe("pemeriksaan tampilan versi teks (tanpa browser)", () => {
   const BROKEN = `<!doctype html><html><head><style>.x{}</style><link rel="stylesheet" href="/app.css"></head><body><div style="width:900px" class="a b c">x</div><img src="/hilang.png" alt=""><img src="https://cdn.example/x.png" alt=""></body></html>`;
 
   it("fakta HTML: kit UI, meta viewport, style, stylesheet, gambar lokal, halaman bawaan", () => {
-    assert.deepEqual(htmlFacts(KIT), { styled: [], styleTags: 0, sheets: [], kit: true, viewportMeta: true, framework: false, images: ["/logo.png"] });
+    const { audit, ...facts } = htmlFacts(KIT);
+    assert.deepEqual(facts, { styled: [], styleTags: 0, sheets: [], kit: true, viewportMeta: true, framework: false, images: ["/logo.png"] });
+    assert.deepEqual({ ...audit, bytes: undefined }, { bytes: undefined, title: false, description: false, lang: false, h1: 1, imgNoAlt: [], unlabeled: [], unnamed: [] });
     const broken = htmlFacts(BROKEN);
     assert.deepEqual(broken.styled, ["div.a.b"]);
     assert.equal(broken.styleTags, 1);
@@ -209,9 +211,9 @@ describe("pemeriksaan tampilan versi teks (tanpa browser)", () => {
       const clean = await viewPage({ path: "/rapi", viewport: "mobile", expect: { noLayoutIssues: true } }, undefined, { fallbackBase: base });
       assert.equal(clean.ok, true);
       assert.match(clean.text, /^RESULT ok · text · mobile · 0 findings/);
-      assert.match(clean.text, /The mobile screen size can only be checked in the browser/);
+      assert.match(clean.text, /Mobile and tablet screen sizes can only be checked in the browser/);
       assert.match(clean.text, /PASS no layout check findings/);
-      assert.deepEqual(clean.summary, { path: "/rapi", viewport: "mobile", mode: "text", ok: true, issues: 0, errors: 0, failedChecks: 0 });
+      assert.deepEqual(clean.summary, { path: "/rapi", viewport: "mobile", mode: "text", ok: true, issues: 0, errors: 0, failedChecks: 0, score: 80 });
 
       const broken = await viewPage({ path: "/rusak", expect: { noLayoutIssues: true } }, undefined, { fallbackBase: base });
       assert.equal(broken.ok, false);

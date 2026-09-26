@@ -47,6 +47,10 @@ export const CHAT_CSS = `
 .zc-form:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
 .zc-form textarea{flex:1;border:0;outline:0;background:none;color:var(--text);font:inherit;font-size:14.5px;resize:none;max-height:180px;min-height:24px;padding:4px 0;line-height:1.5}
 .zc-form button{flex:none}
+.zc-mic{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--surface-2);color:var(--text);cursor:pointer;font-size:15px;line-height:1;display:grid;place-items:center}
+.zc-mic:hover{border-color:var(--accent)}
+.zc-mic[aria-pressed=true]{background:var(--danger);border-color:var(--danger);color:#fff;animation:zc-pulse 1.2s infinite}
+@keyframes zc-pulse{50%{opacity:.7}}
 .zc-meta{display:flex;gap:10px;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
 .zc-meta a{cursor:pointer}
 .zc-off{border:1px dashed var(--border);border-radius:12px;padding:14px 16px;font-size:14px;color:var(--muted)}
@@ -107,7 +111,14 @@ export const CHAT_JS = String.raw`
     var form = el("form", "zc-form");
     var input = el("textarea"); input.rows = 1; input.placeholder = opts.placeholder || T.placeholder;
     var send = el("button", "zx-btn primary small", esc(T.send)); send.type = "submit";
-    form.appendChild(input); form.appendChild(send);
+    form.appendChild(input);
+    // Input suara (Web Speech API) dalam bahasa Zentara; tombolnya tidak muncul bila browser tidak mendukung.
+    var Speech = window.SpeechRecognition || window.webkitSpeechRecognition, mic = null, rec = null;
+    if (Speech && T.voice) {
+      mic = el("button", "zc-mic", "🎙"); mic.type = "button"; mic.setAttribute("aria-pressed", "false"); mic.setAttribute("aria-label", T.voice); mic.title = T.voice;
+      form.appendChild(mic);
+    }
+    form.appendChild(send);
     var meta = el("div", "zc-meta", '<span class="st">' + esc(T.connecting) + '</span><span><a data-act="reset">' + esc(T.newChat) + "</a></span>");
     wrap.appendChild(log); wrap.appendChild(suggest); wrap.appendChild(form); wrap.appendChild(meta);
     root.appendChild(wrap);
@@ -233,6 +244,24 @@ export const CHAT_JS = String.raw`
       var text = input.value; input.value = ""; input.style.height = "";
       ask(text);
     });
+    if (mic) {
+      var before = "";
+      function stopVoice(){ if (rec) { try { rec.stop(); } catch (e) {} } }
+      mic.addEventListener("click", function(){
+        if (rec) { stopVoice(); return; }
+        rec = new Speech(); rec.lang = T.voiceLang || "id-ID"; rec.interimResults = true; rec.continuous = false;
+        before = input.value ? input.value.replace(/\s*$/, " ") : "";
+        rec.onresult = function(ev){
+          var text = "";
+          for (var i = 0; i < ev.results.length; i++) text += ev.results[i][0].transcript;
+          input.value = before + text; input.dispatchEvent(new Event("input"));
+        };
+        rec.onerror = function(ev){ if (ev.error === "not-allowed" || ev.error === "service-not-allowed") { add(el("div", "zc-info warn", esc(T.voiceDenied))); } };
+        rec.onend = function(){ rec = null; mic.setAttribute("aria-pressed", "false"); mic.title = T.voice; input.focus(); };
+        try { rec.start(); mic.setAttribute("aria-pressed", "true"); mic.title = T.voiceStop; } catch (e) { rec = null; }
+      });
+      form.addEventListener("submit", stopVoice);
+    }
     input.addEventListener("keydown", function(ev){ if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); form.requestSubmit(); } });
     input.addEventListener("input", function(){ input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 180) + "px"; });
     wrap.addEventListener("click", function(ev){
@@ -252,7 +281,11 @@ export const CHAT_JS = String.raw`
         api("/reset"); log.innerHTML = ""; save(); empty(); setBusy(false);
       }
     });
-    return { ask: ask, focus: function(){ input.focus(); } };
+    return {
+      ask: ask,
+      focus: function(){ input.focus(); },
+      prefill: function(text){ input.value = text; input.dispatchEvent(new Event("input")); input.focus(); input.setSelectionRange(text.length, text.length); }
+    };
   }
   window.ZentaraChat = { mount: mount };
 })();

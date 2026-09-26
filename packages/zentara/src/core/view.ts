@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { t } from "../i18n/index.js";
 export type Props = Record<string, unknown>;
 export type Component<P extends Props = Props> = (props: P & { children: Child[] }) => Child;
@@ -37,8 +39,49 @@ function isRaw(node: unknown): node is RawHtml {
   return typeof node === "object" && node !== null && RAW in node;
 }
 
+// ── Sumber elemen (mode inspeksi saat pengembangan) ──────────────────────
+// Bila aktif, setiap h() yang dipanggil dari kode aplikasi mencatat file:baris pemanggilnya, dan elemen
+// HTML-nya mendapat atribut data-zsrc. Hanya dinyalakan runtime saat `zentara dev` dengan devtools.
+
+const SRC = Symbol("zentara.src");
+/** Kode framework (src/ atau dist/ paket zentara): pemanggilan dari sini bukan kode aplikasi. */
+const PACKAGE_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const FRAME = /\(?((?:file:\/\/)?(?:\/|[A-Za-z]:[\\/])[^():]*?(?::[^():\d][^():]*)*):(\d+):\d+\)?\s*$/;
+const NO_SOURCE_TAGS = new Set(["html", "head", "body", "script", "style", "meta", "link", "title", "template"]);
+let sourceRoot: string | undefined;
+
+/** Nyalakan (dengan folder proyek) atau matikan pencatatan sumber elemen. */
+export function setSourceTracking(root: string | undefined): void {
+  sourceRoot = root ? path.resolve(root) : undefined;
+}
+
+function callSite(): string | undefined {
+  const limit = Error.stackTraceLimit;
+  Error.stackTraceLimit = 4;
+  const stack = new Error().stack;
+  Error.stackTraceLimit = limit;
+  // Baris 0 "Error", 1 callSite, 2 h, 3 pemanggil h(). Hanya pemanggil langsung yang berupa kode aplikasi.
+  const m = FRAME.exec(stack?.split("\n")[3] ?? "");
+  if (!m) return undefined;
+  const file = m[1]!.startsWith("file://") ? fileURLToPath(m[1]!) : m[1]!;
+  if (file.startsWith(PACKAGE_DIR + path.sep) || file.includes(`${path.sep}node_modules${path.sep}`)) return undefined;
+  const rel = path.relative(sourceRoot!, file);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return undefined;
+  return `${rel.split(path.sep).join("/")}:${m[2]}`;
+}
+
 export function h(type: string | Component<any>, props?: Props | null, ...children: Child[]): ZenElement {
-  return { type, props: props ?? {}, children };
+  const el: ZenElement = { type, props: props ?? {}, children };
+  if (sourceRoot) {
+    const at = callSite();
+    if (at) Object.defineProperty(el, SRC, { value: at, enumerable: false });
+  }
+  return el;
+}
+
+/** file:baris tempat elemen dibuat (hanya saat pencatatan sumber aktif). */
+export function elementSource(el: ZenElement): string | undefined {
+  return (el as unknown as Record<symbol, string | undefined>)[SRC];
 }
 
 export function Fragment({ children }: { children: Child[] }): Child {
@@ -59,19 +102,25 @@ function renderAttrs(props: Props): string {
 
 /** Render pohon elemen ke string HTML. Semua teks dan nilai atribut di-escape. */
 export function renderToString(node: Child): string {
+  return render(node, undefined);
+}
+
+/** `inherited` = sumber komponen yang menghasilkan node ini (untuk elemen akar keluaran komponen). */
+function render(node: Child, inherited: string | undefined): string {
   if (node === null || node === undefined || typeof node === "boolean") return "";
   if (typeof node === "string") return escapeHtml(node);
   if (typeof node === "number") return String(node);
-  if (Array.isArray(node)) return node.map(renderToString).join("");
+  if (Array.isArray(node)) return node.map((n) => render(n, inherited)).join("");
   if (isRaw(node)) return node.html;
 
   if (typeof node.type === "function") {
-    return renderToString(node.type({ ...node.props, children: node.children }));
+    return render(node.type({ ...node.props, children: node.children }), elementSource(node) ?? inherited);
   }
 
   const tag = node.type;
   if (!TAG_NAME.test(tag)) throw new Error(t().core.tagInvalid(JSON.stringify(tag)));
-  const attrs = renderAttrs(node.props);
+  const at = sourceRoot ? elementSource(node) ?? inherited : undefined;
+  const attrs = renderAttrs(at && !NO_SOURCE_TAGS.has(tag.toLowerCase()) ? { ...node.props, "data-zsrc": at } : node.props);
   if (VOID_ELEMENTS.has(tag.toLowerCase())) return `<${tag}${attrs}>`;
-  return `<${tag}${attrs}>${renderToString(node.children)}</${tag}>`;
+  return `<${tag}${attrs}>${render(node.children, undefined)}</${tag}>`;
 }

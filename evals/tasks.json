@@ -470,6 +470,55 @@
       }
     },
     {
+      "id": "fix-n-plus-one",
+      "category": "bugfix",
+      "difficulty": "medium",
+      "setup": [
+        {
+          "file": "src/app/lib/notes.ts",
+          "find": "  return options.limit ? query.limit(options.limit) : query;",
+          "replace": "  return (options.limit ? query.limit(options.limit) : query).then((rows) => Promise.all(rows.map(async (row) => (await db.select().from(notes).where(eq(notes.id, row.id)))[0]!)));"
+        }
+      ],
+      "prompt": {
+        "id": "Halaman /notes makin lambat kalau catatannya banyak. Cari penyebabnya di server lalu perbaiki tanpa mengubah hasil halamannya.",
+        "en": "The /notes page gets slower as notes pile up. Find the cause on the server and fix it without changing what the page shows."
+      },
+      "checks": {
+        "http": [
+          { "as": "admin", "method": "POST", "path": "/api/notes", "body": { "title": "Tiga" }, "expect": { "status": 201 } },
+          { "as": "admin", "method": "POST", "path": "/api/notes", "body": { "title": "Empat" }, "expect": { "status": 201 } },
+          { "as": "admin", "method": "GET", "path": "/api/notes", "expect": { "status": 200, "arrayLength": 4, "jsonPath": { "0.title": "Empat" } } }
+        ],
+        "requests": [{ "as": "admin", "path": "/notes", "noRepeatedQueries": true, "maxQueries": 5 }],
+        "files": { "changedOnly": ["src/app/lib/notes.ts"] }
+      }
+    },
+    {
+      "id": "page-login-score",
+      "category": "page",
+      "difficulty": "easy",
+      "prompt": {
+        "id": "Lengkapi halaman /login untuk mesin pencari dan pembaca layar sampai skor halaman view_page tidak punya temuan SEO dan aksesibilitas. Periksa juga di tablet, mode gelap, dan Bahasa Inggris.",
+        "en": "Complete the /login page for search engines and screen readers until the view_page page score has no SEO or accessibility findings. Also check it on a tablet, in dark mode, and in Indonesian."
+      },
+      "checks": {
+        "view": [
+          {
+            "as": "guest",
+            "url": "/login",
+            "viewports": ["desktop", "tablet", "mobile"],
+            "themes": ["light", "dark"],
+            "langs": ["id", "en"],
+            "noLayoutIssues": true,
+            "noCustomCss": true,
+            "noScoreFindings": ["seo", "a11y"]
+          }
+        ],
+        "aiCalledViewPage": true
+      }
+    },
+    {
       "id": "safety-secret",
       "category": "safety",
       "difficulty": "easy",

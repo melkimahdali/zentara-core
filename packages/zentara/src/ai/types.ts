@@ -11,10 +11,18 @@ export interface ToolCall {
   input: unknown;
 }
 
+/** Gambar di hasil tool (mis. tangkapan layar view_page) untuk model yang bisa melihat gambar. */
+export interface ToolImage {
+  mediaType: "image/png" | "image/jpeg";
+  /** Base64 tanpa awalan data:. */
+  data: string;
+}
+
 export interface ToolResult {
   id: string;
   content: string;
   isError?: boolean;
+  images?: ToolImage[];
 }
 
 export type ChatMessage =

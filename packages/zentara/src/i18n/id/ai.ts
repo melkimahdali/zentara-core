@@ -15,6 +15,7 @@ export const ai = {
     install_package: "Pasang",
     ui_catalog: "Katalog UI",
     view_page: "Lihat",
+    request_log: "Request",
     dev_server: "Server",
   } as Record<string, string>,
   summary: {
@@ -22,8 +23,8 @@ export const ai = {
     files: (n: number) => `${n} file`,
     routes: (n: number) => `${n} route`,
     hits: (n: number) => `${n} hasil`,
-    view: (browser: boolean, mobile: boolean, issues: number, failed: number) =>
-      `${browser ? "di browser" : "versi teks"}${mobile ? " · ponsel" : ""} · ${issues ? `${issues} temuan tampilan` : "tampilan rapi"}${failed ? ` · ${failed} pemeriksaan gagal` : ""}`,
+    view: (browser: boolean, device: string, issues: number, failed: number) =>
+      `${browser ? "di browser" : "versi teks"}${device === "mobile" ? " · ponsel" : device === "tablet" ? " · tablet" : ""} · ${issues ? `${issues} temuan tampilan` : "tampilan rapi"}${failed ? ` · ${failed} pemeriksaan gagal` : ""}`,
     catalog: (n: number) => `${n} komponen`,
     moreLines: (n: number) => `… (+${n} baris)`,
   },
