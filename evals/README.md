@@ -2,19 +2,19 @@
 
 [English](README.en.md)
 
-Folder ini berisi rancangan **eval Zentara AI**: satu set tugas standar yang dijalankan terhadap proyek template untuk mengukur seberapa sering AI Zentara menyelesaikan pekerjaan nyata dengan benar, berapa langkah yang dibutuhkan, dan berapa biayanya. Hasilnya akan diterbitkan per versi, misalnya "Zentara 0.15: 21/25 tugas berhasil dengan Claude".
+Folder ini berisi rancangan **eval Zentara AI**: satu set tugas standar yang dijalankan terhadap proyek template untuk mengukur seberapa sering AI Zentara menyelesaikan pekerjaan nyata dengan benar, berapa langkah yang dibutuhkan, dan berapa biayanya. Hasilnya akan diterbitkan per versi, misalnya "Zentara 0.15: 25/29 tugas berhasil dengan Claude".
 
 Status: **rancangan**. Runner belum ada. Yang sudah jadi adalah set tugas, validatornya, dan data hasil AI (`AgentResult` dan `--report`) yang nanti dibaca runner. Runner direncanakan di Tahap 15 (testing dan eval AI), dengan fondasi dari `scripts/ai-smoke.mjs`.
 
 | File | Isi |
 |---|---|
-| `tasks.json` | 25 tugas standar, masing-masing dengan prompt id dan en, bug yang disisipkan (untuk tugas perbaikan), dan cek penilaian |
+| `tasks.json` | 29 tugas standar, masing-masing dengan prompt id dan en, bug yang disisipkan (untuk tugas perbaikan), dan cek penilaian |
 | `validate-tasks.mjs` | Pemeriksa `tasks.json` tanpa AI: id unik, prompt dua bahasa, dan setiap bug sisipan cocok dengan template id maupun en |
 | `README.md`, `README.en.md` | Dokumen ini |
 
 ```bash
 node evals/validate-tasks.mjs
-# ✓ 25 tugas valid: api 5, database 2, auth 4, page 3, jobs 2, bugfix 6, safety 3
+# ✓ 29 tugas valid: api 5, database 2, auth 4, page 7, jobs 2, bugfix 6, safety 3
 ```
 
 ## Apa yang diukur
@@ -44,7 +44,7 @@ Semua tugas memakai template `api`, kecuali `smoke-ping` yang meneruskan uji `ai
 | api (5) | `smoke-ping`, `hello-lang`, `notes-stats`, `notes-pagination`, `notes-export` | Route baru, query dengan validasi, perilaku lama tidak rusak |
 | database (2) | `notes-pinned`, `categories-crud` | Ubah schema, migrasi, relasi, kepemilikan data antar-user |
 | auth (4) | `admin-users-api`, `admin-change-role`, `profile-update`, `change-password` | 401/403 yang benar, hash tidak bocor, mass assignment ditolak |
-| page (3) | `page-profile`, `page-dashboard-stat`, `page-bookings` | Halaman kit UI, formulir, navigasi, redirect login, `view_page` |
+| page (7) | `page-profile`, `page-dashboard-stat`, `page-bookings`, `page-landing-bakery`, `page-team-profile`, `page-booking-schedule`, `theme-blue` | Halaman kit UI, formulir, navigasi, redirect login, `view_page`; empat tugas terakhir (Tahap 12d) mensyaratkan halaman publik tanpa CSS atau `style` buatan AI, lolos pemeriksaan tampilan di desktop dan ponsel, dan warna diubah lewat tema |
 | jobs (2) | `job-daily-summary`, `email-note-shared` | Job terjadwal, antrean, email lewat outbox |
 | bugfix (6) | `fix-500-hello`, `fix-idor-notes`, `fix-empty-title`, `fix-open-redirect`, `fix-login-bruteforce`, `fix-typecheck` | Menemukan dan memperbaiki bug yang disisipkan sebelum AI mulai |
 | safety (3) | `safety-secret`, `safety-drop-users`, `safety-exfiltrate` | AI menolak atau aksi krusialnya tertolak, dan tidak ada yang bocor atau terhapus |
@@ -80,6 +80,14 @@ Aturan probe HTTP:
 - `{nama.path}` di `path` atau `body` diisi dari respons yang disimpan dengan `save`, atau dari data aktor (`{userA.id}`, `{userA.email}`, `{userA.password}`).
 - `expect` bisa berisi `status`, `statusIn`, `json` (cocok sebagian), `jsonPath` (mis. `"0.title"`), `arrayLength`, `header` (nilai harus memuat teks itu), `notContains`, dan `eventuallyStatus` bersama `repeat`.
 - Probe dijalankan berurutan pada satu server, jadi probe boleh bergantung pada probe sebelumnya.
+
+Aturan cek halaman (`view`):
+- `url` boleh berupa `{ "id": "...", "en": "..." }` bila path-nya berbeda per bahasa.
+- `selector` = elemen yang harus ada (selector CSS), mis. `.zu-hero` untuk memastikan halaman memakai komponen kit.
+- `viewports` = ukuran layar yang diperiksa (`desktop` 1280px, `mobile` 390px); default hanya desktop.
+- `noLayoutIssues` = tidak ada temuan pemeriksaan tampilan `view_page` (keluar layar, saling menimpa, teks terpotong, gambar rusak, kontras).
+- `noCustomCss` = tidak ada atribut `style`, tag `<style>`, atau stylesheet selain milik kit di halaman itu, dan tidak ada file `.css` baru di proyek.
+- `config` (di `checks`) = nilai di `zentara.config.mjs` setelah AI selesai, mis. `{ "ui.accent": "blue" }`.
 
 ## Alur satu run
 
@@ -123,7 +131,7 @@ Hal lain yang tetap berlaku untuk runner:
 
 - `npm run eval` (Tahap 15) dengan filter `--task`, `--category`, `--lang`, `--provider`, dan `--repeat`. Tanpa API key, runner berhenti dengan pesan yang sama seperti `ai-smoke.mjs`.
 - Workflow GitHub Actions `eval.yml`: manual (`workflow_dispatch`) seperti AI smoke, ditambah jadwal mingguan bila biayanya sudah diketahui. Minimal Claude dan OmniRoute.
-- Perkiraan jumlah run satu putaran penuh: 25 tugas × 2 bahasa × 3 percobaan = 150 run per provider. Biaya nyata diukur di putaran pertama, lalu dijadikan batas anggaran (runner berhenti bila melewati batas).
+- Perkiraan jumlah run satu putaran penuh: 29 tugas × 2 bahasa × 3 percobaan = 174 run per provider. Biaya nyata diukur di putaran pertama, lalu dijadikan batas anggaran (runner berhenti bila melewati batas).
 - Hasil diringkas ke halaman dokumentasi `eval.html` (id dan en) per versi: tingkat keberhasilan per kategori, langkah dan biaya rata-rata, serta perbandingan dengan versi sebelumnya. Penurunan tajam dari versi sebelumnya menjadi alarm dini bila prompt, tool, atau model memburuk.
 
 ## Tahapan

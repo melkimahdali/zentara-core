@@ -2,6 +2,16 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.8]
+
+### Added
+- **Public pages in the UI kit:** `Hero` (a photo beside it or centered), `FeatureGrid`, `MediaCard`, `Gallery`, `Pricing` (a featured plan, prices through `money()`), `Testimonial`, `FAQ` (plus FAQPage structured data for search engines), `CTA`, `LogoCloud`, `TeamCard`, and `ContactForm` (with a WhatsApp link).
+- **Shop patterns:** `PriceTag` with a struck-through price, `ProductCard` (automatic discount label, rating, sold out), `QuantityInput` with − and + buttons (a plain number input without JavaScript), and `CartSummary` (subtotal, shipping, discount, total). Rupiah prices have no decimals.
+- **Built-in sample images:** `placeholder("Chocolate cake", 800, 600)` returns a `/_zentara/placeholder.svg` URL for prototypes before real photos exist, with no internet needed.
+- **Whole-page examples:** `landing`, `profile`, `store`, `booking`, and `dashboard`, each a complete route file in Indonesian and English built only from kit components. `zentara ui --example [name]` prints them, `/_zentara/ui/examples/<name>` shows them during `zentara dev`, and Zentara AI reads them through `ui_catalog` (the `example` parameter) as a starting point for public pages.
+- The catalog has new *Public pages* and *Shop and business* groups. e2e checks all five examples with `view_page` in Chrome, on desktop and mobile, with two themes.
+- **New eval tasks:** `page-landing-bakery`, `page-team-profile`, `page-booking-schedule`, and `theme-blue` (29 tasks). These public-page tasks require no AI-written CSS or `style` and passing layout checks on desktop and mobile. Grading them with a real model waits for the runner in Stage 15.
+
 ## [0.12.7]
 
 ### Added

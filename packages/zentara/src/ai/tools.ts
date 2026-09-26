@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { t } from "../i18n/index.js";
-import { CATALOG_GROUPS, catalogForAi, similarEntries } from "../ui/catalog.js";
+import { CATALOG_GROUPS, catalogForAi, similarEntries, UI_EXAMPLES } from "../ui/catalog.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -487,12 +487,13 @@ export const agentTools: AgentTool[] = [
     spec: {
       name: "ui_catalog",
       description:
-        "Look up the Zentara UI kit (zentara/ui) before building or changing a page. Without arguments: every component by group with its props. With component: what it is for, every prop with its type and allowed values, and an example. Build pages only from these components and props (layout, spacing, forms, colors come from the kit and the theme), never with custom CSS.",
+        "Look up the Zentara UI kit (zentara/ui) before building or changing a page. Without arguments: every component by group with its props, plus the whole-page examples. With component: what it is for, every prop with its type and allowed values, and an example. With example: the complete route file of a whole page (landing, business profile, store with cart, booking schedule, dashboard) to start from. Build pages only from these components and props (layout, spacing, forms, colors come from the kit and the theme), never with custom CSS.",
       inputSchema: {
         type: "object",
         properties: {
           component: { type: "string", description: "Component or function name, e.g. \"Select\" or \"PageHeader\"" },
           group: { type: "string", enum: [...CATALOG_GROUPS] },
+          example: { type: "string", enum: UI_EXAMPLES.map((e) => e.name), description: "Whole-page example to return as a complete route file" },
         },
         additionalProperties: false,
       },
@@ -500,7 +501,9 @@ export const agentTools: AgentTool[] = [
     async run(input) {
       const component = str(input, "component", true);
       const group = str(input, "group", true);
-      const text = catalogForAi({ component, group });
+      const example = str(input, "example", true);
+      const text = catalogForAi({ component, group, example });
+      if (text === undefined && example) throw new ToolError(t().ai.tools.unknownExample(example, UI_EXAMPLES.map((e) => e.name).join(", ")));
       if (text === undefined) throw new ToolError(t().ai.tools.unknownComponent(component!, similarEntries(component!).join(", ")));
       return text;
     },

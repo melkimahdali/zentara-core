@@ -39,6 +39,7 @@ Manual commands:
   zentara view <path> [--mobile] [--text "a,b"]   View a page and check its layout (in the browser when a tab is open)
   zentara ai:log [--limit 20] [--json]            Results of recent Zentara AI tasks (local journal)
   zentara ui [Name] [--group form] [--json]        UI kit component catalog: purpose, props, and examples
+  zentara ui --example [name]                      Whole-page examples (landing, profile, store, booking, dashboard)
   zentara theme [--accent blue] [--radius lg] [--font system] [--mode dark] [--reset]
                                                    Show or change the UI kit theme (zentara.config.mjs)
   zentara lang [id|en]                             Show or change Zentara's language (saved globally)
@@ -108,6 +109,11 @@ Order: ZENTARA_AI_ORDER=openai,claude,ollama (other providers follow). Check: np
     more: "Props and examples: zentara ui <Name> (e.g. zentara ui Select). Live gallery: /_zentara/ui while zentara dev is running.",
     notFound: (name: string, similar: string[]) => `Component not found: ${name}.${similar.length ? ` Did you mean: ${similar.join(", ")}?` : ""} See them all with: zentara ui`,
     badGroup: (group: string, groups: string) => `Unknown group: ${group}. Options: ${groups}`,
+    examples: "Whole-page examples (complete route files built only from kit components):",
+    examplesMore: "Full code: zentara ui --example <name>. See the result at /_zentara/ui/examples/<name> while zentara dev is running.",
+    examplesHint: "Whole-page examples (landing, profile, store, booking, dashboard): zentara ui --example",
+    exampleNotFound: (name: string, names: string) => `Example not found: ${name}. Options: ${names}`,
+    exampleOpen: (name: string) => `See the result at /_zentara/ui/examples/${name} while zentara dev is running.`,
   },
   theme: {
     title: (file: string) => `UI kit theme (${file})`,

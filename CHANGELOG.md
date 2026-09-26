@@ -2,6 +2,16 @@
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id/1.1.0/). Versi `zentara` dan `create-zentara` selalu dinaikkan bersamaan.
 
+## [0.12.8]
+
+### Ditambahkan
+- **Halaman publik di kit UI:** `Hero` (foto di samping atau rata tengah), `FeatureGrid`, `MediaCard`, `Gallery`, `Pricing` (paket unggulan, harga lewat `money()`), `Testimonial`, `FAQ` (plus data terstruktur FAQPage untuk mesin pencari), `CTA`, `LogoCloud`, `TeamCard`, dan `ContactForm` (dengan tautan WhatsApp).
+- **Pola toko:** `PriceTag` dengan harga coret, `ProductCard` (label hemat otomatis, rating, stok habis), `QuantityInput` dengan tombol − dan + (tanpa JavaScript tetap input angka), dan `CartSummary` (subtotal, ongkir, potongan, total). Harga rupiah tanpa desimal.
+- **Gambar contoh bawaan:** `placeholder("Kue cokelat", 800, 600)` menghasilkan URL `/_zentara/placeholder.svg` untuk purwarupa sebelum foto asli ada, tanpa internet.
+- **Contoh halaman utuh:** `landing`, `profile`, `store`, `booking`, dan `dashboard`, masing-masing kode route lengkap dalam Bahasa Indonesia dan Inggris yang hanya memakai komponen kit. `zentara ui --example [nama]` mencetaknya, `/_zentara/ui/examples/<nama>` menampilkannya saat `zentara dev`, dan Zentara AI membacanya lewat `ui_catalog` (parameter `example`) sebagai titik awal halaman publik.
+- Katalog punya kelompok baru *Halaman publik* dan *Toko dan usaha*. e2e memeriksa kelima contoh dengan `view_page` di Chrome, desktop dan ponsel, dengan dua tema.
+- **Tugas eval baru:** `page-landing-bakery`, `page-team-profile`, `page-booking-schedule`, dan `theme-blue` (29 tugas). Tugas halaman publik ini mensyaratkan tanpa CSS atau `style` buatan AI dan lolos pemeriksaan tampilan di desktop dan ponsel. Penilaiannya dengan model sungguhan menunggu runner di Tahap 15.
+
 ## [0.12.7]
 
 ### Ditambahkan

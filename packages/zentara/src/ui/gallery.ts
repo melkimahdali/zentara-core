@@ -1,6 +1,6 @@
 import { h, type Child } from "../core/view.js";
 import { getLocale, t } from "../i18n/index.js";
-import { CATALOG_GROUPS, entryText, UI_CATALOG } from "./catalog.js";
+import { CATALOG_GROUPS, entryText, UI_CATALOG, UI_EXAMPLES } from "./catalog.js";
 import { Checkbox, CheckboxGroup, Field, Fieldset, FileInput, Form, FormActions, FormRow, RadioGroup, Select, Switch } from "./forms.js";
 import {
   Alert,
@@ -31,6 +31,8 @@ import { ConfirmDialog, Dialog, Drawer, Popover, Sheet, Tooltip } from "./overla
 import { Progress, Skeleton, Spinner, Toast } from "./feedback.js";
 import { Accordion, AvatarGroup, Calendar, CodeBlock, DescriptionList, Rating, Tag, Timeline } from "./data.js";
 import { StatusPage } from "./status.js";
+import { ContactForm, CTA, FAQ, FeatureGrid, Gallery, Hero, LogoCloud, MediaCard, placeholder, Pricing, TeamCard, Testimonial } from "./public.js";
+import { CartSummary, PriceTag, ProductCard, QuantityInput } from "./commerce.js";
 import { activeTheme } from "./theme.js";
 
 /**
@@ -163,6 +165,61 @@ export const GALLERY_DEMOS: Record<string, () => Child> = {
   EmptyState: () => h(EmptyState, { title: L("Belum ada produk", "No products yet"), text: L("Tambahkan produk pertama Anda.", "Add your first product."), action: h(Button, { href: "#", small: true }, L("Tambah produk", "Add product")) }),
   flash: () => h("code", null, L('flash(ctx, "Produk tersimpan") → redirect', 'flash(ctx, "Product saved") → redirect')),
   takeFlash: () => h(Toast, { flash: { message: L("Pesan dari takeFlash(ctx)", "Message from takeFlash(ctx)"), tone: "info" }, timeout: 0 }),
+  placeholder: () => h("img", { src: placeholder(L("Foto produk", "Product photo"), 480, 240), alt: L("Gambar contoh", "Sample image"), width: 480, height: 240, class: "zu-demo-img" }),
+  Hero: () =>
+    h(Hero, {
+      eyebrow: L("Toko kue rumahan", "Home bakery"),
+      title: L("Kue segar setiap pagi", "Fresh cakes every morning"),
+      text: L("Dipanggang tanpa pengawet, diantar ke rumah Anda.", "Baked without preservatives, delivered to your door."),
+      actions: [h(Button, { href: "#" }, L("Lihat menu", "See the menu")), h(Button, { href: "#", variant: "secondary" }, L("Hubungi kami", "Contact us"))],
+      image: { src: placeholder(L("Kue cokelat", "Chocolate cake"), 800, 600), alt: L("Kue cokelat", "Chocolate cake") },
+    }),
+  FeatureGrid: () =>
+    h(FeatureGrid, {
+      title: L("Kenapa kami", "Why us"),
+      features: [
+        { icon: "🌾", title: L("Bahan lokal", "Local ingredients"), text: L("Tepung dan mentega dari petani sekitar.", "Flour and butter from nearby farms.") },
+        { icon: "🚚", title: L("Antar hari ini", "Same-day delivery"), text: L("Pesan sebelum jam 10.", "Order before 10 am.") },
+        { icon: "🎂", title: L("Bisa pesan khusus", "Custom orders"), text: L("Tulisan dan hiasan sesuai acara.", "Lettering and decoration for your event.") },
+      ],
+    }),
+  MediaCard: () =>
+    h(Columns, { cols: 2 }, h(MediaCard, { image: { src: placeholder("Resep", 800, 500), alt: "" }, title: L("Resep bolu pandan", "Pandan sponge cake recipe"), text: L("Lembut tanpa pewarna buatan.", "Soft, with no artificial colouring."), meta: formatDate("2026-09-20"), href: "#" }), h(MediaCard, { image: { src: placeholder(L("Kelas", "Class"), 800, 500), alt: "" }, title: L("Kelas menghias kue", "Cake decorating class"), text: L("Setiap Sabtu pagi.", "Every Saturday morning."), actions: h(Button, { href: "#", small: true, variant: "secondary" }, L("Daftar", "Sign up")) })),
+  Gallery: () => h(Gallery, { images: [1, 2, 3].map((n) => ({ src: placeholder(`${L("Foto", "Photo")} ${n}`, 600, 450), alt: `${L("Foto", "Photo")} ${n}`, caption: n === 1 ? L("Etalase toko", "Shop window") : undefined, href: false as const })) }),
+  Pricing: () =>
+    h(Pricing, {
+      plans: [
+        { name: L("Dasar", "Basic"), price: getLocale() === "en" ? 5 : 49000, period: L("/bulan", "/month"), features: [L("1 toko", "1 shop"), L("100 produk", "100 products")], cta: { label: L("Mulai", "Start"), href: "#" } },
+        { name: "Pro", price: getLocale() === "en" ? 10 : 99000, period: L("/bulan", "/month"), description: L("Untuk toko yang berkembang", "For growing shops"), features: [L("3 toko", "3 shops"), L("Produk tanpa batas", "Unlimited products"), L("Laporan harian", "Daily reports")], cta: { label: L("Coba Pro", "Try Pro"), href: "#" }, featured: true },
+        { name: L("Tim", "Team"), price: L("Hubungi kami", "Contact us"), features: [L("Toko tanpa batas", "Unlimited shops"), L("Dukungan prioritas", "Priority support")], cta: { label: L("Hubungi", "Contact"), href: "#" } },
+      ],
+    }),
+  Testimonial: () => h(Columns, { cols: 2 }, h(Testimonial, { quote: L("Kuenya lembut dan tidak terlalu manis.", "Soft cake, not too sweet."), name: "Rina Wulandari", role: L("Pelanggan sejak 2024", "Customer since 2024"), rating: 5 }), h(Testimonial, { quote: L("Pengirimannya cepat dan rapi.", "Fast, tidy delivery."), name: "Budi", photo: placeholder("B", 80, 80) })),
+  FAQ: () => h(FAQ, { items: [{ question: L("Berapa lama pengiriman?", "How long is delivery?"), answer: L("1 sampai 3 hari kerja.", "1 to 3 working days.") }, { question: L("Bisa bayar di tempat?", "Can I pay on delivery?"), answer: L("Bisa, untuk wilayah Bandung.", "Yes, within the city.") }] }),
+  CTA: () => h(CTA, { title: L("Siap pesan untuk acara Anda?", "Ready to order for your event?"), text: L("Gratis ongkir untuk pesanan pertama.", "Free delivery on your first order."), actions: h(Button, { href: "#" }, L("Pesan sekarang", "Order now")) }),
+  LogoCloud: () => h(LogoCloud, { title: L("Dipercaya oleh", "Trusted by"), logos: ["Kopi Nusantara", "Bank Sejahtera", "Hotel Senja"].map((n) => ({ src: placeholder(n, 200, 50), alt: n })) }),
+  TeamCard: () => h(Columns, { cols: 2 }, h(TeamCard, { name: "Sari Dewi", role: L("Kepala dapur", "Head baker"), photo: placeholder("SD", 400, 400), bio: L("12 tahun di dapur hotel.", "12 years in hotel kitchens."), links: [{ href: "#", label: "Instagram" }] }), h(TeamCard, { name: "Andi Pratama", role: L("Pengantaran", "Delivery") })),
+  ContactForm: () => h(ContactForm, { action: "#", values: { name: "Sari" }, errors: { email: L("Email wajib diisi.", "Email is required.") }, whatsapp: "081234567890" }),
+  PriceTag: () => h(Cluster, null, h(PriceTag, { amount: getLocale() === "en" ? 12 : 45000, original: getLocale() === "en" ? 16 : 60000 }), h(PriceTag, { amount: getLocale() === "en" ? 10 : 99000, period: L("/bulan", "/month"), large: true })),
+  ProductCard: () =>
+    h(
+      Columns,
+      { cols: 3 },
+      h(ProductCard, { name: L("Bolu pandan", "Pandan sponge cake"), href: "#", image: { src: placeholder(L("Bolu pandan", "Pandan cake"), 600, 600), alt: L("Bolu pandan", "Pandan sponge cake") }, price: getLocale() === "en" ? 12 : 45000, original: getLocale() === "en" ? 16 : 60000, rating: 4.8, reviews: 120, action: h(Button, { type: "button", small: true }, L("Tambah", "Add")) }),
+      h(ProductCard, { name: L("Brownies", "Brownies"), href: "#", image: { src: placeholder("Brownies", 600, 600), alt: "Brownies" }, price: getLocale() === "en" ? 9 : 38000, badge: L("Baru", "New"), action: h(Button, { type: "button", small: true }, L("Tambah", "Add")) }),
+      h(ProductCard, { name: L("Kue lapis", "Layer cake"), image: { src: placeholder(L("Kue lapis", "Layer cake"), 600, 600), alt: L("Kue lapis", "Layer cake") }, price: getLocale() === "en" ? 14 : 52000, soldOut: true }),
+    ),
+  QuantityInput: () => h(QuantityInput, { name: "g-qty", value: 2, max: 10 }),
+  CartSummary: () =>
+    h(CartSummary, {
+      items: [
+        { name: L("Bolu pandan", "Pandan sponge cake"), price: getLocale() === "en" ? 12 : 45000, qty: 2, note: L("Ukuran 20 cm", "20 cm"), image: { src: placeholder("", 120, 120), alt: "" } },
+        { name: "Brownies", price: getLocale() === "en" ? 9 : 38000, qty: 1, image: { src: placeholder("", 120, 120), alt: "" } },
+      ],
+      shipping: 0,
+      discount: getLocale() === "en" ? 2 : 10000,
+      action: h(Button, { href: "#", block: true }, L("Lanjut bayar", "Checkout")),
+    }),
   rupiah: () => h("code", null, `rupiah(45000) → ${rupiah(45000)}`),
   money: () => h("code", null, `money(12.5, "USD") → ${money(12.5, "USD")}`),
   formatNumber: () => h("code", null, `formatNumber(12500) → ${formatNumber(12500)}`),
@@ -193,12 +250,22 @@ export function renderGallery(): string {
       ),
     );
   });
+  const locale = getLocale();
+  const examples = h(
+    Section,
+    { title: m.gallery.examples, description: m.gallery.examplesLead, id: "examples" },
+    h(
+      Columns,
+      { cols: 3 },
+      UI_EXAMPLES.map((e) => h(Card, { title: e.title[locale] }, h(Stack, { gap: "sm" }, muted(e.text[locale]), h(Cluster, null, h(Button, { href: `/_zentara/ui/examples/${e.name}`, variant: "secondary", small: true }, m.gallery.open), h("code", null, `zentara ui --example ${e.name}`))))),
+    ),
+  );
   return page(
     { title: `${m.gallery.title} · Zentara` },
     h(
       Container,
       { pad: true },
-      h("main", { id: "konten" }, h(PageHeader, { title: m.gallery.title, description: m.gallery.lead }), h(Stack, { gap: "lg" }, h(Alert, null, m.gallery.theme(theme.accent, theme.radius, theme.font, theme.mode), " ", m.gallery.changeTheme), h(Cluster, null, CATALOG_GROUPS.map((g) => h(Button, { href: `#${g}`, variant: "secondary", small: true }, m.groups[g] ?? g))), sections)),
+      h("main", { id: "konten" }, h(PageHeader, { title: m.gallery.title, description: m.gallery.lead }), h(Stack, { gap: "lg" }, h(Alert, null, m.gallery.theme(theme.accent, theme.radius, theme.font, theme.mode), " ", m.gallery.changeTheme), h(Cluster, null, CATALOG_GROUPS.map((g) => h(Button, { href: `#${g}`, variant: "secondary", small: true }, m.groups[g] ?? g)), h(Button, { href: "#examples", variant: "secondary", small: true }, m.gallery.examples)), sections, examples)),
     ),
   );
 }

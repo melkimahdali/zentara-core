@@ -38,6 +38,7 @@ Perintah manual:
   zentara view <path> [--mobile] [--text "a,b"]   Lihat halaman dan periksa tampilannya (browser bila ada tab)
   zentara ai:log [--limit 20] [--json]            Hasil tugas Zentara AI terakhir (journal lokal)
   zentara ui [Nama] [--group form] [--json]        Katalog komponen kit UI: kegunaan, props, dan contoh
+  zentara ui --example [nama]                      Contoh halaman utuh (landing, profil, toko, booking, dasbor)
   zentara theme [--accent biru] [--radius lg] [--font system] [--mode dark] [--reset]
                                                    Lihat atau ubah tema kit UI (zentara.config.mjs)
   zentara lang [id|en]                             Lihat atau ganti bahasa Zentara (disimpan global)
@@ -107,6 +108,11 @@ Urutan: ZENTARA_AI_ORDER=openai,claude,ollama (provider lain menyusul). Cek: npx
     more: "Detail props dan contoh: zentara ui <Nama> (mis. zentara ui Select). Galeri hidup: /_zentara/ui saat zentara dev berjalan.",
     notFound: (name: string, similar: string[]) => `Komponen tidak ditemukan: ${name}.${similar.length ? ` Mungkin maksud Anda: ${similar.join(", ")}.` : ""} Lihat semua dengan: zentara ui`,
     badGroup: (group: string, groups: string) => `Kelompok tidak dikenal: ${group}. Pilihan: ${groups}`,
+    examples: "Contoh halaman utuh (kode route lengkap yang hanya memakai komponen kit):",
+    examplesMore: "Kode lengkap: zentara ui --example <nama>. Lihat hasilnya di /_zentara/ui/examples/<nama> saat zentara dev berjalan.",
+    examplesHint: "Contoh halaman utuh (landing, profil, toko, booking, dasbor): zentara ui --example",
+    exampleNotFound: (name: string, names: string) => `Contoh tidak ditemukan: ${name}. Pilihan: ${names}`,
+    exampleOpen: (name: string) => `Lihat hasilnya di /_zentara/ui/examples/${name} saat zentara dev berjalan.`,
   },
   theme: {
     title: (file: string) => `Tema kit UI (${file})`,

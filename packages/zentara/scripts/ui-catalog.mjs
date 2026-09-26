@@ -11,9 +11,11 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SOURCES = ["src/ui/layout.ts", "src/ui/forms.ts", "src/ui/index.ts", "src/ui/nav.ts", "src/ui/overlay.ts", "src/ui/feedback.ts", "src/ui/data.ts", "src/ui/status.ts", "src/core/flash.ts"];
+const SOURCES = ["src/ui/layout.ts", "src/ui/forms.ts", "src/ui/index.ts", "src/ui/nav.ts", "src/ui/overlay.ts", "src/ui/feedback.ts", "src/ui/data.ts", "src/ui/status.ts", "src/ui/public.ts", "src/ui/commerce.ts", "src/core/flash.ts"];
 export const OUTPUT = "src/ui/catalog.gen.ts";
-const GROUPS = ["page", "layout", "nav", "form", "overlay", "data", "feedback", "format"];
+/** Contoh halaman utuh (src/ui/examples/{id,en}/<nama>.ts), urut seperti di katalog. */
+export const EXAMPLES = ["landing", "profile", "store", "booking", "dashboard"];
+const GROUPS = ["page", "layout", "nav", "form", "overlay", "data", "public", "commerce", "feedback", "format"];
 
 const clean = (text) => text.replace(/\s+/g, " ").trim();
 
@@ -50,6 +52,23 @@ function typeText(checker, symbol, at) {
   return checker.typeToString(type, at, ts.TypeFormatFlags.NoTruncation).replace(/\bimport\("[^"]+"\)\./g, "");
 }
 
+/**
+ * Baca satu contoh halaman utuh: baris pertama JSDoc pembuka = judul, sisanya = keterangan. Sumbernya
+ * ditulis ulang seperti file route di aplikasi: impor relatif menjadi "zentara" dan "zentara/ui".
+ */
+function readExample(file) {
+  const code = fs.readFileSync(file, "utf8").replace(/\r\n/g, "\n");
+  const doc = /^\/\*\*\n([\s\S]*?)\*\/\n/.exec(code);
+  if (!doc) throw new Error(`${file}: butuh JSDoc pembuka (judul lalu keterangan)`);
+  const lines = doc[1].split("\n").map((l) => l.replace(/^\s*\* ?/, "").trim()).filter(Boolean);
+  const source = code
+    .slice(doc[0].length)
+    .replace(/from "\.\.\/\.\.\/\.\.\/core\/view\.js"/g, 'from "zentara"')
+    .replace(/from "\.\.\/\.\.\/index\.js"/g, 'from "zentara/ui"');
+  if (/from "\./.test(source)) throw new Error(`${file}: contoh hanya boleh mengimpor dari zentara dan zentara/ui`);
+  return { title: lines[0], text: clean(lines.slice(1).join(" ")), source: source.trim() + "\n" };
+}
+
 export function generateCatalog(root = ROOT) {
   const files = SOURCES.map((f) => path.join(root, f));
   const program = ts.createProgram(files, { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext, strict: true, skipLibCheck: true, noEmit: true });
@@ -84,11 +103,23 @@ export function generateCatalog(root = ROOT) {
     }
   }
   entries.sort((a, b) => GROUPS.indexOf(a.group) - GROUPS.indexOf(b.group));
+  const examples = EXAMPLES.map((name) => {
+    const out = { name, title: {}, text: {}, source: {} };
+    for (const lang of ["id", "en"]) {
+      const { title, text, source } = readExample(path.join(root, "src/ui/examples", lang, `${name}.ts`));
+      out.title[lang] = title;
+      out.text[lang] = text;
+      out.source[lang] = source;
+    }
+    return out;
+  });
   return `// Dibuat otomatis oleh scripts/ui-catalog.mjs dari JSDoc di src/ui. Jangan diubah manual:
 // ubah JSDoc komponennya, lalu jalankan \`node scripts/ui-catalog.mjs\` di packages/zentara.
-import type { CatalogEntry } from "./catalog.js";
+import type { CatalogEntry, PageExample } from "./catalog.js";
 
 export const UI_CATALOG: CatalogEntry[] = ${JSON.stringify(entries, null, 2)};
+
+export const UI_EXAMPLES: PageExample[] = ${JSON.stringify(examples, null, 2)};
 `;
 }
 

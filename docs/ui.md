@@ -66,6 +66,13 @@ Setiap halaman dari `page()` juga sudah punya:
 | `DescriptionList` · `Timeline` · `Accordion` | detail satu data (label dan nilai), urutan kejadian, dan bagian buka-tutup (`single: true` = satu terbuka) |
 | `Tag` · `AvatarGroup` · `Rating` · `CodeBlock` | label kategori berbentuk pil (bisa tautan), deretan avatar dengan "+N", rating bintang (tampilan, atau input dengan `name`), dan blok kode dengan tombol *Salin* |
 | `Calendar` | kalender satu bulan dengan acara (booking, jadwal); `href: "/jadwal?bulan={month}"` untuk bulan sebelumnya dan berikutnya, di ponsel menjadi daftar |
+| `Hero` · `FeatureGrid` · `CTA` | pembuka halaman publik (judul besar, teks, tombol, foto di samping atau rata tengah), grid keunggulan dengan ikon, dan pita ajakan bertindak |
+| `MediaCard` · `Gallery` · `LogoCloud` | kartu bergambar (artikel, layanan; seluruh kartu bisa diklik lewat `href`), galeri foto dengan rasio seragam, dan deretan logo mitra |
+| `Pricing` · `Testimonial` · `FAQ` | harga paket berdampingan (`featured` = paket yang disorot, harga angka lewat `money()`), kutipan pelanggan dengan rating, dan pertanyaan umum buka-tutup plus data terstruktur FAQPage untuk mesin pencari |
+| `TeamCard` · `ContactForm` | kartu anggota tim (foto atau inisial), dan formulir kontak siap pakai dengan `values`, `errors`, dan tautan WhatsApp (`whatsapp: "0812…"`) |
+| `PriceTag` · `ProductCard` | harga dengan harga coret dan periode, dan kartu produk (foto, harga, label hemat otomatis, rating, stok habis, tombol aksi) |
+| `QuantityInput` · `CartSummary` | input jumlah dengan tombol − dan + (tanpa JavaScript tetap input angka), dan ringkasan keranjang (jumlah × harga, subtotal, ongkir, potongan, total) |
+| `placeholder()` | URL gambar contoh bawaan `/_zentara/placeholder.svg` untuk purwarupa sebelum foto asli ada |
 | `StatusPage` · `statusPage()` | halaman status (403, 404, 500, …) bertema aplikasi. Framework memakainya sendiri untuk error di produksi |
 | `money()` · `formatNumber()` · `formatDate()` · `rupiah()` | format uang, angka, dan tanggal sesuai [bahasa](bahasa.html) aktif; `rupiah(45000)` selalu `Rp45.000` |
 
@@ -180,6 +187,31 @@ h(Toast, { flash: takeFlash(ctx) })
 
 Tone bawaan `success`; pakai `flash(ctx, "Gagal mengirim email", "error")` untuk yang lain. Toast hilang sendiri setelah 6 detik (`timeout: 0` = tetap tampil).
 
+## Halaman publik dan toko
+
+Halaman depan, profil usaha, toko, dan booking disusun dari komponen di atas tanpa CSS sendiri:
+
+```ts
+import { h } from "zentara";
+import { Button, Container, CTA, FAQ, Hero, Navbar, page, placeholder, Stack } from "zentara/ui";
+
+export function GET() {
+  return page(
+    { title: "Dapur Senja", description: "Kue segar setiap pagi" },
+    h(Navbar, { appName: "Dapur Senja", links: [{ href: "/menu", label: "Menu" }], actions: h(Button, { href: "/pesan", small: true }, "Pesan") }),
+    h("main", { id: "konten" }, h(Container, null, h(Stack, { gap: "xl" },
+      h(Hero, { title: "Kue segar setiap pagi", actions: h(Button, { href: "/menu" }, "Lihat menu"), image: { src: placeholder("Kue cokelat", 800, 600), alt: "Kue cokelat" } }),
+      h(FAQ, { title: "Pertanyaan umum", items: [{ question: "Berapa lama pengiriman?", answer: "Hari ini untuk pesanan sebelum jam 10." }] }),
+      h(CTA, { title: "Ada acara minggu ini?", actions: h(Button, { href: "/pesan" }, "Pesan sekarang") }),
+    ))),
+  );
+}
+```
+
+Harga di `Pricing`, `PriceTag`, `ProductCard`, dan `CartSummary` diformat dengan `money()`: rupiah tanpa desimal untuk Bahasa Indonesia. `QuantityInput` dipakai di dalam `Form`, jadi jumlah terkirim bersama formulirnya.
+
+**Contoh halaman utuh.** Katalog memuat lima halaman lengkap sebagai titik awal: `landing` (toko kue), `profile` (profil usaha dan tim), `store` (toko dengan keranjang), `booking` (jadwal booking), dan `dashboard` (dasbor admin). `zentara ui --example` menampilkan daftarnya, `zentara ui --example store` mencetak kode route lengkapnya, dan saat `zentara dev` hasilnya bisa dibuka di `/_zentara/ui/examples/store`. Zentara AI memakai contoh yang sama lewat `ui_catalog`.
+
 ## Halaman error
 
 Di produksi, error 403, 404, 500, dan status lainnya ditampilkan dengan kit UI dan tema aplikasi (`ui` di `zentara.config.mjs`), lengkap dengan nama aplikasi (`appName`) dan tombol kembali ke beranda. Pesan dari `throw new HttpError(403, "Hanya admin yang bisa membuka halaman ini")` ikut ditampilkan; detail error 500 tidak pernah ditampilkan. Saat pengembangan, 404 dan 500 tetap memakai halaman pengembang yang lebih lengkap.
@@ -188,8 +220,8 @@ Untuk halaman status buatan sendiri, pakai `h(StatusPage, { status: 404, text: "
 
 ## Katalog komponen dan galeri
 
-- **`zentara ui`** mencetak semua komponen per kelompok. `zentara ui Select` menampilkan kegunaan, setiap prop beserta tipe dan pilihannya, dan contoh. `--json` untuk dipakai alat lain.
-- **Galeri `/_zentara/ui`** saat `zentara dev`: setiap komponen dengan contoh hidup dan tema aplikasi Anda. Galeri tidak ada di produksi.
+- **`zentara ui`** mencetak semua komponen per kelompok. `zentara ui Select` menampilkan kegunaan, setiap prop beserta tipe dan pilihannya, dan contoh. `--json` untuk dipakai alat lain. `zentara ui --example` menampilkan contoh halaman utuh.
+- **Galeri `/_zentara/ui`** saat `zentara dev`: setiap komponen dengan contoh hidup dan tema aplikasi Anda. Di bagian bawahnya ada tautan ke contoh halaman utuh. Galeri tidak ada di produksi.
 - **Zentara AI** membaca katalog yang sama (tool `ui_catalog`), menyusun halaman dengan primitif tata letak, lalu memeriksanya dengan `view_page` di desktop dan ponsel. Bila kit belum bisa membuat yang diminta, AI menjelaskan batasnya dan menawarkan CSS khusus, yang baru ditulis setelah Anda setuju.
 
 Katalog dibuat otomatis dari JSDoc di kode kit UI, jadi selalu sesuai dengan versi zentara yang terpasang.
