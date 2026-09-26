@@ -1,3 +1,4 @@
+import { requestOverride } from "../core/devtrace.js";
 import { ZENTARA_VERSION } from "../core/devpage/theme.js";
 import { escapeHtml, h, raw, renderToString, type Child } from "../core/view.js";
 import { getLocale, intlLocale, parseLocale, t } from "../i18n/index.js";
@@ -45,7 +46,8 @@ const FORM_SCRIPT = `document.addEventListener("submit",function(e){var b=e.subm
  */
 export function page(options: PageOptions, ...body: Child[]): string {
   const { theme, css, hash } = activeTheme();
-  const forced = theme.mode === "auto" ? undefined : theme.mode;
+  // Varian gelap/terang dari view_page saat pengembangan menang atas tema.
+  const forced = requestOverride()?.mode ?? (theme.mode === "auto" ? undefined : theme.mode);
   const head = [
     h("meta", { charset: "utf-8" }),
     h("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),

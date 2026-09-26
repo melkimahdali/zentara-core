@@ -213,7 +213,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
       if (m.role === "user") out.push({ role: "user", content: m.text });
       else if (m.role === "tool_results") {
         m.results.forEach((r, i) =>
-          out.push({ role: "tool", tool_call_id: safeToolId(r.id, i), content: r.isError ? `ERROR: ${r.content}` : r.content }),
+          out.push({ role: "tool", tool_call_id: safeToolId(r.id, i), content: r.isError ? `ERROR: ${r.content}` : r.images?.length ? `${r.content}\n${t().dev.view.shot.notSent}` : r.content }),
         );
       } else {
         const msg: Record<string, unknown> = { role: "assistant", content: m.text || null };

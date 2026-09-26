@@ -2,6 +2,23 @@
 
 English release notes start at 0.12.0. Earlier versions are described in Indonesian in [CHANGELOG.md](https://github.com/melkimahdali/zentara-core/blob/main/CHANGELOG.md). `zentara` and `create-zentara` always share the same version.
 
+## [0.12.9]
+
+### Added
+- **Request toolbar during `zentara dev`:** a small button next to the widget shows the page's processing time and query count, with an **N+1** mark when the same query runs three or more times. Its details list every query with its duration, the session contents (secret values hidden), and `console.log`/`warn`/`error` calls during the request. The last 50 requests can be read with `zentara requests [id] [--path] [--json]` and Zentara AI's `request_log` tool. Every response carries an `X-Zentara-Request` header.
+- **Inspect mode:** the **⌖ Inspect** button shows the file and line of code that created the hovered element (`h()` records it as `data-zsrc` during development), and a click opens the chat about that element. `view_page` results also give this location per element (`← src/app/routes/x.ts:12`).
+- **Page score** in `view_page` and `zentara view`: load time, size, request count, SEO meta (title, description, a single `h1`, `lang`), and basic accessibility (image alt, form labels, button and link names). `expect.minScore` and `--min-score` turn it into a requirement.
+- **Check variants:** `viewport: "tablet"` (768×1024), `theme: "dark"`/`"light"`, and `lang: "en"`/`"id"` for one view only. CLI: `--tablet`, `--dark`, `--light`, `--lang`.
+- **Screenshots:** `screenshot: true` and `zentara view --screenshot` capture a PNG with the Chrome, Chromium, or Edge already installed (or `CHROME_PATH`), saved in `.zentara/screenshots/`. Claude models receive it as an image; OpenAI-format providers get a note only.
+- **Step recording:** the widget records the last 30 steps in the tab (pages, clicks, inputs without secret values, forms) and attaches them when you ask the AI, so bugs can be reproduced.
+- **Automatic reload:** every app tab reloads after a file changes and the dev server is ready, except tabs with unsent form input. While a browser AI task runs, the reload waits.
+- **Voice input** in the chat (widget, welcome page, error page) with `id-ID` or `en-US`, when the browser supports the Web Speech API.
+- **New eval tasks:** `fix-n-plus-one` and `page-login-score` (31 tasks), with a `requests` check (no N+1, a query limit) and page checks `themes`, `langs`, `minScore`, and `noScoreFindings`.
+
+### Changed
+- The first line of a `view_page` result names the variant and score, e.g. `RESULT ok · browser · tablet · dark · 0 findings · score 95`.
+- Nothing changes in production: no request traces, no `data-zsrc`, the `__zentara_*` parameters have no effect, and `/_zentara/dev/requests` answers 404 (checked by e2e).
+
 ## [0.12.8]
 
 ### Added

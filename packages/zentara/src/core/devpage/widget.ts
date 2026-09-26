@@ -25,7 +25,7 @@ export const PROBE_JS = String.raw`
   var port = me && me.getAttribute("data-port");
   var own = port ? new RegExp("^https?://(127\\.0\\.0\\.1|localhost):" + port + "/") : null;
   var MAX = 50;
-  var dev = window.__zentaraDev = { errors: [], failed: [], route: me && me.getAttribute("data-route") || undefined };
+  var dev = window.__zentaraDev = { errors: [], failed: [], route: me && me.getAttribute("data-route") || undefined, request: me && me.getAttribute("data-request") || undefined };
   function push(list, item){ if (list.length < MAX) list.push(item); }
   function str(v){
     try { if (v instanceof Error) return v.name + ": " + v.message; if (v && typeof v === "object") return JSON.stringify(v); } catch (e) {}
@@ -67,6 +67,65 @@ export const PROBE_JS = String.raw`
       return XS.apply(this, arguments);
     };
   }
+  // Rekaman langkah pengguna (30 terakhir, per tab) untuk dilampirkan saat bertanya ke AI tentang error.
+  var STEPS = "__zentara_steps", PRIVATE_STEP = /pass|token|secret|card|cvv|cvc|pin|otp/i;
+  function readSteps(){ try { var l = JSON.parse(sessionStorage.getItem(STEPS) || "[]"); return Array.isArray(l) ? l : []; } catch (e) { return []; } }
+  function step(s){
+    if (window.name === "zentara-view") return;
+    try { var l = readSteps(); s.t = Date.now(); l.push(s); if (l.length > 30) l = l.slice(-30); sessionStorage.setItem(STEPS, JSON.stringify(l)); } catch (e) {}
+  }
+  function label(el){
+    var tag = el.tagName.toLowerCase(), n = el.getAttribute("name");
+    var tx = clip(el.getAttribute("aria-label") || (tag === "input" || tag === "select" || tag === "textarea" ? "" : el.textContent) || el.getAttribute("placeholder") || el.getAttribute("title") || "", 50);
+    return tag + (n ? "[name=" + n + "]" : "") + (tx ? " " + JSON.stringify(tx) : "") + (el.getAttribute("data-zsrc") ? " @" + el.getAttribute("data-zsrc") : "");
+  }
+  dev.steps = readSteps;
+  step({ kind: "load", url: location.pathname + location.search, request: dev.request });
+  document.addEventListener("click", function(ev){
+    var el = ev.target && ev.target.closest ? ev.target.closest("a,button,summary,label,[role=button],input[type=checkbox],input[type=radio],input[type=submit]") : null;
+    if (el && !window.__zentaraInspecting && !(el.closest && el.closest("#zentara-dev-widget"))) step({ kind: "click", target: label(el) });
+  }, true);
+  document.addEventListener("change", function(ev){
+    var el = ev.target;
+    if (!el || !/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) || el.type === "checkbox" || el.type === "radio") return;
+    var secret = el.type === "password" || el.type === "hidden" || el.hasAttribute("data-private") || PRIVATE_STEP.test(el.name || "") || PRIVATE_STEP.test(el.autocomplete || "");
+    var value = el.tagName === "SELECT" && el.selectedIndex >= 0 ? el.options[el.selectedIndex].text : el.type === "file" ? (el.files ? el.files.length + " file" : "") : el.value;
+    step({ kind: "input", target: label(el), value: secret ? "•••" : clip(value, 40) });
+  }, true);
+  document.addEventListener("submit", function(ev){
+    var f = ev.target;
+    if (f && f.tagName === "FORM") step({ kind: "submit", target: (f.getAttribute("method") || "get").toUpperCase() + " " + (f.getAttribute("action") || location.pathname) });
+  }, true);
+
+  // Fakta untuk skor halaman (dinilai di server, lihat pageScore di dev/view.ts).
+  function audit(){
+    var doc = document, out = { imgNoAlt: [], unlabeled: [], unnamed: [] };
+    var nav = performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
+    var res = performance.getEntriesByType ? performance.getEntriesByType("resource") : [];
+    var bytes = nav ? nav.transferSize || nav.encodedBodySize || 0 : 0;
+    for (var r = 0; r < res.length; r++) if (!skip(res[r].name)) bytes += res[r].transferSize || res[r].encodedBodySize || 0;
+    out.load = Math.round(nav && nav.loadEventEnd > 0 ? nav.loadEventEnd - nav.startTime : performance.now());
+    out.bytes = bytes;
+    out.requests = 1 + res.filter(function(e){ return !skip(e.name) && !/\/_zentara\/dev\//.test(e.name); }).length;
+    out.title = !!doc.title.trim();
+    out.description = !!doc.querySelector('meta[name="description"][content]:not([content=""])');
+    out.lang = !!doc.documentElement.getAttribute("lang");
+    out.h1 = doc.querySelectorAll("h1").length;
+    function visible(el){ return !(el.closest && el.closest("#zentara-dev-widget")) && el.getClientRects().length > 0; }
+    doc.querySelectorAll("img:not([alt])").forEach(function(el){ if (out.imgNoAlt.length < 10) out.imgNoAlt.push(clip(el.getAttribute("src"), 80) + (el.getAttribute("data-zsrc") ? " @" + el.getAttribute("data-zsrc") : "")); });
+    doc.querySelectorAll("input:not([type=hidden]):not([type=submit]):not([type=button]),select,textarea").forEach(function(el){
+      if (!visible(el) || out.unlabeled.length >= 10) return;
+      var named = el.getAttribute("aria-label") || el.getAttribute("aria-labelledby") || el.getAttribute("title") || (el.labels && el.labels.length);
+      if (!named) out.unlabeled.push(label(el));
+    });
+    doc.querySelectorAll("a[href],button").forEach(function(el){
+      if (!visible(el) || out.unnamed.length >= 10) return;
+      var name = (el.textContent || "").trim() || el.getAttribute("aria-label") || el.getAttribute("aria-labelledby") || el.getAttribute("title") || (el.querySelector("img[alt]:not([alt=''])") ? "img" : "");
+      if (!name) out.unnamed.push(label(el));
+    });
+    return out;
+  }
+
   var KEEP = /^(H[1-6]|A|BUTTON|INPUT|SELECT|TEXTAREA|LABEL|IMG|TABLE|FORM|NAV|HEADER|FOOTER|MAIN|ASIDE|DIALOG|LI|P|SUMMARY|TD|TH|VIDEO|CANVAS|IFRAME)$/;
   var SKIP = /^(SCRIPT|STYLE|NOSCRIPT|TEMPLATE|META|LINK|BR|HEAD|TITLE)$/;
   var PRIVATE = /pass|token|secret|card|cvv|cvc|pin/i;
@@ -114,6 +173,7 @@ export const PROBE_JS = String.raw`
       else if (/^(H[1-6]|BUTTON|LABEL|SUMMARY|LI|P|TD|TH)$/.test(tag)) item.text = clip(el.textContent || el.getAttribute("aria-label"), tag === "P" ? 160 : 80);
       else if (own) item.text = clip(own, 80);
       if (el.id) a.id = el.id;
+      var zsrc = el.getAttribute("data-zsrc"); if (zsrc) item.at = zsrc;
       for (var k in a) { has = true; break; }
       if (has) item.attrs = a;
       out.push(item);
@@ -125,11 +185,13 @@ export const PROBE_JS = String.raw`
     }
     var nav = win.performance && performance.getEntriesByType ? performance.getEntriesByType("navigation")[0] : null;
     var layout; try { layout = measure(); } catch (e) { layout = undefined; }
+    var facts; try { facts = audit(); } catch (e) { facts = undefined; }
     return {
       url: location.href, title: doc.title, status: nav && nav.responseStatus ? nav.responseStatus : undefined, route: dev.route,
       viewport: { w: vw, h: vh }, docHeight: doc.documentElement.scrollHeight,
       elements: out, truncated: i < all.length, text: clip(doc.body ? doc.body.innerText : "", 4000),
-      errors: dev.errors.slice(), failed: dev.failed.slice(), matches: matches, layout: layout
+      errors: dev.errors.slice(), failed: dev.failed.slice(), matches: matches, layout: layout,
+      request: dev.request, audit: facts, steps: window.name === "zentara-view" ? undefined : readSteps()
     };
   };
 
@@ -249,7 +311,7 @@ export const PROBE_JS = String.raw`
 const WIDGET_CSS = `
 :host{all:initial}
 .zw{position:fixed;right:18px;bottom:18px;z-index:2147483000;font:14.5px/1.6 var(--sans);color:var(--text)}
-.zw-launch{display:flex;align-items:center;gap:8px;background:var(--brand-teal);color:var(--on-accent);border:0;border-radius:999px;padding:10px 16px 10px 12px;font:600 14px/1 var(--sans);box-shadow:var(--shadow);cursor:pointer}
+.zw-launch{white-space:nowrap;display:flex;align-items:center;gap:8px;background:var(--brand-teal);color:var(--on-accent);border:0;border-radius:999px;padding:10px 16px 10px 12px;font:600 14px/1 var(--sans);box-shadow:var(--shadow);cursor:pointer}
 .zw-launch:hover{filter:brightness(1.06)}
 .zw-launch .zx-logo{width:20px;height:20px}
 .zw-launch .n{background:var(--danger);color:#fff;border-radius:999px;font-size:11px;padding:3px 7px;line-height:1}
@@ -262,7 +324,21 @@ const WIDGET_CSS = `
 .zw-head .x{border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
 .zw-head .x:hover{color:var(--text)}
 .zw-body{flex:1;min-height:0;padding:12px 14px}
-@media (max-width:520px){.zw-panel{right:8px;left:8px;width:auto;bottom:72px}.zw{right:10px;bottom:10px}}
+.zw-bar{display:flex;align-items:center;gap:8px}
+.zw-tool{white-space:nowrap;display:flex;align-items:center;gap:6px;height:36px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:999px;padding:0 12px;font:500 12.5px/1 var(--mono);box-shadow:var(--shadow);cursor:pointer}
+.zw-tool:hover,.zw-tool[aria-pressed=true]{border-color:var(--brand-teal)}
+.zw-tool .w{color:var(--danger);font-weight:700}
+.zw-req{position:fixed;right:18px;bottom:76px;width:min(460px,calc(100vw - 36px));max-height:min(520px,calc(100vh - 100px));overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:12px 14px;font-size:13px}
+.zw-req h3{margin:10px 0 4px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.zw-req h3:first-child{margin-top:0}
+.zw-req ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.zw-req li{font-family:var(--mono);font-size:12px;word-break:break-word;border-left:2px solid var(--border);padding-left:8px}
+.zw-req li.warn{border-left-color:var(--danger)}
+.zw-req .ms{color:var(--muted)}
+.zw-hl{position:fixed;pointer-events:none;z-index:2147483001;outline:2px solid var(--brand-teal);background:rgba(46,211,183,.12);border-radius:3px}
+.zw-hl-label{position:fixed;pointer-events:none;z-index:2147483002;background:var(--text);color:var(--surface);font:500 12px/1.4 var(--mono);padding:3px 7px;border-radius:6px;max-width:80vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zw-toast{position:fixed;right:18px;bottom:76px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow);padding:8px 12px;font-size:13px;max-width:320px}
+@media (max-width:520px){.zw-panel,.zw-req{right:8px;left:8px;width:auto;bottom:72px}.zw{right:10px;bottom:10px}.zw-tool .l,.zw-tool .q{display:none}}
 `;
 
 const WIDGET_JS = String.raw`
@@ -329,6 +405,7 @@ const WIDGET_JS = String.raw`
             var ev; try { ev = JSON.parse(l); } catch (e) { return; }
             if (ev.type === "hello") pageId = ev.id;
             else if (ev.type === "view") view(ev);
+            else if (ev.type === "reload") autoReload();
           });
           return pump();
         });
@@ -339,6 +416,14 @@ const WIDGET_JS = String.raw`
       if (delay < 0) return;
       setTimeout(function(){ channel(Math.min((delay || 1000) * 2, 30000)); }, delay || 1000);
     });
+  }
+  // Muat ulang otomatis setelah kode berubah, kecuali ada isian formulir yang belum dikirim.
+  var dirty = false;
+  document.addEventListener("input", function(e){ var t = e.target; if (t && t.form && !(t.closest && t.closest("#zentara-dev-widget"))) dirty = true; }, true);
+  document.addEventListener("submit", function(){ dirty = false; }, true);
+  function autoReload(){
+    if (dirty) { if (window.__zentaraToast) window.__zentaraToast(C.reloadSkipped); return; }
+    location.reload();
   }
   function focused(){ if (pageId && document.visibilityState === "visible") post("/page-focus", { id: pageId, url: location.href }).catch(function(){}); }
   window.addEventListener("focus", focused);
@@ -360,7 +445,10 @@ const WIDGET_JS = String.raw`
   wrap.innerHTML =
     '<div class="zw-panel" hidden><div class="zw-head">' + logo + '<div class="tt"><strong>' + esc(C.title) + '</strong><span class="sub"></span></div>' +
     '<button type="button" class="x" aria-label="' + esc(C.close) + '">×</button></div><div class="zw-body"></div></div>' +
-    '<button type="button" class="zw-launch" aria-expanded="false">' + logo + '<span>' + esc(C.launcher) + '</span><span class="n" hidden></span></button>';
+    '<div class="zw-req" hidden></div><div class="zw-toast" role="status" hidden></div>' +
+    '<div class="zw-bar"><button type="button" class="zw-tool zw-reqbtn" aria-expanded="false" hidden></button>' +
+    '<button type="button" class="zw-tool zw-inspect" aria-pressed="false" title="' + esc(C.inspectHint) + '"><span aria-hidden="true">⌖</span><span class="l">' + esc(C.inspect) + '</span></button>' +
+    '<button type="button" class="zw-launch" aria-expanded="false">' + logo + '<span>' + esc(C.launcher) + '</span><span class="n" hidden></span></button></div>';
   shadow.appendChild(wrap);
   (document.body || document.documentElement).appendChild(root);
 
@@ -369,6 +457,8 @@ const WIDGET_JS = String.raw`
   var chat = null;
   function setOpen(on){
     panel.hidden = !on;
+    if (on && toast) toast.hidden = true;
+    if (on && reqPanel) { reqPanel.hidden = true; reqBtn.setAttribute("aria-expanded", "false"); }
     launch.setAttribute("aria-expanded", on ? "true" : "false");
     try { sessionStorage.setItem(OPEN_KEY, on ? "1" : ""); } catch (e) {}
     if (on && !chat) {
@@ -382,6 +472,91 @@ const WIDGET_JS = String.raw`
   launch.addEventListener("click", function(){ setOpen(panel.hidden); });
   wrap.querySelector(".x").addEventListener("click", function(){ setOpen(false); });
   try { if (sessionStorage.getItem(OPEN_KEY) === "1") setOpen(true); } catch (e) {}
+  var toast = wrap.querySelector(".zw-toast"), toastTimer;
+  window.__zentaraToast = function(text){ toast.textContent = text; toast.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(function(){ toast.hidden = true; }, 5000); };
+
+  // Toolbar request: waktu proses server, jumlah query (dengan tanda N+1), session, dan log request halaman ini.
+  var reqBtn = wrap.querySelector(".zw-reqbtn"), reqPanel = wrap.querySelector(".zw-req");
+  var requestId = window.__zentaraDev && window.__zentaraDev.request;
+  function li(text, cls){ return '<li' + (cls ? ' class="' + cls + '"' : "") + ">" + text + "</li>"; }
+  function showTrace(tr){
+    var db = 0; tr.queries.forEach(function(q){ db += q.ms || 0; });
+    reqBtn.innerHTML = "<span>" + esc(Math.round(tr.ms || 0)) + " ms</span><span class=\"q\">· " + esc(C.queries.replace("{n}", tr.queries.length)) + "</span>" + (tr.repeated.length ? '<span class="w">· N+1</span>' : "");
+    reqBtn.title = C.requestTitle;
+    reqBtn.hidden = false;
+    var html = "<h3>" + esc(tr.method + " " + tr.path + " → " + tr.status) + "</h3><ul>" + li(esc(C.serverTime.replace("{ms}", tr.ms).replace("{db}", Math.round(db * 10) / 10))) + (tr.route ? li(esc(tr.route)) : "") + "</ul>";
+    if (tr.repeated.length) html += "<h3>" + esc(C.nPlusOne) + "</h3><ul>" + tr.repeated.map(function(r){ return li(esc(r.count + "× " + r.sql), "warn"); }).join("") + "</ul>";
+    html += "<h3>" + esc(C.queries.replace("{n}", tr.queries.length)) + "</h3><ul>" + (tr.queries.length ? tr.queries.map(function(q){ return li((q.ms != null ? '<span class="ms">' + esc(q.ms) + " ms</span> " : "") + esc(q.sql)); }).join("") : li(esc(C.none))) + "</ul>";
+    if (tr.session) { var keys = Object.keys(tr.session); html += "<h3>Session</h3><ul>" + (keys.length ? keys.map(function(k){ return li(esc(k + ": " + tr.session[k])); }).join("") : li(esc(C.none))) + "</ul>"; }
+    html += "<h3>" + esc(C.logs) + "</h3><ul>" + (tr.logs.length ? tr.logs.map(function(l){ return li(esc("[" + l.level + "] " + l.message), l.level === "error" || l.level === "warn" ? "warn" : ""); }).join("") : li(esc(C.none))) + "</ul>";
+    reqPanel.innerHTML = html;
+  }
+  function loadTrace(attempt){
+    if (!requestId) return;
+    fetch("/_zentara/dev/requests/" + encodeURIComponent(requestId), { headers: { "X-Zentara-Token": token }, cache: "no-store" }).then(function(r){
+      if (r.status === 404 && attempt < 3) { setTimeout(function(){ loadTrace(attempt + 1); }, 300); return; }
+      if (r.ok) return r.json().then(showTrace);
+    }).catch(function(){});
+  }
+  loadTrace(0);
+  reqBtn.addEventListener("click", function(){
+    var open = reqPanel.hidden;
+    if (open) { setOpen(false); toast.hidden = true; }
+    reqPanel.hidden = !open; reqBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  // Mode inspeksi: sorot elemen beserta file:baris yang membuatnya; klik untuk bertanya ke AI tentang elemen itu.
+  var inspectBtn = wrap.querySelector(".zw-inspect"), inspecting = false, hl, hlLabel, current;
+  function describeEl(el){
+    var tag = el.tagName.toLowerCase();
+    var tx = (el.getAttribute("aria-label") || el.getAttribute("alt") || el.textContent || el.getAttribute("placeholder") || "").replace(/\s+/g, " ").trim();
+    return tag + (tx ? ' "' + (tx.length > 50 ? tx.slice(0, 49) + "…" : tx) + '"' : "");
+  }
+  function target(ev){
+    var el = ev.target;
+    if (!el || el === root || !el.closest || el.closest("#zentara-dev-widget")) return null;
+    return el.closest("[data-zsrc]") || el;
+  }
+  function onMove(ev){
+    var el = target(ev);
+    current = el;
+    if (!el) { hl.hidden = hlLabel.hidden = true; return; }
+    var r = el.getBoundingClientRect();
+    hl.hidden = hlLabel.hidden = false;
+    hl.style.left = r.left + "px"; hl.style.top = r.top + "px"; hl.style.width = r.width + "px"; hl.style.height = r.height + "px";
+    hlLabel.textContent = (el.getAttribute("data-zsrc") || C.noSource) + " · " + describeEl(el);
+    hlLabel.style.left = Math.max(4, Math.min(r.left, innerWidth - 320)) + "px";
+    hlLabel.style.top = (r.top > 28 ? r.top - 26 : Math.min(innerHeight - 26, r.bottom + 4)) + "px";
+  }
+  function onClick(ev){
+    var el = target(ev);
+    if (!el) return;
+    ev.preventDefault(); ev.stopPropagation();
+    setInspect(false);
+    var src = el.getAttribute("data-zsrc");
+    if (src && navigator.clipboard) navigator.clipboard.writeText(src).catch(function(){});
+    setOpen(true);
+    if (chat && chat.prefill) chat.prefill(C.aboutElement.replace("{el}", describeEl(el)).replace("{src}", src || C.noSource));
+  }
+  function onKey(ev){ if (ev.key === "Escape") setInspect(false); }
+  function setInspect(on){
+    inspecting = on;
+    window.__zentaraInspecting = on;
+    inspectBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    if (on && !hl) {
+      hl = document.createElement("div"); hl.className = "zw-hl"; hl.hidden = true;
+      hlLabel = document.createElement("div"); hlLabel.className = "zw-hl-label"; hlLabel.hidden = true;
+      shadow.appendChild(hl); shadow.appendChild(hlLabel);
+    }
+    var m = on ? "addEventListener" : "removeEventListener";
+    document[m]("mousemove", onMove, true);
+    document[m]("click", onClick, true);
+    document[m]("keydown", onKey, true);
+    if (!on && hl) hl.hidden = hlLabel.hidden = true;
+    if (on) window.__zentaraToast(C.inspectHint);
+  }
+  inspectBtn.addEventListener("click", function(ev){ ev.stopPropagation(); setInspect(!inspecting); });
+
   function problems(){
     var d = window.__zentaraDev; var n = d ? d.errors.length + d.failed.length : 0;
     badge.hidden = !n; badge.textContent = String(n); launch.title = n ? C.problems.replace("{n}", n) : "";
@@ -400,12 +575,13 @@ function isDocument(html: string): boolean {
  * Sisipkan probe dan widget ke dokumen HTML saat pengembangan. Tanpa devtools (produksi, `zentara start`,
  * atau server yang tidak dijalankan oleh `zentara dev`) HTML dikembalikan apa adanya.
  */
-export function injectDevTools(html: string, options: { route?: string; headers?: IncomingMessage["headers"] } = {}): string {
+export function injectDevTools(html: string, options: { route?: string; headers?: IncomingMessage["headers"]; request?: string } = {}): string {
   const devtools = devtoolsClient();
   if (!devtools || !isDocument(html)) return html;
   if (options.headers?.["hx-request"] !== undefined) return html;
   const route = options.route ? ` data-route="${escapeHtml(options.route)}"` : "";
-  const probe = `<script src="/_zentara/dev/probe.js" data-port="${devtools.port}"${route}></script>`;
+  const request = options.request ? ` data-request="${escapeHtml(options.request)}"` : "";
+  const probe = `<script src="/_zentara/dev/probe.js" data-port="${devtools.port}"${route}${request}></script>`;
   // Halaman sambutan dan error sudah punya chat sendiri: cukup kanal halaman tanpa tombol mengambang.
   const ui = html.includes("window.ZentaraChat") ? "off" : "on";
   const widget = `<script src="/_zentara/dev/widget.js" data-port="${devtools.port}" data-token="${escapeHtml(devtools.token)}" data-ui="${ui}" defer></script>`;
@@ -435,6 +611,17 @@ function widgetScript(): string {
     suggestions: m.widget.suggestions,
     pageAttached: m.widget.pageAttached,
     problems: m.widget.problems,
+    reloadSkipped: m.widget.reloadSkipped,
+    inspect: m.widget.inspect,
+    inspectHint: m.widget.inspectHint,
+    noSource: m.widget.noSource,
+    aboutElement: m.widget.aboutElement,
+    queries: m.widget.queries,
+    requestTitle: m.widget.requestTitle,
+    serverTime: m.widget.serverTime,
+    nPlusOne: m.widget.nPlusOne,
+    logs: m.widget.logs,
+    none: m.widget.none,
   };
   return `${CHAT_JS}\n${WIDGET_JS}(${jsonForScript(config)});\n`;
 }

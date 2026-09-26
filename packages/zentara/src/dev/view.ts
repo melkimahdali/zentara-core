@@ -13,7 +13,10 @@
  *
  * Hasilnya mengikuti bahasa Zentara (id/en), baik untuk model maupun `zentara view` di terminal.
  */
+import type { RequestTrace } from "../core/devtrace.js";
 import { t } from "../i18n/index.js";
+import { formatTrace } from "./requests.js";
+import { captureScreenshot, type Screenshot } from "./screenshot.js";
 
 export interface PageElement {
   tag: string;
@@ -28,6 +31,8 @@ export interface PageElement {
   /** true bila elemen berada di luar layar (perlu digulir). */
   off?: boolean;
   attrs?: Record<string, string>;
+  /** File:baris kode yang membuat elemen ini (mode inspeksi, hanya saat `zentara dev`). */
+  at?: string;
 }
 
 export interface PageProblem {
@@ -43,12 +48,73 @@ export interface FailedRequest {
   statusText?: string;
 }
 
-/** Ukuran layar untuk `view_page`: desktop (default) dan ponsel. */
-export type Viewport = "desktop" | "mobile";
-export const VIEWPORTS: Record<Viewport, { w: number; h: number }> = { desktop: { w: 1280, h: 800 }, mobile: { w: 390, h: 844 } };
+/** Ukuran layar untuk `view_page`: desktop (default), tablet, dan ponsel. */
+export type Viewport = "desktop" | "tablet" | "mobile";
+export const VIEWPORTS: Record<Viewport, { w: number; h: number }> = { desktop: { w: 1280, h: 800 }, tablet: { w: 768, h: 1024 }, mobile: { w: 390, h: 844 } };
 
 export function parseViewport(value: unknown): Viewport {
-  return value === "mobile" ? "mobile" : "desktop";
+  return value === "mobile" || value === "tablet" ? value : "desktop";
+}
+
+/** Varian tampilan: mode gelap/terang dan bahasa, hanya untuk request ini (lihat takeViewOverride di runtime). */
+export interface ViewVariant {
+  theme?: "light" | "dark";
+  lang?: "id" | "en";
+}
+
+export function parseVariant(raw: { theme?: unknown; lang?: unknown }): ViewVariant {
+  const out: ViewVariant = {};
+  if (raw.theme === "light" || raw.theme === "dark") out.theme = raw.theme;
+  if (raw.lang === "id" || raw.lang === "en") out.lang = raw.lang;
+  return out;
+}
+
+/** Tambahkan parameter varian ke path, mis. "/produk?__zentara_mode=dark". */
+export function withVariant(path: string, variant: ViewVariant & { shot?: boolean }): string {
+  const params: string[] = [];
+  if (variant.theme) params.push(`__zentara_mode=${variant.theme}`);
+  if (variant.lang) params.push(`__zentara_lang=${variant.lang}`);
+  if (variant.shot) params.push("__zentara_shot=1");
+  if (!params.length) return path;
+  const hash = path.indexOf("#");
+  const base = hash >= 0 ? path.slice(0, hash) : path;
+  return `${base}${base.includes("?") ? "&" : "?"}${params.join("&")}${hash >= 0 ? path.slice(hash) : ""}`;
+}
+
+/** Fakta untuk skor halaman: diukur probe di browser, atau dibaca dari HTML pada versi teks. */
+export interface PageAudit {
+  /** Waktu muat (ms), ukuran total (byte), dan jumlah request. Tidak ada di versi teks kecuali ukuran HTML. */
+  load?: number;
+  bytes?: number;
+  requests?: number;
+  title: boolean;
+  description: boolean;
+  lang: boolean;
+  h1: number;
+  imgNoAlt: string[];
+  /** Field formulir tanpa label dan tombol/link tanpa nama (hanya di browser). */
+  unlabeled: string[];
+  unnamed: string[];
+}
+
+export interface ScoreFinding {
+  kind: "speed" | "size" | "requests" | "seo" | "a11y";
+  message: string;
+  penalty: number;
+}
+
+export interface PageScore {
+  value: number;
+  findings: ScoreFinding[];
+}
+
+/** Langkah pengguna sebelum bertanya ke AI (klik, isian, kirim formulir, pindah halaman). */
+export interface UserStep {
+  kind: "load" | "click" | "input" | "submit";
+  target?: string;
+  url?: string;
+  value?: string;
+  request?: string;
 }
 
 /**
@@ -135,6 +201,10 @@ export interface PageSnapshot {
   /** Ukuran layar yang diminta. */
   device?: Viewport;
   layout?: LayoutData;
+  /** Id jejak request halaman ini (lihat `zentara requests`). */
+  request?: string;
+  audit?: PageAudit;
+  steps?: UserStep[];
 }
 
 export interface ViewExpect {
@@ -144,6 +214,8 @@ export interface ViewExpect {
   noConsoleErrors?: boolean;
   /** Tidak ada temuan pemeriksaan tampilan. */
   noLayoutIssues?: boolean;
+  /** Skor halaman minimal (0-100). */
+  minScore?: number;
 }
 
 /** Hasil dari tab browser: snapshot, atau alasan gagal (mis. iframe diblokir). */
@@ -154,6 +226,10 @@ export interface PageViewer {
   appUrl(): string | undefined;
   /** Buka `path` di tab browser yang terhubung. undefined bila tidak ada tab. */
   browser(path: string, options: { selectors?: string[]; viewport?: Viewport; signal?: AbortSignal }): Promise<BrowserView | undefined>;
+  /** Jejak request dari server aplikasi (waktu proses, query, log). undefined bila tidak tersedia. */
+  trace?(id: string, options?: { signal?: AbortSignal }): Promise<RequestTrace | undefined>;
+  /** 50 jejak terakhir, atau satu jejak bila `id` diisi. undefined bila aplikasi belum melapor. */
+  traces?(id: string | undefined, options?: { signal?: AbortSignal }): Promise<RequestTrace[] | undefined>;
   /**
    * Tunggu server aplikasi selesai dimulai ulang setelah file berubah pada waktu `after` (ms epoch).
    * Langsung selesai bila server sudah mulai setelah itu, atau belum pernah melapor (bukan server `zentara dev`).
@@ -195,6 +271,7 @@ export function normalizeSnapshot(raw: unknown): PageSnapshot | undefined {
         if (e.text) el.text = clip(e.text, 160);
         if (e.rows !== undefined) el.rows = num(e.rows);
         if (e.off) el.off = true;
+        if (typeof e.at === "string" && /^[^\s:]+:\d+$/.test(e.at)) el.at = clip(e.at, 200);
         if (e.attrs && typeof e.attrs === "object") {
           const attrs: Record<string, string> = {};
           for (const [k, v] of Object.entries(e.attrs as Record<string, unknown>).slice(0, 12)) attrs[clip(k, 30)] = clip(v, 100);
@@ -216,10 +293,87 @@ export function normalizeSnapshot(raw: unknown): PageSnapshot | undefined {
     for (const [k, v] of Object.entries(r.matches as Record<string, unknown>).slice(0, 20)) matches[clip(k, 200)] = Number.isFinite(Number(v)) ? Number(v) : -1;
     snapshot.matches = matches;
   }
-  if (r.device === "mobile" || r.device === "desktop") snapshot.device = r.device;
+  if (r.device === "mobile" || r.device === "desktop" || r.device === "tablet") snapshot.device = r.device;
   const layout = normalizeLayout(r.layout);
   if (layout) snapshot.layout = layout;
+  if (typeof r.request === "string" && /^[\w-]{1,40}$/.test(r.request)) snapshot.request = r.request;
+  const audit = normalizeAudit(r.audit);
+  if (audit) snapshot.audit = audit;
+  const steps = list(r.steps, (st): UserStep | undefined => {
+    const kind = st.kind;
+    if (kind !== "load" && kind !== "click" && kind !== "input" && kind !== "submit") return undefined;
+    const out: UserStep = { kind };
+    if (st.target) out.target = clip(st.target, 160);
+    if (st.url) out.url = clip(st.url, 300);
+    if (st.value !== undefined && st.value !== "") out.value = clip(st.value, 60);
+    if (typeof st.request === "string" && /^[\w-]{1,40}$/.test(st.request)) out.request = st.request;
+    return out;
+  }).filter((x): x is UserStep => x !== undefined);
+  if (steps.length) snapshot.steps = steps.slice(-30);
   return snapshot;
+}
+
+function normalizeAudit(raw: unknown): PageAudit | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  const strings = (v: unknown) => (Array.isArray(v) ? v.slice(0, 10).map((x) => clip(x, 160)) : []);
+  const opt = (v: unknown) => (v === undefined || v === null || !Number.isFinite(Number(v)) ? undefined : Math.max(0, num(v)));
+  const audit: PageAudit = { title: r.title === true, description: r.description === true, lang: r.lang === true, h1: Math.max(0, num(r.h1)), imgNoAlt: strings(r.imgNoAlt), unlabeled: strings(r.unlabeled), unnamed: strings(r.unnamed) };
+  const load = opt(r.load);
+  const bytes = opt(r.bytes);
+  const requests = opt(r.requests);
+  if (load !== undefined) audit.load = load;
+  if (bytes !== undefined) audit.bytes = bytes;
+  if (requests !== undefined) audit.requests = requests;
+  return audit;
+}
+
+/**
+ * Skor halaman 0-100: kecepatan muat, ukuran, jumlah request, SEO dasar (judul, deskripsi, satu h1,
+ * bahasa), dan aksesibilitas dasar (alt gambar, label formulir, nama tombol/link). Setiap temuan
+ * mengurangi skor; skor tidak memengaruhi status ok/fail kecuali diminta lewat `expect.minScore`.
+ */
+export function pageScore(a: PageAudit): PageScore {
+  const m = t().dev.view.score;
+  const findings: ScoreFinding[] = [];
+  const add = (kind: ScoreFinding["kind"], penalty: number, message: string) => findings.push({ kind, penalty, message });
+  if (a.load !== undefined && a.load > 3000) add("speed", 15, m.slow(a.load));
+  else if (a.load !== undefined && a.load > 1500) add("speed", 7, m.slow(a.load));
+  if (a.bytes !== undefined && a.bytes > 2_000_000) add("size", 15, m.heavy(kb(a.bytes)));
+  else if (a.bytes !== undefined && a.bytes > 1_000_000) add("size", 7, m.heavy(kb(a.bytes)));
+  if (a.requests !== undefined && a.requests > 60) add("requests", 10, m.manyRequests(a.requests));
+  else if (a.requests !== undefined && a.requests > 30) add("requests", 5, m.manyRequests(a.requests));
+  if (!a.title) add("seo", 10, m.noTitle);
+  if (!a.description) add("seo", 5, m.noDescription);
+  if (a.h1 !== 1) add("seo", 5, m.h1(a.h1));
+  if (!a.lang) add("seo", 5, m.noLang);
+  for (const img of a.imgNoAlt.slice(0, 4)) add("a11y", 5, m.imgNoAlt(img));
+  for (const field of a.unlabeled.slice(0, 4)) add("a11y", 5, m.unlabeled(field));
+  for (const el of a.unnamed.slice(0, 3)) add("a11y", 5, m.unnamed(el));
+  const value = Math.max(0, 100 - findings.reduce((n, f) => n + f.penalty, 0));
+  return { value, findings };
+}
+
+function kb(bytes: number): string {
+  return bytes >= 1_000_000 ? `${(bytes / 1_000_000).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1000))} KB`;
+}
+
+function formatScore(score: PageScore, a: PageAudit, textOnly: boolean): string[] {
+  const m = t().dev.view.score;
+  const facts = [a.load !== undefined ? m.load(a.load) : undefined, a.bytes !== undefined ? kb(a.bytes) : undefined, a.requests !== undefined ? m.requests(a.requests) : undefined].filter(Boolean);
+  return [`${m.title(score.value)}${facts.length ? ` (${facts.join(", ")})` : ""}`, ...score.findings.map((f) => `- [${f.kind}] ${f.message} (-${f.penalty})`), ...(textOnly ? [m.textOnly] : [])];
+}
+
+function formatSteps(steps: UserStep[]): string[] {
+  const m = t().dev.view.steps;
+  return [
+    m.title(steps.length),
+    ...steps.map((st) => {
+      if (st.kind === "load") return `- ${m.load} ${st.url ?? ""}${st.request ? ` (request ${st.request})` : ""}`;
+      if (st.kind === "input") return `- ${m.input} ${st.target ?? ""}${st.value !== undefined ? ` = ${JSON.stringify(st.value)}` : ""}`;
+      return `- ${st.kind === "click" ? m.click : m.submit} ${st.target ?? ""}`;
+    }),
+  ];
 }
 
 const MAX_BOXES = 600;
@@ -384,7 +538,7 @@ function describeElement(e: PageElement): string {
   if (attrs.length) head += ` (${attrs.join(" ")})`;
   const text = e.text ? ` ${JSON.stringify(e.text)}` : "";
   const rows = e.rows !== undefined ? ` ${v.rows(e.rows)}` : "";
-  return `- ${head}${rows}${text} @${e.x},${e.y} ${e.w}x${e.h}${e.off ? ` ${v.offScreen}` : ""}`;
+  return `- ${head}${rows}${text} @${e.x},${e.y} ${e.w}x${e.h}${e.off ? ` ${v.offScreen}` : ""}${e.at ? ` ← ${e.at}` : ""}`;
 }
 
 function formatIssues(issues: LayoutIssue[], textOnly: boolean): string[] {
@@ -395,10 +549,11 @@ function formatIssues(issues: LayoutIssue[], textOnly: boolean): string[] {
 }
 
 /** Tulis snapshot browser sebagai teks ringkas untuk model (dan `zentara view`). */
-export function formatSnapshot(s: PageSnapshot, options: { issues?: LayoutIssue[] } = {}): string {
+export function formatSnapshot(s: PageSnapshot, options: { issues?: LayoutIssue[]; score?: PageScore } = {}): string {
   const v = t().dev.view;
   const lines = [`${v.browserPage(s.url)}${s.status ? ` (HTTP ${s.status})` : ""}`, `${v.title}: ${s.title || v.none}`];
   if (s.route) lines.push(`${v.routeFile}: ${s.route}`);
+  if (s.request) lines.push(v.requestId(s.request));
   lines.push(`${v.viewport(s.device ?? "", s.viewport.w, s.viewport.h)}${s.docHeight ? `, ${v.pageHeight(s.docHeight)}` : ""}`);
   if (s.note === "no-probe") lines.push(v.noProbe);
   lines.push(v.consoleErrors(s.errors.length));
@@ -406,6 +561,8 @@ export function formatSnapshot(s: PageSnapshot, options: { issues?: LayoutIssue[
   lines.push(v.failedRequests(s.failed.length));
   for (const f of s.failed) lines.push(`- ${f.method} ${f.url} -> ${f.status || v.networkError}${f.statusText ? ` ${f.statusText}` : ""}`);
   if (s.layout || options.issues) lines.push(...formatIssues(options.issues ?? layoutIssues(s), false));
+  if (s.audit) lines.push(...formatScore(options.score ?? pageScore(s.audit), s.audit, false));
+  if (s.steps?.length) lines.push(...formatSteps(s.steps));
   if (s.matches) {
     lines.push(v.selectorMatches);
     for (const [sel, n] of Object.entries(s.matches)) lines.push(`- ${sel}: ${n < 0 ? v.invalidSelector : n}`);
@@ -452,6 +609,8 @@ export interface HtmlFacts {
   framework: boolean;
   /** src gambar lokal (untuk diperiksa apakah bisa dimuat). */
   images: string[];
+  /** Fakta skor halaman yang terbaca dari HTML. */
+  audit: PageAudit;
 }
 
 /** Fakta dari HTML untuk pemeriksaan tampilan versi teks (CSS sendiri, kit UI, meta viewport, gambar). */
@@ -470,6 +629,18 @@ export function htmlFacts(html: string): HtmlFacts {
     .filter((href) => !/^\/_zentara\//.test(href));
   const images = [...clean.matchAll(/<img\b([^>]*)>/gi)].map((m) => attr(m[1]!, "src") ?? "").filter((src) => src.startsWith("/") && !src.startsWith("//"));
   const body = /<body\b([^>]*)>/i.exec(clean);
+  const noAlt = [...clean.matchAll(/<img\b([^>]*)>/gi)].filter((m) => attr(m[1]!, "alt") === undefined).map((m) => clip(attr(m[1]!, "src") ?? "", 80));
+  const htmlTag = /<html\b([^>]*)>/i.exec(clean);
+  const audit: PageAudit = {
+    bytes: Buffer.byteLength(html),
+    title: stripTags(/<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(clean)?.[1] ?? "") !== "",
+    description: [...clean.matchAll(/<meta\b([^>]*)>/gi)].some((m) => (attr(m[1]!, "name") ?? "").toLowerCase() === "description" && Boolean(attr(m[1]!, "content"))),
+    lang: Boolean(htmlTag && attr(htmlTag[1]!, "lang")),
+    h1: (clean.match(/<h1\b/gi) ?? []).length,
+    imgNoAlt: noAlt.slice(0, 10),
+    unlabeled: [],
+    unnamed: [],
+  };
   return {
     styled,
     styleTags: (clean.match(/<style\b/gi) ?? []).length,
@@ -479,6 +650,7 @@ export function htmlFacts(html: string): HtmlFacts {
     // Halaman sambutan/error pengembangan sudah punya chat sendiri (data-ui="off" dari injectDevTools).
     framework: /window\.ZentaraChat/.test(html) || /\/_zentara\/dev\/widget\.js[^>]*data-ui="off"/.test(html),
     images: [...new Set(images)].slice(0, 10),
+    audit,
   };
 }
 
@@ -548,6 +720,9 @@ export interface TextView {
   text: string;
   /** Temuan pemeriksaan tampilan yang terbaca dari HTML (hanya untuk halaman HTML). */
   issues?: LayoutIssue[];
+  audit?: PageAudit;
+  /** Id jejak request (header X-Zentara-Request saat `zentara dev`). */
+  request?: string;
 }
 
 /** Ambil halaman langsung dari server aplikasi (tanpa browser, tanpa cookie login). */
@@ -559,6 +734,8 @@ export async function fetchTextView(url: string, options: { timeoutMs?: number; 
   const view: TextView = { url, status: res.status, contentType, title: "", lines: [], text: "" };
   const location = res.headers.get("location");
   if (location) view.location = location;
+  const request = res.headers.get("x-zentara-request");
+  if (request && /^[\w-]{1,40}$/.test(request)) view.request = request;
   if (contentType.includes("html")) {
     Object.assign(view, htmlOutline(body));
     if (res.status < 300) {
@@ -576,6 +753,7 @@ export async function fetchTextView(url: string, options: { timeoutMs?: number; 
         }),
       );
       view.issues = staticIssues(facts, broken.sort());
+      view.audit = facts.audit;
     }
   } else view.text = clip(body, MAX_TEXT);
   return view;
@@ -588,6 +766,7 @@ export function formatTextView(v: TextView): string {
   if (v.title) lines.push(`${m.title}: ${v.title}`);
   if (v.contentType) lines.push(`Content-Type: ${v.contentType}`);
   if (v.issues) lines.push(...formatIssues(v.issues, true));
+  if (v.audit) lines.push(...formatScore(pageScore(v.audit), v.audit, true));
   if (v.lines.length) lines.push(m.elements, ...v.lines);
   if (v.text) lines.push(m.pageText, v.text);
   return lines.join("\n");
@@ -600,7 +779,7 @@ function includesText(haystack: string, needle: string): boolean {
 /** Periksa harapan (`expect`) terhadap hasil lihat halaman. Mengembalikan baris hasil dan status lulus. */
 export function checkExpect(
   expect: ViewExpect,
-  view: { snapshot?: PageSnapshot; text?: TextView; issues?: LayoutIssue[] },
+  view: { snapshot?: PageSnapshot; text?: TextView; issues?: LayoutIssue[]; score?: number },
 ): { ok: boolean; lines: string[] } {
   const m = t().dev.view;
   const lines: string[] = [];
@@ -624,6 +803,11 @@ export function checkExpect(
   if (expect.noLayoutIssues) {
     const issues = view.issues ?? (s ? layoutIssues(s) : view.text?.issues ?? []);
     mark(issues.length === 0, m.expectNoLayoutIssues(issueTotal(issues)));
+  }
+  if (expect.minScore !== undefined) {
+    const audit = s?.audit ?? view.text?.audit;
+    const score = view.score ?? (audit ? pageScore(audit).value : undefined);
+    mark(score !== undefined && score >= expect.minScore, m.expectScore(expect.minScore, score === undefined ? "?" : String(score)));
   }
   return { ok, lines };
 }
@@ -656,44 +840,105 @@ export interface ViewSummary {
   issues: number;
   errors: number;
   failedChecks: number;
+  score?: number;
+  theme?: "light" | "dark";
+  lang?: "id" | "en";
+  screenshot?: string;
+}
+
+export interface ViewResult {
+  text: string;
+  ok: boolean;
+  mode: "browser" | "text";
+  summary: ViewSummary;
+  screenshot?: Screenshot;
 }
 
 /** Dipakai tool `view_page` dan `zentara view`: lihat di browser bila ada tab terhubung, bila tidak pakai versi teks. */
 export async function viewPage(
-  input: { path: string; viewport?: Viewport; expect?: ViewExpect },
+  input: { path: string; viewport?: Viewport; expect?: ViewExpect; variant?: ViewVariant; screenshot?: boolean },
   viewer: PageViewer | undefined,
-  options: { fallbackBase: string; signal?: AbortSignal; changedAt?: number },
-): Promise<{ text: string; ok: boolean; mode: "browser" | "text"; summary: ViewSummary }> {
+  options: { fallbackBase: string; signal?: AbortSignal; changedAt?: number; root?: string },
+): Promise<ViewResult> {
   const m = t().dev.view;
   // Kode baru saja diubah: tunggu server dev dimulai ulang agar yang dilihat adalah versi terbaru.
   if (viewer && options.changedAt) await viewer.waitForApp(options.changedAt, { signal: options.signal });
   const base = viewer?.appUrl() ?? options.fallbackBase;
   const target = resolveViewTarget(input.path, base);
+  const variant = input.variant ?? {};
+  const shown = withVariant(target.path, variant);
+  const shownUrl = new URL(shown, target.url).href;
   const viewport = input.viewport ?? "desktop";
   const expect = input.expect ?? {};
   const notes: string[] = [];
   const header = (summary: ViewSummary) =>
-    `RESULT ${summary.ok ? "ok" : "fail"} · ${summary.mode} · ${summary.viewport} · ${m.issueCount(summary.issues)}${summary.failedChecks ? ` · ${summary.failedChecks} FAIL` : ""}`;
-  const browser = viewer ? await viewer.browser(target.path, { selectors: expect.selector, viewport, signal: options.signal }) : undefined;
+    `RESULT ${summary.ok ? "ok" : "fail"} · ${summary.mode} · ${summary.viewport}${summary.theme ? ` · ${summary.theme}` : ""}${summary.lang ? ` · ${summary.lang}` : ""} · ${m.issueCount(summary.issues)}${summary.failedChecks ? ` · ${summary.failedChecks} FAIL` : ""}${summary.score !== undefined ? ` · ${m.score.short(summary.score)}` : ""}`;
+  const extras = async (request: string | undefined, summary: ViewSummary): Promise<{ lines: string[]; screenshot?: Screenshot }> => {
+    const lines: string[] = [];
+    if (request && viewer?.trace) {
+      try {
+        const trace = await viewer.trace(request, { signal: options.signal });
+        if (trace) lines.push(formatTrace(trace, { maxQueries: 15 }));
+      } catch {
+        // Jejak request hanya pelengkap.
+      }
+    }
+    let screenshot: Screenshot | undefined;
+    if (input.screenshot) {
+      try {
+        screenshot = await captureScreenshot(new URL(withVariant(target.path, { ...variant, shot: true }), target.url).href, {
+          root: options.root ?? process.cwd(),
+          size: VIEWPORTS[viewport],
+          name: `${target.path}-${viewport}${variant.theme ? `-${variant.theme}` : ""}${variant.lang ? `-${variant.lang}` : ""}`,
+          signal: options.signal,
+        });
+        summary.screenshot = screenshot.file;
+        lines.push(m.shot.saved(screenshot.file, screenshot.width, screenshot.height));
+      } catch (err) {
+        lines.push(m.shot.unavailable((err as Error).message));
+      }
+    }
+    return { lines, screenshot };
+  };
+  const browser = viewer ? await viewer.browser(shown, { selectors: expect.selector, viewport, signal: options.signal }) : undefined;
   if (browser && "snapshot" in browser) {
     const snapshot = { ...browser.snapshot, device: viewport };
     const issues = layoutIssues(snapshot);
-    const check = checkExpect(expect, { snapshot, issues });
+    const score = snapshot.audit ? pageScore(snapshot.audit) : undefined;
+    const check = checkExpect(expect, { snapshot, issues, score: score?.value });
     const counted = issueTotal(issues);
     const errors = snapshot.errors.length + snapshot.failed.length + ((snapshot.status ?? 200) >= 400 ? 1 : 0);
-    const summary: ViewSummary = { path: target.path, viewport, mode: "browser", ok: check.ok && counted === 0 && errors === 0, issues: counted, errors, failedChecks: check.lines.filter((l) => l.startsWith("FAIL")).length };
-    return { text: [header(summary), formatSnapshot(snapshot, { issues }), ...(check.lines.length ? [m.checks, ...check.lines] : [])].join("\n"), ok: summary.ok, mode: "browser", summary };
+    const summary: ViewSummary = {
+      path: target.path,
+      viewport,
+      mode: "browser",
+      ok: check.ok && counted === 0 && errors === 0,
+      issues: counted,
+      errors,
+      failedChecks: check.lines.filter((l) => l.startsWith("FAIL")).length,
+      ...(score ? { score: score.value } : {}),
+      ...variant,
+    };
+    const more = await extras(snapshot.request, summary);
+    return {
+      text: [header(summary), formatSnapshot(snapshot, { issues, score }), ...more.lines, ...(check.lines.length ? [m.checks, ...check.lines] : [])].join("\n"),
+      ok: summary.ok,
+      mode: "browser",
+      summary,
+      ...(more.screenshot ? { screenshot: more.screenshot } : {}),
+    };
   }
   if (browser) notes.push(m.browserFailed(browser.error));
   else notes.push(m.noTab);
-  if (viewport === "mobile") notes.push(m.mobileTextOnly);
+  if (viewport !== "desktop") notes.push(m.mobileTextOnly);
   let view: TextView;
   try {
-    view = await fetchTextView(target.url, { signal: options.signal });
+    view = await fetchTextView(shownUrl, { signal: options.signal });
   } catch (err) {
     throw new ViewUnreachableError(m.unreachable(target.url, (err as Error).message));
   }
-  const check = checkExpect(expect, { text: view });
+  const score = view.audit ? pageScore(view.audit).value : undefined;
+  const check = checkExpect(expect, { text: view, score });
   const issues = issueTotal(view.issues ?? []);
   const errors = view.status >= 400 ? 1 : 0;
   const summary: ViewSummary = {
@@ -704,6 +949,15 @@ export async function viewPage(
     issues,
     errors,
     failedChecks: check.lines.filter((l) => l.startsWith("FAIL")).length,
+    ...(score !== undefined ? { score } : {}),
+    ...variant,
   };
-  return { text: [header(summary), ...notes, formatTextView(view), ...(check.lines.length ? [m.checks, ...check.lines] : [])].join("\n"), ok: summary.ok, mode: "text", summary };
+  const more = await extras(view.request, summary);
+  return {
+    text: [header(summary), ...notes, formatTextView(view), ...more.lines, ...(check.lines.length ? [m.checks, ...check.lines] : [])].join("\n"),
+    ok: summary.ok,
+    mode: "text",
+    summary,
+    ...(more.screenshot ? { screenshot: more.screenshot } : {}),
+  };
 }

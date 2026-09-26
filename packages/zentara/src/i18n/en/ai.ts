@@ -16,6 +16,7 @@ export const ai: Messages["ai"] = {
     install_package: "Install",
     ui_catalog: "UI catalog",
     view_page: "View",
+    request_log: "Requests",
     dev_server: "Server",
   },
   summary: {
@@ -23,8 +24,8 @@ export const ai: Messages["ai"] = {
     files: (n) => `${n} ${n === 1 ? "file" : "files"}`,
     routes: (n) => `${n} ${n === 1 ? "route" : "routes"}`,
     hits: (n) => `${n} ${n === 1 ? "match" : "matches"}`,
-    view: (browser: boolean, mobile: boolean, issues: number, failed: number) =>
-      `${browser ? "in the browser" : "text version"}${mobile ? " · mobile" : ""} · ${issues ? `${issues} layout ${issues === 1 ? "finding" : "findings"}` : "layout OK"}${failed ? ` · ${failed} failed ${failed === 1 ? "check" : "checks"}` : ""}`,
+    view: (browser: boolean, device: string, issues: number, failed: number) =>
+      `${browser ? "in the browser" : "text version"}${device ? ` · ${device}` : ""} · ${issues ? `${issues} layout ${issues === 1 ? "finding" : "findings"}` : "layout OK"}${failed ? ` · ${failed} failed ${failed === 1 ? "check" : "checks"}` : ""}`,
     catalog: (n: number) => `${n} components`,
     moreLines: (n) => `… (+${n} ${n === 1 ? "line" : "lines"})`,
   },

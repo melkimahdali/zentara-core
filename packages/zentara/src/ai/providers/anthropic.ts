@@ -97,7 +97,9 @@ export class AnthropicProvider implements ModelProvider {
           content: m.results.map((r, i) => ({
             type: "tool_result" as const,
             tool_use_id: safeToolId(r.id, i),
-            content: r.content,
+            content: r.images?.length
+              ? [{ type: "text" as const, text: r.content }, ...r.images.map((img) => ({ type: "image" as const, source: { type: "base64" as const, media_type: img.mediaType, data: img.data } }))]
+              : r.content,
             is_error: r.isError ?? false,
           })),
         });

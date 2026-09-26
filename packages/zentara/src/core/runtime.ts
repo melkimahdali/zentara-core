@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { setLocale } from "../i18n/index.js";
+import { setLocale, setLocaleOverride } from "../i18n/index.js";
 import { t } from "../i18n/index.js";
 import { sendBuiltinAsset } from "./assets.js";
 import { setUiTheme } from "../ui/theme.js";
@@ -9,10 +9,14 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { resolveConfig, type UserConfig, type ZenConfig } from "./config.js";
 import { createContext, parseRequestUrl, type ZenContext } from "./context.js";
+import { finishTrace, findTrace, recentTraces, requestOverride, runWithTrace, setTracing, type RequestOverride } from "./devtrace.js";
 import { renderErrorPage, renderNotFoundPage } from "./devpage/error.js";
 import { statusPage } from "../ui/status.js";
 import { appInfo, devtoolsClient, setAppInfo } from "./devpage/info.js";
 import { announceAppUrl, injectDevTools, sendDevAsset } from "./devpage/widget.js";
+import { SESSION_SLOT, type Session } from "./session.js";
+import { setSourceTracking } from "./view.js";
+import { timingSafeEqual } from "node:crypto";
 import { HttpError } from "./errors.js";
 import { ZenLogger } from "./logger.js";
 import { compose, type Middleware } from "./middleware.js";
@@ -85,7 +89,20 @@ export class ZenRuntime {
     await this.loadJobs();
     configureMail({ ...this.config.mail, logger: this.logger });
     this.publishAppInfo();
+    this.enableDevTracing();
     this.initialized = true;
+  }
+
+  /**
+   * Saat `zentara dev` dengan devtools: catat jejak setiap request (toolbar dev, `zentara requests`),
+   * tandai elemen HTML dengan file:baris pembuatnya (mode inspeksi), dan izinkan varian bahasa per request.
+   * Di produksi tidak ada yang dinyalakan.
+   */
+  private enableDevTracing(): void {
+    const on = Boolean(devtoolsClient());
+    setTracing(on);
+    setSourceTracking(on ? process.cwd() : undefined);
+    setLocaleOverride(on ? () => requestOverride()?.locale : undefined);
   }
 
   /** Job dari folder `jobs/` di samping `routes/` (mis. src/app/jobs). */
@@ -124,8 +141,28 @@ export class ZenRuntime {
   };
 
   private async dispatch(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    if (!devtoolsClient()) return this.dispatchRequest(req, res);
+    const override = takeViewOverride(req);
+    const pathname = parseRequestUrl(req.url).pathname;
+    return runWithTrace({ method: req.method ?? "GET", path: req.url ?? "/", override }, (trace) => {
+      if (!trace) return this.dispatchRequest(req, res);
+      res.setHeader("X-Zentara-Request", trace.id);
+      const file = this.router.match(pathname)?.route.file;
+      res.once("finish", () => {
+        const session = (res as unknown as Record<symbol, Session | undefined>)[SESSION_SLOT];
+        finishTrace(trace, { status: res.statusCode, route: file ? path.relative(process.cwd(), file).split(path.sep).join("/") : undefined, session: session?.toJSON() });
+      });
+      return this.dispatchRequest(req, res);
+    });
+  }
+
+  private async dispatchRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const url = parseRequestUrl(req.url);
     const ctx = createContext(req, res, { bodyLimit: this.config.bodyLimit, logger: this.logger }, url);
+    // Untuk jejak request saat pengembangan: session dibaca setelah respons selesai.
+    if (devtoolsClient()) {
+      Object.defineProperty(res, SESSION_SLOT, { get: () => (ctx as unknown as Record<symbol, Session | undefined>)[SESSION_SLOT], configurable: true });
+    }
     const result = await compose(this.middleware, (c) => this.route(c))(ctx);
     this.send(req, res, result);
   }
@@ -137,6 +174,7 @@ export class ZenRuntime {
     if (!match) {
       // Script widget chat pengembangan: hanya ada saat devtools aktif, selain itu 404.
       if (ctx.path.startsWith("/_zentara/dev/")) {
+        if (ctx.method === "GET" && devtoolsClient() && (ctx.path === "/_zentara/dev/requests" || ctx.path.startsWith("/_zentara/dev/requests/"))) return requestTraces(ctx);
         if ((ctx.method === "GET" || ctx.method === "HEAD") && sendDevAsset(ctx.req, ctx.res, ctx.path)) return undefined;
         throw new RouteNotFoundError();
       }
@@ -192,7 +230,7 @@ export class ZenRuntime {
     }
 
     let body = response.body;
-    if (typeof body === "string" && isHtml(response.headers)) body = this.withDevTools(req, body);
+    if (typeof body === "string" && isHtml(response.headers)) body = this.withDevTools(req, res, body);
 
     res.statusCode = response.status;
     for (const [key, value] of Object.entries(response.headers)) res.setHeader(key, value);
@@ -202,11 +240,12 @@ export class ZenRuntime {
   }
 
   /** Saat pengembangan: sisipkan widget chat Zentara AI ke halaman HTML. Di produksi tidak mengubah apa pun. */
-  private withDevTools(req: IncomingMessage, html: string): string {
-    if (!devtoolsClient()) return html;
+  private withDevTools(req: IncomingMessage, res: ServerResponse, html: string): string {
+    if (!devtoolsClient() || requestOverride()?.shot) return html;
     const file = this.router.match(parseRequestUrl(req.url).pathname)?.route.file;
     const route = file ? path.relative(process.cwd(), file).split(path.sep).join("/") : undefined;
-    return injectDevTools(html, { route, headers: req.headers });
+    const request = res.getHeader("X-Zentara-Request");
+    return injectDevTools(html, { route, headers: req.headers, request: typeof request === "string" ? request : undefined });
   }
 
   private sendError(req: IncomingMessage, res: ServerResponse, err: unknown): void {
@@ -235,7 +274,7 @@ export class ZenRuntime {
       type = "application/json; charset=utf-8";
     } else if (wantsHtml) {
       // Browser: halaman error yang rapi. Detail (stack trace, kode) hanya saat debug.
-      body = this.withDevTools(req, this.errorHtml(req, err, status, httpError));
+      body = this.withDevTools(req, res, this.errorHtml(req, err, status, httpError));
       type = "text/html; charset=utf-8";
     } else {
       body = message;
@@ -300,4 +339,46 @@ export class ZenRuntime {
 function isHtml(headers: Record<string, unknown>): boolean {
   const key = Object.keys(headers).find((k) => k.toLowerCase() === "content-type");
   return key !== undefined && String(headers[key]).toLowerCase().startsWith("text/html");
+}
+
+/**
+ * Varian tampilan dari `view_page` (`?__zentara_lang=en`, `?__zentara_mode=dark`): dibuang dari URL
+ * sebelum routing supaya aplikasi tidak melihatnya, lalu berlaku untuk request ini saja.
+ */
+function takeViewOverride(req: IncomingMessage): RequestOverride | undefined {
+  const raw = req.url ?? "/";
+  if (!raw.includes("__zentara_")) return undefined;
+  const q = raw.indexOf("?");
+  if (q < 0) return undefined;
+  const params = new URLSearchParams(raw.slice(q + 1));
+  const lang = params.get("__zentara_lang");
+  const mode = params.get("__zentara_mode");
+  const shot = params.get("__zentara_shot");
+  params.delete("__zentara_lang");
+  params.delete("__zentara_mode");
+  params.delete("__zentara_shot");
+  const rest = params.toString();
+  req.url = raw.slice(0, q) + (rest ? `?${rest}` : "");
+  const override: RequestOverride = {};
+  if (lang === "id" || lang === "en") override.locale = lang;
+  if (mode === "light" || mode === "dark") override.mode = mode;
+  if (shot === "1") override.shot = true;
+  return override.locale || override.mode || override.shot ? override : undefined;
+}
+
+/** `GET /_zentara/dev/requests[/<id>]`: jejak request terbaru, hanya dengan token devtools. */
+function requestTraces(ctx: ZenContext): ZenResponse {
+  const devtools = devtoolsClient();
+  const given = ctx.req.headers["x-zentara-token"];
+  const a = Buffer.from(typeof given === "string" ? given : "");
+  const b = Buffer.from(devtools?.token ?? "");
+  if (!devtools || a.length !== b.length || !timingSafeEqual(a, b)) throw new HttpError(401);
+  const headers = { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" };
+  const id = ctx.path.slice("/_zentara/dev/requests/".length);
+  if (ctx.path.length > "/_zentara/dev/requests/".length) {
+    const trace = findTrace(decodeURIComponent(id));
+    if (!trace) throw new HttpError(404);
+    return new ZenResponse(JSON.stringify(trace), { headers });
+  }
+  return new ZenResponse(JSON.stringify({ requests: recentTraces() }), { headers });
 }

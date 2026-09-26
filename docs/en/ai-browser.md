@@ -31,7 +31,7 @@ Values of password fields, hidden fields, fields named like `token`/`secret`/`ca
 
 After changing a page, Zentara AI **must** call the `view_page` tool for that page on a desktop and a mobile screen and fix what it finds, just like the typecheck and tests. If problems remain after two attempts, the AI reports the findings as they are and the task is not marked done.
 
-- **A browser tab is open** (any page with the widget): the page is loaded in a hidden iframe in that tab, with your login cookie, at 1280×800 (`desktop`) or 390×844 (`mobile`). The chat keeps running.
+- **A browser tab is open** (any page with the widget): the page is loaded in a hidden iframe in that tab, with your login cookie, at 1280×800 (`desktop`), 768×1024 (`tablet`), or 390×844 (`mobile`). The chat keeps running.
 - **No tab is open:** the AI uses a text version from the server (no JavaScript, not logged in). If the page redirects to `/login`, the AI says so.
 
 An example call by the AI:
@@ -39,6 +39,42 @@ An example call by the AI:
 ```json
 { "url": "/notes", "viewport": "mobile", "expect": { "text": ["Add"], "selector": ["table"], "noConsoleErrors": true, "noLayoutIssues": true } }
 ```
+
+Besides elements and findings, a `view_page` result also includes:
+
+- **the file and line that created each element**, e.g. `- button "Save" @24,310 120x40 ← src/app/routes/notes.ts:31`, so the AI knows which line to change;
+- a **page score** from 0 to 100 (see below);
+- **the server side of the page's request**: processing time, database queries with their timing, repeated (N+1) queries, and logs.
+
+Extra options:
+
+| Option | Meaning |
+| --- | --- |
+| `viewport: "tablet"` | 768×1024 tablet screen |
+| `theme: "dark"` / `"light"` | force dark or light mode for this one view (UI kit pages) |
+| `lang: "en"` / `"id"` | render the page in that language for this one view |
+| `screenshot: true` | also capture a PNG of the page; Claude models receive it as an image |
+| `expect.minScore` | fail when the page score is below this number |
+
+The `theme` and `lang` variants only apply to that request (through the `__zentara_mode` and `__zentara_lang` parameters, removed before routing), so other pages and your tab stay the same.
+
+### Page score
+
+| Part | Deducted when |
+| --- | --- |
+| Speed | the page takes more than 1.5 s (-7) or 3 s (-15) to load |
+| Size | more than 1 MB (-7) or 2 MB (-15) in total |
+| Requests | more than 30 (-5) or 60 requests (-10) |
+| SEO | no `<title>` (-10), no meta description (-5), not exactly one `h1` (-5), no `lang` on `<html>` (-5) |
+| Accessibility | images without `alt`, form fields without a label, buttons or links without a name (-5 each) |
+
+The score does not change the `ok`/`fail` status unless you use `expect.minScore` or `--min-score`. The text version only scores what it can read from HTML (HTML size, SEO, and `alt`).
+
+### Screenshots
+
+`screenshot: true` (or `zentara view --screenshot`) opens the page in the headless Chrome, Chromium, or Edge already installed on your computer, at the same screen size, and saves it in `.zentara/screenshots/`. No browser is downloaded; if none is found, set `CHROME_PATH` to the browser's executable. The page is opened without a login and without the development widget.
+
+Claude models receive the image along with the text result, so they can judge the look visually. OpenAI-format providers do not accept images in tool results, so they only get the file path and a note.
 
 ### Layout checks
 
@@ -60,11 +96,56 @@ The framework's own welcome and error pages are not checked for `style`, `kit`, 
 You can see the same result yourself. When `zentara dev` or the interactive CLI is running and a browser tab is open, `zentara view` uses that tab; otherwise the text version. It exits with 1 when there are findings, errors, or a missing `--text`.
 
 ```bash
-npx zentara view /notes                    # elements, console errors, and layout checks
-npx zentara view /notes --mobile           # phone screen (390 px)
+npx zentara view /notes                    # elements, console errors, layout checks, and score
+npx zentara view /notes --mobile           # phone screen (390 px); --tablet for 768 px
+npx zentara view /notes --dark --lang en   # dark mode and English variants
+npx zentara view /notes --screenshot       # save a PNG in .zentara/screenshots/
 npx zentara view /login --text "Sign in"   # fails when the text is missing
+npx zentara view / --min-score 90          # fails when the score is below 90
 npx zentara view /api/hello --json
 ```
+
+## Developer tools
+
+All of these exist only while `zentara dev` is running, and Zentara AI can read all of their data too.
+
+### Request toolbar
+
+Next to the **Ask Zentara AI** button is a small button with the page request's processing time and query count, e.g. `42 ms · 3 queries`. A red **N+1** mark appears when the same query runs three or more times in one request (usually a query inside a loop; load it at once with a join or `inArray`). Click it to see:
+
+- the processing time and the total time spent in the database;
+- every query with its duration (SQLite; Postgres without per-query timing);
+- the session contents (values with names like `password`, `token`, `csrf`, `key` are hidden);
+- `console.log`/`warn`/`error` calls made during that request.
+
+The dev server keeps the last 50 requests in memory. From the terminal or the AI:
+
+```bash
+npx zentara requests                 # last 50 requests, newest first
+npx zentara requests --path /notes   # only paths starting with /notes
+npx zentara requests <id>            # details: queries, N+1, session, logs
+npx zentara requests --json
+```
+
+Zentara AI uses the `request_log` tool for the same thing, and `view_page` results already include the request of the page they looked at. Every response carries an `X-Zentara-Request` header with its id.
+
+### Inspect mode
+
+The **⌖ Inspect** button next to the widget: hover any element to see the file and line of code that created it (e.g. `src/app/routes/notes.ts:31`). Click an element to open the chat with a question about it (its location is also copied to the clipboard). Esc exits.
+
+The location is recorded by `h()` during development as a `data-zsrc` attribute: HTML elements from your code get the line that created them, and UI kit components get the line where you used them. In production the attribute does not exist and `h()` records nothing.
+
+### Step recording
+
+The widget records the last 30 steps in that tab: pages opened, clicks, inputs (secret field values are replaced with `•••`), and submitted forms. When you ask the AI, these steps are attached along with the page view, so the AI can reproduce the bug the way you hit it. The recording lives only in that tab's `sessionStorage`.
+
+### Automatic reload
+
+After a file changes and the dev server finishes restarting, every open app tab reloads. A tab with unsent form input is not reloaded (a notice appears instead), and while Zentara AI works on a task from the browser, the reload waits until the task finishes.
+
+### Voice input
+
+The microphone button in the chat box (welcome page, error page, and widget) turns speech into text in the Zentara language (`id-ID` or `en-US`). It only appears in browsers that support the Web Speech API (Chrome, Edge, Safari). In Chrome, speech recognition is processed by Google's service.
 
 ## AI task journal
 
@@ -81,7 +162,7 @@ Only the development server injects the widget. There is nothing to remove befor
 
 - the app server only injects it when debug mode is on, the app was started by `zentara dev` or the interactive CLI (which set `ZENTARA_DEV=1` and the devtools token), and `NODE_ENV` is not `production`;
 - `zentara start` removes the development server variables from the environment;
-- in production `/_zentara/dev/probe.js` and `/_zentara/dev/widget.js` answer 404, and your HTML is left untouched;
+- in production `/_zentara/dev/probe.js`, `/_zentara/dev/widget.js`, and `/_zentara/dev/requests` answer 404, your HTML is left untouched (no `data-zsrc`), no request traces are recorded, and the `__zentara_*` variant parameters have no effect;
 - HTML fragments (without `<html>`/`<body>`) and htmx requests are never touched.
 
 The e2e tests check that production pages do not include the widget, including when the devtools variables leak into the environment and `ZENTARA_DEBUG=1` is set.

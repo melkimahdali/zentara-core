@@ -13,7 +13,9 @@ import type { AgentResult } from "./ai/agent.js";
 import { createTerminalSession } from "./ai/session.js";
 import { c } from "./ai/terminal.js";
 import { readDevtoolsInfo, startDevtools, type Devtools } from "./dev/devtools.js";
-import { resolveViewTarget, viewPage, ViewUnreachableError, type ViewExpect, type Viewport } from "./dev/view.js";
+import { parseVariant, resolveViewTarget, viewPage, ViewUnreachableError, type ViewExpect, type ViewVariant, type Viewport } from "./dev/view.js";
+import { formatTrace, formatTraceList } from "./dev/requests.js";
+import type { RequestTrace } from "./core/devtrace.js";
 import { readTaskLog } from "./ai/task-log.js";
 import { DEV_ONLY_ENV } from "./core/devpage/info.js";
 import { startRepl } from "./repl/repl.js";
@@ -61,7 +63,7 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
     const [key, inline] = arg.slice(2).split("=", 2) as [string, string | undefined];
     const next = argv[i + 1];
     if (inline !== undefined) flags[key] = inline;
-    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule", "url", "text", "limit", "report", "group", "accent", "radius", "font", "mode"].includes(key)) {
+    else if (next !== undefined && !next.startsWith("--") && ["methods", "dir", "name", "data", "schedule", "url", "text", "limit", "report", "group", "accent", "radius", "font", "mode", "lang", "min-score", "path"].includes(key)) {
       flags[key] = next;
       i++;
     } else flags[key] = true;
@@ -288,7 +290,7 @@ async function listRoutes(args: ParsedArgs, io: CliIO): Promise<number> {
 }
 
 const KNOWN_COMMANDS = new Set([
-  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "make:job", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang", "jobs", "jobs:run", "view", "ai:log", "ui", "theme",
+  "help", "dev", "build", "start", "routes", "make:route", "make:middleware", "make:job", "ai", "ai:status", "ai:setup", "undo", "db:generate", "db:migrate", "db:seed", "lang", "jobs", "jobs:run", "view", "requests", "ai:log", "ui", "theme",
 ]);
 
 /** Bahasa CLI: env ZENTARA_LANG, lalu `locale` di zentara.config.mjs, lalu preferensi global, lalu Indonesia. */
@@ -657,15 +659,22 @@ async function viewCommand(args: ParsedArgs, io: CliIO): Promise<number> {
   }
   loadDotEnv(io.cwd);
   let base = typeof args.flags.url === "string" ? args.flags.url : undefined;
-  const viewport: Viewport = args.flags.mobile ? "mobile" : "desktop";
+  const viewport: Viewport = args.flags.mobile ? "mobile" : args.flags.tablet ? "tablet" : "desktop";
   const texts = typeof args.flags.text === "string" ? args.flags.text.split(",").map((s) => s.trim()).filter(Boolean) : [];
-  const expect: ViewExpect = { text: texts };
+  const minScore = Number(args.flags["min-score"]);
+  const expect: ViewExpect = { text: texts, ...(args.flags["min-score"] !== undefined && Number.isFinite(minScore) ? { minScore } : {}) };
+  const variant: ViewVariant = parseVariant({ theme: args.flags.dark ? "dark" : args.flags.light ? "light" : undefined, lang: args.flags.lang });
+  const screenshot = args.flags.screenshot === true;
   try {
     base ??= `http://localhost:${resolveConfig(await loadConfigFile(io.cwd), process.env, io.cwd).port}`;
     resolveViewTarget(target, base);
     // Bila `zentara dev`/CLI interaktif berjalan, lewat devtools: halaman dilihat di tab browser yang terhubung.
-    const result = (await viewThroughDevtools(io.cwd, { path: target, viewport, expect, base })) ?? (await viewPage({ path: target, viewport, expect }, undefined, { fallbackBase: base }));
-    if (args.flags.json) io.out(JSON.stringify(result, null, 2));
+    const result =
+      (await viewThroughDevtools(io.cwd, { path: target, viewport, expect, base, ...variant, screenshot })) ??
+      (await viewPage({ path: target, viewport, expect, variant, screenshot }, undefined, { fallbackBase: base, root: io.cwd }));
+    // Gambar sudah tersimpan di .zentara/screenshots/ (path-nya ada di summary.screenshot).
+    const { screenshot: _image, ...shown } = result;
+    if (args.flags.json) io.out(JSON.stringify(shown, null, 2));
     else io.out(result.text);
     return result.ok ? 0 : 1;
   } catch (err) {
@@ -676,7 +685,7 @@ async function viewCommand(args: ParsedArgs, io: CliIO): Promise<number> {
 
 async function viewThroughDevtools(
   root: string,
-  body: { path: string; viewport: Viewport; expect: ViewExpect; base: string },
+  body: { path: string; viewport: Viewport; expect: ViewExpect; base: string; theme?: string; lang?: string; screenshot?: boolean },
 ): Promise<Awaited<ReturnType<typeof viewPage>> | undefined> {
   const info = readDevtoolsInfo(root);
   if (!info) return undefined;
@@ -685,7 +694,7 @@ async function viewThroughDevtools(
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Zentara-Token": info.token },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(body.screenshot ? 60_000 : 30_000),
     });
     if (!res.ok) return undefined;
     const data = (await res.json()) as Awaited<ReturnType<typeof viewPage>>;
@@ -694,6 +703,37 @@ async function viewThroughDevtools(
     // Devtools sudah berhenti (file sisa): pakai versi teks.
     return undefined;
   }
+}
+
+/**
+ * `zentara requests [id] [--path /x] [--json]`: jejak request terbaru dari server `zentara dev` (sama dengan
+ * tool `request_log` AI): waktu proses, query beserta waktunya, query berulang (N+1), session, dan log.
+ */
+async function requestsCommand(args: ParsedArgs, io: CliIO): Promise<number> {
+  const info = readDevtoolsInfo(io.cwd);
+  if (!info) {
+    io.err(t().cli.requestsUnavailable);
+    return 1;
+  }
+  const id = args.positional[1];
+  let traces: RequestTrace[];
+  try {
+    const res = await fetch(`http://127.0.0.1:${info.port}/requests${id ? `?id=${encodeURIComponent(id)}` : ""}`, { headers: { "X-Zentara-Token": info.token }, signal: AbortSignal.timeout(10_000) });
+    const data = (await res.json()) as { requests?: RequestTrace[]; error?: string };
+    if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+    traces = data.requests ?? [];
+  } catch (err) {
+    io.err(`${t().cli.requestsUnavailable} (${(err as Error).message})`);
+    return 1;
+  }
+  if (id && !traces[0]) {
+    io.err(t().dev.requests.notFound(id));
+    return 1;
+  }
+  if (typeof args.flags.path === "string") traces = traces.filter((tr) => tr.path.startsWith(args.flags.path as string));
+  if (args.flags.json) io.out(JSON.stringify(id ? traces[0] : traces, null, 2));
+  else io.out(id ? formatTrace(traces[0]!, { maxQueries: 200 }) : formatTraceList(traces));
+  return 0;
 }
 
 /** `zentara ai:log`: hasil tugas Zentara AI terakhir dari journal lokal. */
@@ -855,7 +895,7 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
     io.out(version());
     return 0;
   }
-  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "make:job", "db:generate", "lang", "view", "ai:log", "ui", "theme", undefined].includes(command);
+  const needsProjectCode = !["help", "dev", "build", "start", "make:route", "make:middleware", "make:job", "db:generate", "lang", "view", "requests", "ai:log", "ui", "theme", undefined].includes(command);
   if (needsProjectCode || isNaturalLanguage(args.positional)) await ensureTypeScriptLoader(io.cwd);
   if (isNaturalLanguage(args.positional)) return runAi(args.positional.join(" "), args, io);
   switch (command) {
@@ -924,6 +964,8 @@ export async function run(argv: readonly string[], io: CliIO): Promise<number> {
       return lang(args, io, source);
     case "view":
       return viewCommand(args, io);
+    case "requests":
+      return requestsCommand(args, io);
     case "ui":
       return uiCommand(args, io);
     case "theme":

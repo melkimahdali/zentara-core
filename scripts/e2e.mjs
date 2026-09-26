@@ -181,7 +181,8 @@ try {
       const home = await waitFor(`http://127.0.0.1:${prodPort}/`);
       const homeHtml = await home.text();
       check(home.status === 200 && homeHtml.includes(expect.home) && !homeHtml.includes("window.ZentaraChat") && noWidget(homeHtml), "zentara start: halaman sambutan tanpa chat AI dan tanpa widget");
-      for (const asset of ["widget.js", "probe.js"]) check((await fetch(`http://127.0.0.1:${prodPort}/_zentara/dev/${asset}`)).status === 404, `zentara start: /_zentara/dev/${asset} tidak ada (404)`);
+      for (const asset of ["widget.js", "probe.js", "requests"]) check((await fetch(`http://127.0.0.1:${prodPort}/_zentara/dev/${asset}`, { headers: { "X-Zentara-Token": "bocor" } })).status === 404, `zentara start: /_zentara/dev/${asset} tidak ada (404)`);
+      check(!(await fetch(`http://127.0.0.1:${prodPort}/`)).headers.has("x-zentara-request") && !homeHtml.includes("data-zsrc"), "zentara start: tanpa jejak request dan tanpa data-zsrc");
       check((await fetch(`http://127.0.0.1:${prodPort}/_zentara/ui`)).status === 404, "zentara start: galeri /_zentara/ui tidak ada di produksi (404)");
       const missing = await fetch(`http://127.0.0.1:${prodPort}/tidak-ada`, { headers: { accept: "text/html" } });
       const missingHtml = await missing.text();
@@ -270,6 +271,58 @@ try {
         const textKinds = kinds(broken.out);
         check(broken.code === 1 && ["kit", "meta", "style", "image"].every((k) => textKinds.has(k)), `zentara view /rusak: temuan versi teks benar (${[...textKinds].join(", ")})`);
 
+        // Alat pengembang 12e: jejak request (waktu, query, N+1, session, log), varian, sumber elemen, muat ulang.
+        const devInfo = JSON.parse(fs.readFileSync(path.join(app, ".zentara", "devtools.json"), "utf8"));
+        const loginRes = await fetch(`http://127.0.0.1:${devPort}/login`);
+        const loginHtml = await loginRes.text();
+        const requestId = loginRes.headers.get("x-zentara-request") ?? "";
+        check(/^[\w-]+$/.test(requestId) && loginHtml.includes(`data-request="${requestId}"`), "zentara dev: setiap request punya id jejak (header dan probe)");
+        check(/data-zsrc="src\/app\/routes\/login\.ts:\d+"/.test(loginHtml), "zentara dev: elemen halaman ditandai file:baris pembuatnya (mode inspeksi)");
+        check((await fetch(`http://127.0.0.1:${devPort}/_zentara/dev/requests`)).status === 401, "zentara dev: /_zentara/dev/requests butuh token devtools");
+        fs.writeFileSync(
+          path.join(app, "src", "app", "routes", "n1.ts"),
+          'import { eq } from "drizzle-orm";\nimport { db } from "../db/index.js";\nimport { notes } from "../db/schema.js";\nexport async function GET() {\n  console.log("memuat catatan");\n  for (const id of [1, 2, 3]) await db.select().from(notes).where(eq(notes.id, id));\n  return { ok: true };\n}\n',
+        );
+        await waitFor(`http://127.0.0.1:${devPort}/n1`);
+        let n1Id = "";
+        for (let i = 0; i < 40 && !n1Id; i++) {
+          // Server dev bisa sedang dimulai ulang setelah file baru ditulis.
+          const r = await fetch(`http://127.0.0.1:${devPort}/n1`).catch(() => undefined);
+          if (r?.status === 200) n1Id = r.headers.get("x-zentara-request") ?? "";
+          else await new Promise((res) => setTimeout(res, 500));
+        }
+        const requests = shAny(process.execPath, [cli, "requests", n1Id], app);
+        check(requests.code === 0 && /3 query/.test(requests.out) && /3x SELECT/i.test(requests.out) && requests.out.includes("memuat catatan"), `zentara requests <id>: query, N+1, dan log request\n${requests.out}`);
+        const list = JSON.parse(sh(process.execPath, [cli, "requests", "--json", "--path", "/n1"], app));
+        check(list.length > 0 && list[0].repeated[0]?.count === 3 && list[0].route === "src/app/routes/n1.ts", "zentara requests --json: daftar request dengan tanda N+1 dan file route");
+        const variant = await (await waitFor(`http://127.0.0.1:${devPort}/login?__zentara_mode=dark&__zentara_lang=en`)).text();
+        check(/<html lang="en" data-zu-mode="dark"/.test(variant) && variant.includes("<h1") && !variant.includes("__zentara_"), "zentara dev: varian gelap + en untuk satu request");
+        const scored = view("/login", "--lang", "en", "--dark", "--json");
+        const scoredResult = JSON.parse(scored.out);
+        check(scoredResult.summary.theme === "dark" && scoredResult.summary.lang === "en" && scoredResult.summary.score >= 80 && /(Page score|Skor halaman): \d+\/100/.test(scoredResult.text), `zentara view --dark --lang en: varian dan skor halaman\n${scoredResult.text}`);
+        // Muat ulang otomatis: setelah file berubah dan server dev mulai ulang, tab menerima perintah reload.
+        const channel = await fetch(`http://127.0.0.1:${devInfo.port}/page-channel?url=e2e`, { headers: { "X-Zentara-Token": devInfo.token } });
+        const reader = channel.body.getReader();
+        const decoder = new TextDecoder();
+        let events = "";
+        const gotReload = (async () => {
+          // Satu read() yang menunggu dipakai ulang: read() yang ditinggal akan menelan potongan data.
+          const deadline = Date.now() + 30_000;
+          let pending = reader.read();
+          while (Date.now() < deadline && !events.includes('"reload"')) {
+            const next = await Promise.race([pending, new Promise((r) => setTimeout(() => r(undefined), 1000))]);
+            if (!next) continue;
+            if (next.done) break;
+            events += decoder.decode(next.value, { stream: true });
+            pending = reader.read();
+          }
+          return events.includes('"reload"');
+        })();
+        fs.writeFileSync(path.join(app, "src", "app", "routes", "n1.ts"), 'export const GET = () => ({ ok: "baru" });\n');
+        check(await gotReload, "zentara dev: tab yang terhubung dimuat ulang otomatis setelah file berubah");
+        await reader.cancel().catch(() => {});
+        fs.rmSync(path.join(app, "src", "app", "routes", "n1.ts"), { force: true });
+
         // Browser sungguhan (Chrome headless sebagai tab developer): pemeriksaan posisi, tumpang tindih, dan kontras.
         const chrome = findChrome();
         if (!chrome) console.log("  - Chrome tidak ditemukan (CHROME_PATH): uji tampilan di browser dilewati");
@@ -291,6 +344,14 @@ try {
             const loginResult = JSON.parse(login.out);
             check(loginResult.mode === "browser", `zentara view lewat tab browser yang terhubung ke devtools${loginResult.mode === "browser" ? "" : `\n${loginResult.text}`}`);
             check(loginResult.ok === true, `zentara view /login di browser: tanpa temuan\n${loginResult.ok ? "" : loginResult.text}`);
+            check(/← src\/app\/routes\/login\.ts:\d+/.test(loginResult.text) && typeof loginResult.summary.score === "number", `zentara view /login di browser: sumber elemen dan skor halaman\n${loginResult.text}`);
+            const tablet = JSON.parse(view("/login", "--tablet", "--json").out);
+            check(tablet.mode === "browser" && /768x1024/.test(tablet.text) && tablet.ok === true, `zentara view /login --tablet: layar 768px tanpa temuan\n${tablet.ok ? "" : tablet.text}`);
+            const dark = JSON.parse(view("/login", "--dark", "--json").out);
+            check(dark.mode === "browser" && dark.ok === true, `zentara view /login --dark: mode gelap tanpa temuan\n${dark.ok ? "" : dark.text}`);
+            const pictured = JSON.parse(view("/login", "--screenshot", "--json").out);
+            const png = pictured.summary.screenshot ? fs.readFileSync(path.join(app, pictured.summary.screenshot)) : Buffer.alloc(0);
+            check(png.subarray(1, 4).toString() === "PNG" && png.length > 5000, `zentara view --screenshot: gambar PNG halaman tersimpan (${pictured.summary.screenshot ?? pictured.text.slice(-300)})`);
             const mobile = JSON.parse(view("/login", "--mobile", "--json").out);
             check(mobile.mode === "browser" && mobile.summary.viewport === "mobile" && /390x844/.test(mobile.text), "zentara view /login --mobile: dilihat di layar 390px");
             check(mobile.ok === true, `zentara view /login --mobile di browser: tanpa temuan\n${mobile.ok ? "" : mobile.text}`);

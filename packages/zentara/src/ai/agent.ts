@@ -3,7 +3,7 @@ import type { ProviderChain } from "./chain.js";
 import { t } from "../i18n/index.js";
 import type { AgentTool, CommandResult, ToolContext, ViewRecord } from "./tools.js";
 import { ToolError } from "./tools.js";
-import { AbortedError, type ChatMessage, type ToolCall, type ToolResult } from "./types.js";
+import { AbortedError, type ChatMessage, type ToolCall, type ToolImage, type ToolResult } from "./types.js";
 
 export interface AgentUI {
   thinking(provider: string): void;
@@ -265,6 +265,7 @@ export class Agent {
         toolCalls.push({ name: call.name, ok: !res.isError });
         results.push(res);
       }
+      if (results.some((r) => r.images)) dropOlderImages(this.messages);
       this.messages.push({ role: "tool_results", results });
       if (signal?.aborted) return interrupted();
     }
@@ -288,12 +289,23 @@ export class Agent {
     if (typeof input !== "object" || input === null || Array.isArray(input) || "__invalid_json__" in input) {
       return { id: call.id, isError: true, content: t().ai.agent.badInput };
     }
+    const images: ToolImage[] = [];
+    this.options.context.images = images;
     try {
-      return { id: call.id, content: await tool.run(input as Record<string, unknown>, this.options.context) };
+      const content = await tool.run(input as Record<string, unknown>, this.options.context);
+      return images.length ? { id: call.id, content, images } : { id: call.id, content };
     } catch (err) {
       if (err instanceof ToolError) return { id: call.id, isError: true, content: err.message };
       return { id: call.id, isError: true, content: t().ai.agent.internalError((err as Error).message) };
     }
+  }
+}
+
+/** Hanya gambar terbaru yang dikirim ulang ke model: gambar lama di riwayat diganti catatan teks. */
+function dropOlderImages(messages: ChatMessage[]): void {
+  for (const m of messages) {
+    if (m.role !== "tool_results") continue;
+    for (const r of m.results) if (r.images) delete r.images;
   }
 }
 
@@ -318,7 +330,7 @@ export function pendingViews(since: ViewRecord[]): { problems: string[] } | unde
   const reachable = since.filter((v): v is Exclude<ViewRecord, { unreachable: true }> => !v.unreachable);
   if (since.length > 0 && reachable.length === 0) return undefined;
   const latest = new Map<string, (typeof reachable)[number]>();
-  for (const v of reachable) latest.set(`${v.path} ${v.viewport}`, v);
+  for (const v of reachable) latest.set(`${v.path} ${v.viewport} ${v.theme ?? ""} ${v.lang ?? ""}`, v);
   const seen = new Set([...latest.values()].map((v) => v.viewport));
   if (!seen.has("desktop") || !seen.has("mobile")) return { problems: [] };
   const problems = [...latest.values()]

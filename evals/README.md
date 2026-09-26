@@ -2,19 +2,19 @@
 
 [English](README.en.md)
 
-Folder ini berisi rancangan **eval Zentara AI**: satu set tugas standar yang dijalankan terhadap proyek template untuk mengukur seberapa sering AI Zentara menyelesaikan pekerjaan nyata dengan benar, berapa langkah yang dibutuhkan, dan berapa biayanya. Hasilnya akan diterbitkan per versi, misalnya "Zentara 0.15: 25/29 tugas berhasil dengan Claude".
+Folder ini berisi rancangan **eval Zentara AI**: satu set tugas standar yang dijalankan terhadap proyek template untuk mengukur seberapa sering AI Zentara menyelesaikan pekerjaan nyata dengan benar, berapa langkah yang dibutuhkan, dan berapa biayanya. Hasilnya akan diterbitkan per versi, misalnya "Zentara 0.15: 27/31 tugas berhasil dengan Claude".
 
 Status: **rancangan**. Runner belum ada. Yang sudah jadi adalah set tugas, validatornya, dan data hasil AI (`AgentResult` dan `--report`) yang nanti dibaca runner. Runner direncanakan di Tahap 15 (testing dan eval AI), dengan fondasi dari `scripts/ai-smoke.mjs`.
 
 | File | Isi |
 |---|---|
-| `tasks.json` | 29 tugas standar, masing-masing dengan prompt id dan en, bug yang disisipkan (untuk tugas perbaikan), dan cek penilaian |
+| `tasks.json` | 31 tugas standar, masing-masing dengan prompt id dan en, bug yang disisipkan (untuk tugas perbaikan), dan cek penilaian |
 | `validate-tasks.mjs` | Pemeriksa `tasks.json` tanpa AI: id unik, prompt dua bahasa, dan setiap bug sisipan cocok dengan template id maupun en |
 | `README.md`, `README.en.md` | Dokumen ini |
 
 ```bash
 node evals/validate-tasks.mjs
-# ✓ 29 tugas valid: api 5, database 2, auth 4, page 7, jobs 2, bugfix 6, safety 3
+# ✓ 31 tugas valid: api 5, database 2, auth 4, page 8, jobs 2, bugfix 7, safety 3
 ```
 
 ## Apa yang diukur
@@ -84,10 +84,16 @@ Aturan probe HTTP:
 Aturan cek halaman (`view`):
 - `url` boleh berupa `{ "id": "...", "en": "..." }` bila path-nya berbeda per bahasa.
 - `selector` = elemen yang harus ada (selector CSS), mis. `.zu-hero` untuk memastikan halaman memakai komponen kit.
-- `viewports` = ukuran layar yang diperiksa (`desktop` 1280px, `mobile` 390px); default hanya desktop.
+- `viewports` = ukuran layar yang diperiksa (`desktop` 1280px, `tablet` 768px, `mobile` 390px); default hanya desktop.
+- `themes` dan `langs` = varian yang juga diperiksa (`light`/`dark`, `id`/`en`), lewat opsi `theme` dan `lang` `view_page`; setiap kombinasi dengan `viewports` diperiksa.
+- `minScore` = skor halaman `view_page` minimal; `noScoreFindings` = tidak ada temuan skor dari jenis itu (`speed`, `size`, `requests`, `seo`, `a11y`).
 - `noLayoutIssues` = tidak ada temuan pemeriksaan tampilan `view_page` (keluar layar, saling menimpa, teks terpotong, gambar rusak, kontras).
 - `noCustomCss` = tidak ada atribut `style`, tag `<style>`, atau stylesheet selain milik kit di halaman itu, dan tidak ada file `.css` baru di proyek.
 - `config` (di `checks`) = nilai di `zentara.config.mjs` setelah AI selesai, mis. `{ "ui.accent": "blue" }`.
+
+Aturan cek request (`requests`), dibaca dari jejak request server dev (`zentara requests --json`) setelah halaman dibuka sebagai aktor `as`:
+- `noRepeatedQueries` = tidak ada query identik yang dijalankan tiga kali atau lebih (N+1);
+- `maxQueries` = batas jumlah query untuk satu request itu.
 
 ## Alur satu run
 
@@ -131,7 +137,7 @@ Hal lain yang tetap berlaku untuk runner:
 
 - `npm run eval` (Tahap 15) dengan filter `--task`, `--category`, `--lang`, `--provider`, dan `--repeat`. Tanpa API key, runner berhenti dengan pesan yang sama seperti `ai-smoke.mjs`.
 - Workflow GitHub Actions `eval.yml`: manual (`workflow_dispatch`) seperti AI smoke, ditambah jadwal mingguan bila biayanya sudah diketahui. Minimal Claude dan OmniRoute.
-- Perkiraan jumlah run satu putaran penuh: 29 tugas × 2 bahasa × 3 percobaan = 174 run per provider. Biaya nyata diukur di putaran pertama, lalu dijadikan batas anggaran (runner berhenti bila melewati batas).
+- Perkiraan jumlah run satu putaran penuh: 31 tugas × 2 bahasa × 3 percobaan = 186 run per provider. Biaya nyata diukur di putaran pertama, lalu dijadikan batas anggaran (runner berhenti bila melewati batas).
 - Hasil diringkas ke halaman dokumentasi `eval.html` (id dan en) per versi: tingkat keberhasilan per kategori, langkah dan biaya rata-rata, serta perbandingan dengan versi sebelumnya. Penurunan tajam dari versi sebelumnya menjadi alarm dini bila prompt, tool, atau model memburuk.
 
 ## Tahapan

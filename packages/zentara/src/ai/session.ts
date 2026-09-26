@@ -83,7 +83,9 @@ export function createAiSession(options: AiSessionOptions): AiSession {
   function persist(): void {
     if (!options.persist || agent.history.length === 0) return;
     try {
-      saveSession(root, { id, title, createdAt, updatedAt: new Date().toISOString(), messages: agent.history });
+      // Gambar (tangkapan layar) tidak disimpan: file PNG-nya sudah ada di .zentara/screenshots/.
+      const messages = agent.history.map((m) => (m.role === "tool_results" && m.results.some((r) => r.images) ? { ...m, results: m.results.map(({ images: _images, ...r }) => r) } : m));
+      saveSession(root, { id, title, createdAt, updatedAt: new Date().toISOString(), messages });
     } catch (err) {
       ui.info(t().ai.session.saveFailed((err as Error).message));
     }
